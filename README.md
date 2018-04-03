@@ -7,10 +7,11 @@ Identity Provider di test per SPID
 
 Questo repository ospita lo sviluppo di un nuovo Identity Provider di test per consentire agli sviluppatori di verificare le proprie integrazioni con [SPID](https://www.spid.gov.it) in modo semplice, ottenendo messaggi diagnostici chiari ed essere certi dell'interoperabilità.
 
-**WORK IN PROGRESS**
+## Board Kanban attività
+[SPID Environment](https://trello.com/b/ISkTVBDY/spid-environment)
 
+**WORK IN PROGRESS**
 Per ora si raccomanda di usare l'IdP di test già disponibile in https://github.com/italia/spid-testenv 
 
 ## Link
-
 * [SPID](https://developers.italia.it/it/spid) su Developers Italia
