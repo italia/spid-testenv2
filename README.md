@@ -10,7 +10,7 @@ Questo repository ospita lo sviluppo di un nuovo Identity Provider di test per c
 ## Board Kanban attività
 [SPID Environment](https://trello.com/b/ISkTVBDY/spid-environment)
 
-**WORK IN PROGRESS**
+## WORK IN PROGRESS
 Per ora si raccomanda di usare l'IdP di test già disponibile in https://github.com/italia/spid-testenv 
 
 ## Link
