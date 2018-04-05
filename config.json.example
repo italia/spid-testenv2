@@ -1,0 +1,34 @@
+{
+    "debug": true,
+    "host": "0.0.0.0",
+    "port": 8088,
+    "secret_key": "sosecret",
+    "entityid": "http://<host>:<port>",
+    "https": false,
+    "description": "Spid Test IDP",
+    "name": "Spid test IdP",
+    "endpoints": {
+        "sso": {
+            "http-redirect": "<relative-url>",
+            "http-post":  "<relative-url>"
+        },
+        "slo": {
+            "http-redirect":  "<relative-url>",
+            "http-post":  "<relative-url>"
+        }
+    },
+    "key_file": "<absolute-path>",
+    "cert_file": "<absolute-path>"
+    "sign_assertions": true,
+    "attribute_statement_on_response": true,
+    "metadata": {
+        "local": [
+            "<absolute-path>"
+        ],
+        "remote": [
+            {
+                "url": "<absolute-url>",
+                "cert": "<absolute-path>"
+        ]
+    }
+}

@@ -1,0 +1,3 @@
+Flask==0.12.2
+pyopenssl
+pysaml2==4.5.0
