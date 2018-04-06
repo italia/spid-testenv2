@@ -10,6 +10,7 @@ from flask import Flask, Response, abort, request
 from passlib.hash import sha512_crypt
 from saml2 import (BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, BINDING_SOAP,
                    BINDING_URI, NAMESPACE)
+from saml2.assertion import Assertion
 from saml2.authn_context import (PASSWORD, UNSPECIFIED, AuthnBroker,
                                  authn_context_class_ref)
 from saml2.config import Config as Saml2Config
@@ -88,6 +89,30 @@ FORM_ADD_USER = '''
 </form>
 '''
 
+CONFIRM_PAGE = '''
+<html>
+    <head>
+    </head>
+    <body>
+        Do you want to transmit the following attributes?
+        <table border=1>
+            <thead>
+                <tr>
+                    <th>attribute</th>
+                </tr>
+            </thead>
+            <tbody>
+                {}
+            </tbody>
+        </table>
+        <form name="make_response" method="post" action="{}">
+            <input type="hidden" name="request_key" value="{}" />
+            <input type="submit"/>
+        </form>
+    </body>
+</html>
+'''
+
 
 class AbstractUserManager(object):
     """
@@ -132,6 +157,7 @@ class JsonUserManager(AbstractUserManager):
 class IdpServer(object):
 
     ticket = {}
+    responses = {}
     _binding_mapping = {
         'http-redirect': BINDING_HTTP_REDIRECT,
         'http-post': BINDING_HTTP_POST
@@ -213,6 +239,7 @@ class IdpServer(object):
         self.app.add_url_rule('/slo/<path:binding>', 'slo', self.slo, methods=['GET',])
         self.app.add_url_rule('/login', 'login', self.login, methods=['POST',])
         self.app.add_url_rule('/add-user', 'add_user', self.add_user, methods=['GET', 'POST',])
+        self.app.add_url_rule('/continue-response', 'continue_response', self.continue_response, methods=['POST',])
 
     def _prepare_server(self, config):
         """
@@ -397,8 +424,6 @@ class IdpServer(object):
                 sp_id
             )
             if user_id is not None:
-                # TODO: retrieve attributes by groups
-                # TODO: add an authorization page to give permission to send attributes
                 identity = user['attrs']
                 destination = authn_request.message.assertion_consumer_service_url
                 spid_level = authn_request.message.requested_authn_context.authn_context_class_ref[0].text
@@ -422,7 +447,22 @@ class IdpServer(object):
                     BINDING_HTTP_POST,
                     "%s" % response, destination, response=True, sign=self.sign_assertion
                 )
-                return http_args['data'], 200
+                ast = Assertion(identity)
+                policy = self.server.config.getattr("policy", "idp")
+                ast.acs = self.server.config.getattr("attribute_converters", "idp")
+                res = ast.apply_policy(sp_id, policy, self.server.metadata)
+                attrs = res.keys()
+                attrs_list = ''
+                for _attr in attrs:
+                    attrs_list = '{}<tr><td>{}</td></tr>'.format(attrs_list, _attr)
+                self.responses[key] = http_args['data']
+                return CONFIRM_PAGE.format(attrs_list, '/continue-response', key), 200
+        abort(403)
+
+    def continue_response(self):
+        key = request.form['request_key']
+        if key and key in self.ticket and key in self.responses:
+            return self.responses[key], 200
         abort(403)
 
     def slo(self, binding):
