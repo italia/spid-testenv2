@@ -8,11 +8,11 @@
     "description": "Spid Test IDP",
     "name": "Spid test IdP",
     "endpoints": {
-        "sso": {
+        "single_sign_on_service": {
             "http-redirect": "<relative-url>",
             "http-post":  "<relative-url>"
         },
-        "slo": {
+        "single_logout_service": {
             "http-redirect":  "<relative-url>",
             "http-post":  "<relative-url>"
         }
