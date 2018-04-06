@@ -323,8 +323,6 @@ class IdpServer(object):
         """
         Process Http-Redirect or Http-POST request
 
-        FIXME: check Http-POST binding
-
         :param request: Flask request object
         """
         self.app.logger.info("Http-Redirect")
@@ -478,8 +476,6 @@ class IdpServer(object):
         """
         SLO endpoint
 
-        FIXME: check how to get the real binding for consumer url!
-
         :param binding: 'redirect' is http-redirect, 'post' is http-post binding
         """
 
@@ -489,13 +485,13 @@ class IdpServer(object):
         req_info = self.server.parse_logout_request(saml_msg['SAMLRequest'], _binding)
         msg = req_info.message
         response = self.server.create_logout_response(
-            msg, [BINDING_HTTP_POST],
+            msg, [BINDING_HTTP_POST, BINDING_HTTP_REDIRECT],
             sign_alg=SIGN_ALG,
             sign=self.sign_assertion
         )
         binding, destination = self.server.pick_binding(
             "single_logout_service",
-            [BINDING_HTTP_POST], "spsso",
+            [BINDING_HTTP_POST, BINDING_HTTP_REDIRECT], "spsso",
             req_info
         )
         http_args = self.server.apply_binding(
