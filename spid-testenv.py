@@ -162,6 +162,7 @@ class IdpServer(object):
         'http-redirect': BINDING_HTTP_REDIRECT,
         'http-post': BINDING_HTTP_POST
     }
+    _endpoint_types = ['single_sign_on_service', 'single_logout_service']
 
     def __init__(self, app, config, *args, **kwargs):
         # bind Flask app
@@ -221,22 +222,25 @@ class IdpServer(object):
                 "loglevel": "debug",
             }
         }
-        for binding, endpoint in self._config['endpoints']['sso'].items():
-            idp_conf['service']['idp']['endpoints']['single_sign_on_service'].append(
-                ('{}{}'.format(self._config['entityid'], endpoint), self._binding_mapping.get(binding))
-            )
-        for binding, endpoint in self._config['endpoints']['slo'].items():
-            idp_conf['service']['idp']['endpoints']['single_logout_service'].append(
-                ('{}{}'.format(self._config['entityid'], endpoint), self._binding_mapping.get(binding))
-            )
+        # setup services url
+        for _service_type in self._endpoint_types:
+            for binding, endpoint in self._config['endpoints'][_service_type].items():
+                idp_conf['service']['idp']['endpoints'][_service_type].append(
+                    ('{}{}'.format(self._config['entityid'], endpoint), self._binding_mapping.get(binding))
+                )
         return idp_conf
 
     def _setup_app_routes(self):
         """
         Setup Flask routes
         """
-        self.app.add_url_rule('/sso/<path:binding>', 'sso', self.sso, methods=['GET',])
-        self.app.add_url_rule('/slo/<path:binding>', 'slo', self.slo, methods=['GET',])
+        endpoints = self._config.get('endpoints')
+        if endpoints:
+            for ep_type in self._endpoint_types:
+                _ep_config = endpoints.get(ep_type)
+                if _ep_config:
+                    for _binding, _url in _ep_config.items():
+                        self.app.add_url_rule(_url, '{}_{}'.format(ep_type, _binding), getattr(self, ep_type), methods=['GET',])
         self.app.add_url_rule('/login', 'login', self.login, methods=['POST',])
         self.app.add_url_rule('/add-user', 'add_user', self.add_user, methods=['GET', 'POST',])
         self.app.add_url_rule('/continue-response', 'continue_response', self.continue_response, methods=['POST',])
@@ -373,19 +377,24 @@ class IdpServer(object):
             key = self._store_request(req_info)
             return FORM_LOGIN.format('/login', key), 200
 
-    def sso(self, binding):
+    def _get_binding(self, endpoint_type, request):
+        try:
+            endpoint = request.endpoint
+            binding = endpoint.split('{}_'.format(endpoint_type))[1]
+            return self._binding_mapping.get(binding)
+        except IndexError:
+            pass
+
+    def single_sign_on_service(self):
         """
         SSO endpoint
 
         :param binding: 'redirect' is http-redirect, 'post' is http-post binding
         """
-        if binding == 'redirect':
-            _binding = BINDING_HTTP_REDIRECT
-        elif binding == 'post':
-             _binding = BINDING_HTTP_POST
-        else:
-            abort(404)
-        return self.process_request(request, _binding)
+        _binding = self._get_binding('single_sign_on_service', request)
+        if _binding:
+            return self.process_request(request, _binding)
+        abort(404)
 
     def add_user(self):
         """
@@ -465,7 +474,7 @@ class IdpServer(object):
             return self.responses[key], 200
         abort(403)
 
-    def slo(self, binding):
+    def single_logout_service(self):
         """
         SLO endpoint
 
@@ -476,10 +485,7 @@ class IdpServer(object):
 
         self.app.logger.debug("req: '%s'", request)
         saml_msg = self.unpack_args(request.args)
-        if binding == 'redirect':
-            _binding = BINDING_HTTP_REDIRECT
-        elif binding == 'post':
-            _binding = BINDING_HTTP_POST
+        _binding = self._get_binding('single_logout_service', request)
         req_info = self.server.parse_logout_request(saml_msg['SAMLRequest'], _binding)
         msg = req_info.message
         response = self.server.create_logout_response(
