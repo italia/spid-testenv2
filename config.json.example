@@ -5,6 +5,8 @@
     "secret_key": "sosecret",
     "entityid": "http://<host>:<port>",
     "https": false,
+    "https_key_file": "<absolute-path>",
+    "https_cert_file": "<absolute-path>",
     "description": "Spid Test IDP",
     "name": "Spid test IdP",
     "endpoints": {
