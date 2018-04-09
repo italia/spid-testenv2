@@ -508,7 +508,11 @@ class IdpServer(object):
             'debug': self._config.get('debug', True),
         }
         if self._config.get('https', False):
-            _cnf['ssl_context'] = 'adhoc'
+            key = self._config.get('https_key_file')
+            cert = self._config.get('https_cert_file')
+            if not key or not cert:
+                raise KeyError('Missing key or certificate needed by https mode!')
+            _cnf['ssl_context'] = (cert, key,)
         return _cnf
 
     def start(self):
