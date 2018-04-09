@@ -2,11 +2,13 @@
 import json
 import os.path
 from hashlib import sha1, sha512
-
+import random
+import string
 import pytz
 import saml2.xmldsig as ds
+from datetime import datetime, time
 from defusedxml.ElementTree import fromstring
-from flask import Flask, Response, abort, request
+from flask import Flask, Response, abort, request, redirect, url_for, session
 from passlib.hash import sha512_crypt
 from saml2 import (BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, BINDING_SOAP,
                    BINDING_URI, NAMESPACE)
@@ -75,6 +77,7 @@ FORM_LOGIN = '''
    <input type="hidden" name="relay_state" value="{}" />
    <span>Username</span><input type="text" name="username" />
    <span>Password</span><input type="password" name="password" />
+   {}
    <input type="submit"/>
 </form>
 '''
@@ -159,11 +162,18 @@ class IdpServer(object):
 
     ticket = {}
     responses = {}
+    challenges = {}
     _binding_mapping = {
         'http-redirect': BINDING_HTTP_REDIRECT,
         'http-post': BINDING_HTTP_POST
     }
     _endpoint_types = ['single_sign_on_service', 'single_logout_service']
+    _spid_levels = [
+        'https://www.spid.gov.it/SpidL1',
+        'https://www.spid.gov.it/SpidL2',
+        'https://www.spid.gov.it/SpidL3'
+    ]
+    CHALLENGES_TIMEOUT = 30 # seconds
 
     def __init__(self, app, config, *args, **kwargs):
         # bind Flask app
@@ -171,6 +181,7 @@ class IdpServer(object):
         self.user_manager = JsonUserManager()
         # setup
         self._config = config
+        self.app.secret_key = self._config.get('secret_key')
         self._prepare_server(config)
 
     def _idp_config(self):
@@ -242,7 +253,7 @@ class IdpServer(object):
                 if _ep_config:
                     for _binding, _url in _ep_config.items():
                         self.app.add_url_rule(_url, '{}_{}'.format(ep_type, _binding), getattr(self, ep_type), methods=['GET',])
-        self.app.add_url_rule('/login', 'login', self.login, methods=['POST',])
+        self.app.add_url_rule('/login', 'login', self.login, methods=['POST', 'GET',])
         self.app.add_url_rule('/add-user', 'add_user', self.add_user, methods=['GET', 'POST',])
         self.app.add_url_rule('/continue-response', 'continue_response', self.continue_response, methods=['POST',])
 
@@ -261,6 +272,15 @@ class IdpServer(object):
         self.idp_config.load(cnf=self._idp_config())
         self.server = Server(config=self.idp_config)
         self._setup_app_routes()
+        self.authn_broker = AuthnBroker()
+        for index, _level in enumerate(self._spid_levels):
+            self.authn_broker.add(
+                authn_context_class_ref(_level),
+                self.something
+            )
+
+    def something(self):
+        pass
 
     def unpack_args(self, elems):
         return dict([(k, v) for k, v in elems.items()])
@@ -327,12 +347,11 @@ class IdpServer(object):
         :param request: Flask request object
         """
         self.app.logger.info("Http-Redirect")
-        # Unpack GET parameters
+        # Unpack parameters
         saml_msg = self.unpack_args(request.args)
         try:
-            _key = saml_msg["key"]
-            saml_msg = self.ticket[_key]
-            req_info = saml_msg["req_info"]
+            _key = session['request_key']
+            req_info = self.ticket[_key]
         except KeyError as e:
             try:
                 # Parse AuthnRequest
@@ -375,7 +394,9 @@ class IdpServer(object):
             # Perform login
             key = self._store_request(req_info)
             relay_state = saml_msg.get('RelayState', '')
-            return FORM_LOGIN.format('/login', key, relay_state), 200
+            session['request_key'] = key
+            session['relay_state'] = relay_state
+        return redirect(url_for('login'))
 
     def _get_binding(self, endpoint_type, request):
         try:
@@ -399,6 +420,8 @@ class IdpServer(object):
     def add_user(self):
         """
         Add user endpoint
+
+        FIXME: handle all spid attributes
         """
         if request.method == 'GET':
             return FORM_ADD_USER.format('/add-user'), 200
@@ -418,25 +441,48 @@ class IdpServer(object):
     def login(self):
         """
         Login endpoint (verify user credentials)
-
-        FIXME: handle user session
-
         """
-        key = request.form['request_key']
-        relay_state = request.form['relay_state']
+        key = session['request_key'] if 'request_key' in session else None
+        relay_state = session['relay_state'] if 'relay_state' in session else ''
         self.app.logger.debug('Request key: {}'.format(key))
         if key and key in self.ticket:
             authn_request = self.ticket[key]
             sp_id = authn_request.message.issuer.text
+            destination = authn_request.message.assertion_consumer_service_url
+            spid_level = authn_request.message.requested_authn_context.authn_context_class_ref[0].text
+            authn_info = self.authn_broker.pick(authn_request.message.requested_authn_context)
+            method, reference = authn_info[0]
+            if request.method == 'GET':
+                if reference == '2':
+                    # spid level 2
+                    otp = ''.join(random.choice(string.digits) for _ in range(6))
+                    self.challenges[key] = [otp, datetime.now()]
+                    extra_challenge = '<span>Otp ({})</span><input type="text" name="otp" />'.format(otp)
+                else:
+                    extra_challenge = ''
+                return FORM_LOGIN.format(
+                    url_for('login'),
+                    key,
+                    relay_state,
+                    extra_challenge
+                ), 200
+            if reference == '2':
+                # spid level 2
+                if key not in self.challenges or not request.form['otp']:
+                    abort(403)
+                print((datetime.now() - self.challenges[key][1]).total_seconds())
+                if self.challenges[key][0] != request.form['otp'] or (datetime.now() - self.challenges[key][1]).total_seconds() > self.CHALLENGES_TIMEOUT:
+                    del self.challenges[key]
+                    abort(403)
+            # verify credentials
             user_id, user = self.user_manager.get(
                 request.form['username'],
                 request.form['password'],
                 sp_id
             )
             if user_id is not None:
+                # setup response
                 identity = user['attrs']
-                destination = authn_request.message.assertion_consumer_service_url
-                spid_level = authn_request.message.requested_authn_context.authn_context_class_ref[0].text
                 AUTHN = {
                     "class_ref": spid_level,
                     "authn_auth": spid_level
