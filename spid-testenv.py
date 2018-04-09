@@ -72,6 +72,7 @@ error_table = '''
 FORM_LOGIN = '''
 <form name="login" method="post" action="{}">
    <input type="hidden" name="request_key" value="{}" />
+   <input type="hidden" name="relay_state" value="{}" />
    <span>Username</span><input type="text" name="username" />
    <span>Password</span><input type="password" name="password" />
    <input type="submit"/>
@@ -373,7 +374,8 @@ class IdpServer(object):
                     self._raise_error('Message signature verification failure')
             # Perform login
             key = self._store_request(req_info)
-            return FORM_LOGIN.format('/login', key), 200
+            relay_state = saml_msg.get('RelayState', '')
+            return FORM_LOGIN.format('/login', key, relay_state), 200
 
     def _get_binding(self, endpoint_type, request):
         try:
@@ -421,6 +423,7 @@ class IdpServer(object):
 
         """
         key = request.form['request_key']
+        relay_state = request.form['relay_state']
         self.app.logger.debug('Request key: {}'.format(key))
         if key and key in self.ticket:
             authn_request = self.ticket[key]
@@ -452,7 +455,11 @@ class IdpServer(object):
                 )
                 http_args = self.server.apply_binding(
                     BINDING_HTTP_POST,
-                    "%s" % response, destination, response=True, sign=self.sign_assertion
+                    response,
+                    destination,
+                    response=True,
+                    sign=self.sign_assertion,
+                    relay_state=relay_state
                 )
                 ast = Assertion(identity)
                 policy = self.server.config.getattr("policy", "idp")
