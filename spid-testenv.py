@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
+import argparse
 import json
+import yaml
 import os.path
 from hashlib import sha1, sha512
 import random
@@ -470,7 +472,6 @@ class IdpServer(object):
                 # spid level 2
                 if key not in self.challenges or not request.form['otp']:
                     abort(403)
-                print((datetime.now() - self.challenges[key][1]).total_seconds())
                 if self.challenges[key][0] != request.form['otp'] or (datetime.now() - self.challenges[key][1]).total_seconds() > self.CHALLENGES_TIMEOUT:
                     del self.challenges[key]
                     abort(403)
@@ -577,17 +578,23 @@ class IdpServer(object):
         )
 
 
-def _get_config():
+def _get_config(f_name, f_type='yaml'):
     """
     Read server configuration from a json file
     """
-    with open('config.json', 'r') as fp:
-        return json.loads(fp.read())
-
+    with open(f_name, 'r') as fp:
+        if f_type == 'yaml':
+            return yaml.load(fp)
+        elif f_type == 'json':
+            return json.loads(fp.read())
 
 if __name__ == '__main__':
     # Init server
-    config = _get_config()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-p', dest='path', help='Path to configuration file.', default='./config.yaml')
+    parser.add_argument('-ct', dest='configuration_type', help='Configuration type [yaml|json]', default='yaml')
+    args = parser.parse_args()
+    config = _get_config(args.path, args.configuration_type)
     server = IdpServer(app=Flask(__name__), config=config)
     # Start server
     server.start()
