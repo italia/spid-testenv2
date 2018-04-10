@@ -1,35 +1,25 @@
 # -*- coding: utf-8 -*-
 import argparse
 import json
-import yaml
 import os.path
-from hashlib import sha1, sha512
 import random
 import string
-import pytz
+from datetime import datetime
+from hashlib import sha1, sha512
+
 import saml2.xmldsig as ds
-from datetime import datetime, time
-from defusedxml.ElementTree import fromstring
-from flask import Flask, Response, abort, request, redirect, url_for, session
+import yaml
+from flask import Flask, Response, abort, redirect, request, session, url_for
 from passlib.hash import sha512_crypt
-from saml2 import (BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, BINDING_SOAP,
-                   BINDING_URI, NAMESPACE)
+from saml2 import (BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, BINDING_URI,
+                   NAMESPACE)
 from saml2.assertion import Assertion
-from saml2.authn_context import (PASSWORD, UNSPECIFIED, AuthnBroker,
-                                 authn_context_class_ref)
+from saml2.authn_context import AuthnBroker, authn_context_class_ref
 from saml2.config import Config as Saml2Config
-from saml2.httputil import Response as p
-from saml2.httputil import (BadRequest, NotFound, Redirect, ServiceError,
-                            Unauthorized, get_post, geturl)
-from saml2.ident import Unknown
 from saml2.metadata import create_metadata_string
-from saml2.profile import ecp
-from saml2.s_utils import (PolicyError, UnknownPrincipal, UnsupportedBinding,
-                           exception_trace, rndstr)
-from saml2.saml import (NAME_FORMAT_URI, NAMEID_FORMAT_PERSISTENT,
-                        NAMEID_FORMAT_TRANSIENT)
+from saml2.saml import NAMEID_FORMAT_TRANSIENT, NAME_FORMAT_BASIC
 from saml2.server import Server
-from saml2.sigver import encrypt_cert_from_item, verify_redirect_signature
+from saml2.sigver import verify_redirect_signature
 
 try:
     from saml2.sigver import get_xmlsec_binary
@@ -40,12 +30,6 @@ if get_xmlsec_binary:
     xmlsec_path = get_xmlsec_binary(["/opt/local/bin"])
 else:
     xmlsec_path = '/usr/bin/xmlsec1'
-
-BASEDIR = os.path.abspath(os.path.dirname(__file__))
-
-
-def full_path(local_file):
-    return os.path.join(BASEDIR, local_file)
 
 
 SIGN_ALG  = ds.SIG_RSA_SHA1
@@ -77,8 +61,8 @@ FORM_LOGIN = '''
 <form name="login" method="post" action="{}">
    <input type="hidden" name="request_key" value="{}" />
    <input type="hidden" name="relay_state" value="{}" />
-   <span>Username</span><input type="text" name="username" />
-   <span>Password</span><input type="password" name="password" />
+   <span>Username</span> <input type="text" name="username" /><br>
+   <span>Password</span> <input type="password" name="password" /><br>
    {}
    <input type="submit"/>
 </form>
@@ -86,11 +70,11 @@ FORM_LOGIN = '''
 
 FORM_ADD_USER = '''
 <form name="add_user" method="post" action="{}">
-   <span>Username</span><input type="text" name="username" />
-   <span>Password</span><input type="password" name="password" />
-   <span>Service provider id</span><input type="text" name="service_provider" />
-   <span>Name</span><input type="text" name="name" />
-   <span>FamilyName</span><input type="text" name="familyName" />
+   <b>Credentials</b><br>
+   <span>Username</span> <input type="text" name="username" /><br>
+   <span>Password</span> <input type="password" name="password" /><br>
+   <span>Service provider id</span> <input type="text" name="service_provider" /><br>
+   {}
    <input type="submit"/>
 </form>
 '''
@@ -175,6 +159,29 @@ class IdpServer(object):
         'https://www.spid.gov.it/SpidL2',
         'https://www.spid.gov.it/SpidL3'
     ]
+    _spid_attributes = {
+        'primary': {
+            'spidCode' : 'xs:string',
+            'name': 'xs:string',
+            'familyName': 'xs:string',
+            'placeOfBirth': 'xs:string',
+            'countryOfBirth': 'xs:string',
+            'dateOfBirth': 'xs:date',
+            'gender': 'xs:string',
+            'companyName': 'xs:string',
+            'registeredOffice': 'xs:string',
+            'fiscalNumber': 'xs:string',
+            'ivaCode': 'xs:string',
+            'idCard': 'xs:string',
+        },
+        'secondary': {
+            'mobilePhone': 'xs:string',
+            'email': 'xs:string',
+            'address': 'xs:string',
+            'expirationDate': 'xs:date',
+            'digitalAddress': 'xs:string' # PEC
+        }
+    }
     CHALLENGES_TIMEOUT = 30 # seconds
 
     def __init__(self, app, config, *args, **kwargs):
@@ -201,7 +208,7 @@ class IdpServer(object):
                     },
                     "policy": {
                         "default": {
-                            "name_form": NAME_FORMAT_URI,
+                            "name_form": NAME_FORMAT_BASIC,
                         },
                     },
                     "name_id_format": [
@@ -419,24 +426,45 @@ class IdpServer(object):
             return self.process_request(request, _binding)
         abort(404)
 
+    @property
+    def _spid_main_fields(self):
+        return self._spid_attributes['primary'].keys()
+
+    @property
+    def _spid_secondary_fields(self):
+        return self._spid_attributes['secondary'].keys()
+
     def add_user(self):
         """
         Add user endpoint
 
         FIXME: handle all spid attributes
         """
+        spid_main_fields = self._spid_main_fields
+        spid_secondary_fields = self._spid_secondary_fields
+        _fields = '<br><b>{}</b><br>'.format('Primary attributes')
+        for _field_name in spid_main_fields:
+            _fields = '{}<span>{}</span> <input type="text" name={} /><br>'.format(_fields, _field_name, _field_name)
+        _fields = '{}<br><b>{}</b><br>'.format(_fields, 'Secondary attributes')
+        for _field_name in spid_secondary_fields:
+            _fields = '{}<span>{}</span> <input type="text" name={} /><br>'.format(_fields, _field_name, _field_name)
         if request.method == 'GET':
-            return FORM_ADD_USER.format('/add-user'), 200
+            return FORM_ADD_USER.format('/add-user', _fields), 200
         elif request.method == 'POST':
             username = request.form.get('username')
             password = request.form.get('password')
             sp = request.form.get('service_provider')
-            name = request.form.get('name')
-            family_name = request.form.get('familyName')
-            extra = {
-                'name': name,
-                'familyName': family_name
-            }
+            if not username or not password or not sp:
+                abort(400)
+            extra = {}
+            for spid_field in spid_main_fields:
+                spid_value = request.form.get(spid_field)
+                if spid_value:
+                    extra[spid_field] = spid_value
+            for spid_field in spid_secondary_fields:
+                spid_value = request.form.get(spid_field)
+                if spid_value:
+                    extra[spid_field] = spid_value
             self.user_manager.add(username, password, sp, extra)
         return 'Added a new user', 200
 
