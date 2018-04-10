@@ -437,8 +437,6 @@ class IdpServer(object):
     def add_user(self):
         """
         Add user endpoint
-
-        FIXME: handle all spid attributes
         """
         spid_main_fields = self._spid_main_fields
         spid_secondary_fields = self._spid_secondary_fields
