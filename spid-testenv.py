@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 import argparse
 import json
+import logging
 import os.path
 import random
 import string
 from datetime import datetime
 from hashlib import sha1, sha512
+from logging.handlers import RotatingFileHandler
 
 import saml2.xmldsig as ds
 import yaml
@@ -17,7 +19,7 @@ from saml2.assertion import Assertion
 from saml2.authn_context import AuthnBroker, authn_context_class_ref
 from saml2.config import Config as Saml2Config
 from saml2.metadata import create_metadata_string
-from saml2.saml import NAMEID_FORMAT_TRANSIENT, NAME_FORMAT_BASIC
+from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT
 from saml2.server import Server
 from saml2.sigver import verify_redirect_signature
 
@@ -201,6 +203,8 @@ class IdpServer(object):
         # setup
         self._config = config
         self.app.secret_key = self._config.get('secret_key')
+        handler = RotatingFileHandler('spid.log', maxBytes=500000, backupCount=1)
+        self.app.logger.addHandler(handler)
         self._prepare_server()
 
     def _idp_config(self):
@@ -251,7 +255,7 @@ class IdpServer(object):
                 "rotating": {
                     "filename": "idp.log",
                     "maxBytes": 500000,
-                    "backupCount": 5,
+                    "backupCount": 1,
                 },
                 "loglevel": "debug",
             }
