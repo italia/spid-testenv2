@@ -283,15 +283,52 @@ class IdpServer(object):
         self.idp_config.load(cnf=self._idp_config())
         self.server = Server(config=self.idp_config)
         self._setup_app_routes()
+        # setup custom methods in order to
+        # prepare the login form and verify the challenge (optional)
+        # for every spid level (1-2-3)
         self.authn_broker = AuthnBroker()
         for index, _level in enumerate(self._spid_levels):
             self.authn_broker.add(
                 authn_context_class_ref(_level),
-                self.something
+                getattr(self, '_verify_spid_{}'.format(index + 1))
             )
 
-    def something(self):
-        pass
+    def _verify_spid_1(self, verify=False, **kwargs):
+        return self._verify_spid(1, verify, **kwargs)
+
+    def _verify_spid_2(self, verify=False, **kwargs):
+        return self._verify_spid(2, verify, **kwargs)
+
+    def _verify_spid_3(self, verify=False, **kwargs):
+        return self._verify_spid(3, verify, **kwargs)
+
+    def _verify_spid(self, level=1, verify=False, **kwargs):
+    """
+    :param level:
+    :param verify:
+    :param kwargs:
+    """
+        if verify:
+            if level == 2:
+                # spid level 2
+                otp = kwargs.get('data').get('otp')
+                key = kwargs.get('key')
+                if key and key not in self.challenges or not otp:
+                    return False
+                if self.challenges[key][0] != otp or (datetime.now() - self.challenges[key][1]).total_seconds() > self.CHALLENGES_TIMEOUT:
+                    del self.challenges[key]
+                    return False
+            return True
+        else:
+            if level == 2:
+                # spid level 2
+                key = kwargs.get('key')
+                otp = ''.join(random.choice(string.digits) for _ in range(6))
+                self.challenges[key] = [otp, datetime.now()]
+                extra_challenge = '<span>Otp ({})</span><input type="text" name="otp" />'.format(otp)
+            else:
+                extra_challenge = ''
+            return extra_challenge
 
     def unpack_args(self, elems):
         return dict([(k, v) for k, v in elems.items()])
@@ -481,72 +518,64 @@ class IdpServer(object):
             destination = authn_request.message.assertion_consumer_service_url
             spid_level = authn_request.message.requested_authn_context.authn_context_class_ref[0].text
             authn_info = self.authn_broker.pick(authn_request.message.requested_authn_context)
-            method, reference = authn_info[0]
+            callback, reference = authn_info[0]
             if request.method == 'GET':
-                if reference == '2':
-                    # spid level 2
-                    otp = ''.join(random.choice(string.digits) for _ in range(6))
-                    self.challenges[key] = [otp, datetime.now()]
-                    extra_challenge = '<span>Otp ({})</span><input type="text" name="otp" />'.format(otp)
-                else:
-                    extra_challenge = ''
+                # inject extra data in form login based on spid level
+                extra_challenge = callback(**{'key': key})
                 return FORM_LOGIN.format(
                     url_for('login'),
                     key,
                     relay_state,
                     extra_challenge
                 ), 200
-            if reference == '2':
-                # spid level 2
-                if key not in self.challenges or not request.form['otp']:
-                    abort(403)
-                if self.challenges[key][0] != request.form['otp'] or (datetime.now() - self.challenges[key][1]).total_seconds() > self.CHALLENGES_TIMEOUT:
-                    del self.challenges[key]
-                    abort(403)
-            # verify credentials
-            user_id, user = self.user_manager.get(
-                request.form['username'],
-                request.form['password'],
-                sp_id
-            )
-            if user_id is not None:
-                # setup response
-                identity = user['attrs']
-                AUTHN = {
-                    "class_ref": spid_level,
-                    "authn_auth": spid_level
-                }
-                _data = dict(
-                    identity=identity, userid=user_id,
-                    in_response_to=authn_request.message.id,
-                    destination=destination,
-                    sp_entity_id=sp_id,
-                    authn=AUTHN, issuer=self.server.config.entityid,
-                    sign_alg=SIGN_ALG,
-                    digest_alg=DIGEST_ALG,
-                    sign_assertion=self.sign_assertion
+            # verify optional challenge based on spid level
+            verified = callback(verify=True, **{'key': key, 'data': request.form})
+            if verified:
+                # verify user credentials
+                user_id, user = self.user_manager.get(
+                    request.form['username'],
+                    request.form['password'],
+                    sp_id
                 )
-                response = self.server.create_authn_response(
-                    **_data
-                )
-                http_args = self.server.apply_binding(
-                    BINDING_HTTP_POST,
-                    response,
-                    destination,
-                    response=True,
-                    sign=self.sign_assertion,
-                    relay_state=relay_state
-                )
-                ast = Assertion(identity)
-                policy = self.server.config.getattr("policy", "idp")
-                ast.acs = self.server.config.getattr("attribute_converters", "idp")
-                res = ast.apply_policy(sp_id, policy, self.server.metadata)
-                attrs = res.keys()
-                attrs_list = ''
-                for _attr in attrs:
-                    attrs_list = '{}<tr><td>{}</td></tr>'.format(attrs_list, _attr)
-                self.responses[key] = http_args['data']
-                return CONFIRM_PAGE.format(attrs_list, '/continue-response', key), 200
+                if user_id is not None:
+                    # setup response
+                    identity = user['attrs']
+                    AUTHN = {
+                        "class_ref": spid_level,
+                        "authn_auth": spid_level
+                    }
+                    _data = dict(
+                        identity=identity, userid=user_id,
+                        in_response_to=authn_request.message.id,
+                        destination=destination,
+                        sp_entity_id=sp_id,
+                        authn=AUTHN, issuer=self.server.config.entityid,
+                        sign_alg=SIGN_ALG,
+                        digest_alg=DIGEST_ALG,
+                        sign_assertion=self.sign_assertion
+                    )
+                    response = self.server.create_authn_response(
+                        **_data
+                    )
+                    http_args = self.server.apply_binding(
+                        BINDING_HTTP_POST,
+                        response,
+                        destination,
+                        response=True,
+                        sign=self.sign_assertion,
+                        relay_state=relay_state
+                    )
+                    # Setup confirmation page data
+                    ast = Assertion(identity)
+                    policy = self.server.config.getattr("policy", "idp")
+                    ast.acs = self.server.config.getattr("attribute_converters", "idp")
+                    res = ast.apply_policy(sp_id, policy, self.server.metadata)
+                    attrs = res.keys()
+                    attrs_list = ''
+                    for _attr in attrs:
+                        attrs_list = '{}<tr><td>{}</td></tr>'.format(attrs_list, _attr)
+                    self.responses[key] = http_args['data']
+                    return CONFIRM_PAGE.format(attrs_list, '/continue-response', key), 200
         abort(403)
 
     def continue_response(self):
