@@ -374,30 +374,10 @@ class IdpServer(object):
             )
         )
 
-    def _check_authn_restrictions(self, authn_req):
-    # TODO: implement a custom check for every pysaml2 Entity (authnrequest, logoutrequest etc.)
-    # example snippet to retrieve attributes from an authn_request
-    #     version = authn_req.version
-    #     app.logger.debug('Version {}'.format(version))
-    #     if version != VERSION:
-    #         self._raise_error('Version must be "2.0"')
-    #     app.logger.debug('Issue instant {}'.format(authn_req.issue_instant))
-    #     app.logger.debug('Destination {}'.format(authn_req.destination))
-    #     app.logger.debug('ForceAuthn {}'.format(authn_req.force_authn))
-    #     assertion_consumer_service_index = authn_req.assertion_consumer_service_index
-    #     app.logger.debug('AssertionConsumerServiceIndex {}'.format(authn_req.assertion_consumer_service_index))
-    #     app.logger.debug('Subject {}'.format(authn_req.subject))
-    #     issuer = authn_req.issuer
-    #     app.logger.debug('Issuer {}'.format(issuer))
-    #     app.logger.debug('Issuer Format {}'.format(issuer.format))
-    #     app.logger.debug('Issuer Name qualifier {}'.format(issuer.name_qualifier))
-    #     name_id_policy = authn_req.name_id_policy
-    #     app.logger.debug('Name ID Policy {}'.format(name_id_policy))
-    #     app.logger.debug('Name ID Policy AllowCreate {}'.format(name_id_policy.allow_create))
-    #     app.logger.debug('Name ID Policy Format {}'.format(name_id_policy.format))
-    #     if name_id_policy.format != NAMEID_FORMAT_TRANSIENT:
-    #         self._raise_error('Name ID Policy Format is not {}'.format(NAMEID_FORMAT_TRANSIENT))
-        pass
+    def _check_saml_message_restrictions(self, obj):
+        # TODO: Implement here or somewhere (e.g. mixin on pysaml2 subclasses)
+        # the logic to validate spid rules on saml entities
+        raise NotImplementedError
 
     def _store_request(self, authnreq):
         """
