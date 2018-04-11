@@ -189,6 +189,12 @@ class IdpServer(object):
     CHALLENGES_TIMEOUT = 30 # seconds
 
     def __init__(self, app, config, *args, **kwargs):
+        """
+        :param app: Flask instance
+        :param config: dictionary containing the configuration
+        :param args:
+        :param kwargs:
+        """
         # bind Flask app
         self.app = app
         self.user_manager = JsonUserManager()
@@ -198,6 +204,9 @@ class IdpServer(object):
         self._prepare_server()
 
     def _idp_config(self):
+        """
+        Process pysaml2 configuration
+        """
         idp_conf = {
             "entityid": self._config.get('entityid', ''),
             "description": self._config.get('description', ''),
@@ -259,6 +268,7 @@ class IdpServer(object):
         """
         Setup Flask routes
         """
+        # Setup SSO and SLO endpoints
         endpoints = self._config.get('endpoints')
         if endpoints:
             for ep_type in self._endpoint_types:
@@ -267,6 +277,7 @@ class IdpServer(object):
                     for _binding, _url in _ep_config.items():
                         self.app.add_url_rule(_url, '{}_{}'.format(ep_type, _binding), getattr(self, ep_type), methods=['GET',])
         self.app.add_url_rule('/login', 'login', self.login, methods=['POST', 'GET',])
+        # Endpoint for user add action
         self.app.add_url_rule('/add-user', 'add_user', self.add_user, methods=['GET', 'POST',])
         self.app.add_url_rule('/continue-response', 'continue_response', self.continue_response, methods=['POST',])
 
@@ -294,34 +305,43 @@ class IdpServer(object):
             )
 
     def _verify_spid_1(self, verify=False, **kwargs):
+        self.app.logger.debug('spid level 1 - verify ({})'.format(verify))
         return self._verify_spid(1, verify, **kwargs)
 
     def _verify_spid_2(self, verify=False, **kwargs):
+        self.app.logger.debug('spid level 2 - verify ({})'.format(verify))
         return self._verify_spid(2, verify, **kwargs)
 
     def _verify_spid_3(self, verify=False, **kwargs):
+        self.app.logger.debug('spid level 3 - verify ({})'.format(verify))
         return self._verify_spid(3, verify, **kwargs)
 
     def _verify_spid(self, level=1, verify=False, **kwargs):
-    """
-    :param level:
-    :param verify:
-    :param kwargs:
-    """
+        """
+        :param level: integer, SPID level
+        :param verify: boolean, if True verify spid extra challenge (otp etc.), if False prepare the challenge
+        :param kwargs: dictionary, extra arguments
+        """
         if verify:
+            # Verify the challenge
             if level == 2:
                 # spid level 2
                 otp = kwargs.get('data').get('otp')
                 key = kwargs.get('key')
                 if key and key not in self.challenges or not otp:
                     return False
-                if self.challenges[key][0] != otp or (datetime.now() - self.challenges[key][1]).total_seconds() > self.CHALLENGES_TIMEOUT:
+                total_seconds = (datetime.now() - self.challenges[key][1]).total_seconds()
+                # Check that opt value is equal and not expired
+                if self.challenges[key][0] != otp or total_seconds > self.CHALLENGES_TIMEOUT:
                     del self.challenges[key]
                     return False
             return True
         else:
+            # Prepare the challenge
             if level == 2:
                 # spid level 2
+                # very simple otp implementation, while opt is a random 6 digits string
+                # with a lifetime setup in the server instance
                 key = kwargs.get('key')
                 otp = ''.join(random.choice(string.digits) for _ in range(6))
                 self.challenges[key] = [otp, datetime.now()]
@@ -331,6 +351,9 @@ class IdpServer(object):
             return extra_challenge
 
     def unpack_args(self, elems):
+        """
+        Unpack arguments from request
+        """
         return dict([(k, v) for k, v in elems.items()])
 
     def _raise_error(self, msg, extra=None):
@@ -378,7 +401,7 @@ class IdpServer(object):
 
         :param authnreq: authentication request string
         """
-        self.app.logger.debug("_store_request: %s", authnreq)
+        self.app.logger.debug('store_request: {}'.format(authnreq))
         key = sha1(authnreq.xmlstr).hexdigest()
         # store the AuthnRequest
         self.ticket[key] = authnreq
@@ -467,10 +490,16 @@ class IdpServer(object):
 
     @property
     def _spid_main_fields(self):
+        """
+        Returns a list of spid main attributes
+        """
         return self._spid_attributes['primary'].keys()
 
     @property
     def _spid_secondary_fields(self):
+        """
+        Returns a list of spid secondary attributes
+        """
         return self._spid_attributes['secondary'].keys()
 
     def add_user(self):
@@ -649,11 +678,11 @@ def _get_config(f_name, f_type='yaml'):
 
 
 if __name__ == '__main__':
-    # Init server
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', dest='path', help='Path to configuration file.', default='./config.yaml')
     parser.add_argument('-ct', dest='configuration_type', help='Configuration type [yaml|json]', default='yaml')
     args = parser.parse_args()
+    # Init server
     config = _get_config(args.path, args.configuration_type)
     server = IdpServer(app=Flask(__name__), config=config)
     # Start server
