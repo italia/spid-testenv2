@@ -13,5 +13,41 @@ Questo repository ospita lo sviluppo di un nuovo Identity Provider di test per c
 ## WORK IN PROGRESS
 Per ora si raccomanda di usare l'IdP di test già disponibile in https://github.com/italia/spid-testenv 
 
+## Istruzioni
+
+1) Create ed attivare un virtualenv
+    ```
+    virtualenv -p /path/to/pythonbin env
+    . env/bin/actiate
+    ```
+
+2) Installare i pacchetti necessari tramite pip
+    ```
+    pip install -r requirements.txt
+    ```
+
+3) Creare e configurare il file config.json o config.yaml
+    ```
+    cp config.<ext>.example config.<ext>
+    ```
+
+4) Lanciare l'eseguibile
+    ```
+    python spid-testenv.py
+    ```
+
+## Logging
+
+I log del flusso di login / logout viene registrato nel file idp.log (tramite configurazione pysaml2) e
+tramite log di Flask.
+
+## Endpoints
+
+* `/add-user` (GET, POST), accesso libero: Consente di aggiungere un utente sull'idp impostandone eventuali attributi spid primari e secondari. Ritorna una response con status code 200.
+* `/login` (GET, POST), accesso tramite chiave salvata in sessione: Gestisce e processa una AuthnRequest ritornando eventuali messaggei di errore.
+* `/continue-response` (POST), accesso tramite chiave salvata in sessione: Ritorna una response per la AuthnRequest in ingresso se l'utente acconsente a trasferire gli attributi richiesti.
+
+Nota: gli endpoint (e rispettivi binding) per SSO e SLO sono impostati tramite file di configurazione.
+
 ## Link
 * [SPID](https://developers.italia.it/it/spid) su Developers Italia
