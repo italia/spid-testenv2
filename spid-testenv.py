@@ -120,8 +120,11 @@ class JsonUserManager(AbstractUserManager):
     User manager class to handling json user objects
     """
     def _load(self):
-        with open('users.json', 'r') as fp:
-            self.users = json.loads(fp.read())
+        try:
+            with open('users.json', 'r') as fp:
+                self.users = json.loads(fp.read())
+        except FileNotFoundError:
+            self.users = {}
 
     def __init__(self, *args, **kwargs):
         self._load()
