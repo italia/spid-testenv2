@@ -32,7 +32,8 @@ else:
     xmlsec_path = '/usr/bin/xmlsec1'
 
 
-SIGN_ALG  = ds.SIG_RSA_SHA1
+SIGN_ALG = ds.SIG_RSA_SHA1
+DIGEST_ALG = ds.DIGEST_SHA1
 
 error_table = '''
 <html>
@@ -194,7 +195,7 @@ class IdpServer(object):
         # setup
         self._config = config
         self.app.secret_key = self._config.get('secret_key')
-        self._prepare_server(config)
+        self._prepare_server()
 
     def _idp_config(self):
         idp_conf = {
@@ -269,18 +270,16 @@ class IdpServer(object):
         self.app.add_url_rule('/add-user', 'add_user', self.add_user, methods=['GET', 'POST',])
         self.app.add_url_rule('/continue-response', 'continue_response', self.continue_response, methods=['POST',])
 
-    def _prepare_server(self, config):
+    def _prepare_server(self):
         """
         Setup server
         """
         self.idp_config = Saml2Config()
-        if config.get('https', False):
-            self.BASE = "https://%s:%s" % (config.get('host'), config.get('port'))
-        else:
-            self.BASE = "http://%s:%s" % (config.get('host'), config.get('port'))
-        if 'entityid' not in config:
+        protocol = 'https' if self._config.get('https', False) else 'http'
+        self.BASE = '{}://{}:{}'.format(protocol, self._config.get('host'), self._config.get('port'))
+        if 'entityid' not in self._config:
             # as fallback for entityid use host:port string
-            config['entityid'] = self.BASE
+            self._config['entityid'] = self.BASE
         self.idp_config.load(cnf=self._idp_config())
         self.server = Server(config=self.idp_config)
         self._setup_app_routes()
@@ -524,6 +523,7 @@ class IdpServer(object):
                     sp_entity_id=sp_id,
                     authn=AUTHN, issuer=self.server.config.entityid,
                     sign_alg=SIGN_ALG,
+                    digest_alg=DIGEST_ALG,
                     sign_assertion=self.sign_assertion
                 )
                 response = self.server.create_authn_response(
@@ -570,6 +570,7 @@ class IdpServer(object):
         response = self.server.create_logout_response(
             msg, [BINDING_HTTP_POST, BINDING_HTTP_REDIRECT],
             sign_alg=SIGN_ALG,
+            digest_alg=DIGEST_ALG,
             sign=self.sign_assertion
         )
         binding, destination = self.server.pick_binding(
@@ -616,6 +617,7 @@ def _get_config(f_name, f_type='yaml'):
             return yaml.load(fp)
         elif f_type == 'json':
             return json.loads(fp.read())
+
 
 if __name__ == '__main__':
     # Init server
