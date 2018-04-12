@@ -646,7 +646,7 @@ class IdpServer(object):
         Start the server instance
         """
         self.app.run(
-            **self._wsgiconf,
+            **self._wsgiconf
         )
 
 
