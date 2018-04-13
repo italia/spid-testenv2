@@ -36,6 +36,17 @@ Per ora si raccomanda di usare l'IdP di test già disponibile in https://github.
     python spid-testenv.py
     ```
 
+## Generazione certificato
+
+Per generare un certificato digitale da associare all'IdP utilizzare il seguente comando
+
+```
+openssl req -x509 -nodes -sha256 -days 365 -newkey rsa:2048 -keyout idp.key -out idp.crt
+```
+
+Nota: Le path dei due file (chiave e certificato) vanno inserite nel file di configurazione config.* .
+
+
 ## Logging
 
 I log del flusso di login / logout viene registrato nel file idp.log (tramite configurazione pysaml2) e
