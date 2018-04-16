@@ -107,6 +107,10 @@ CONFIRM_PAGE = '''
 '''
 
 
+class BadConfiguration(Exception):
+    pass
+
+
 class AbstractUserManager(object):
     """
     Base User manager class to handling user objects
@@ -202,7 +206,7 @@ class IdpServer(object):
         self.user_manager = JsonUserManager()
         # setup
         self._config = config
-        self.app.secret_key = self._config.get('secret_key')
+        self.app.secret_key = self._config.get('secret_key', 'sosecret')
         handler = RotatingFileHandler('spid.log', maxBytes=500000, backupCount=1)
         self.app.logger.addHandler(handler)
         self._prepare_server()
@@ -211,6 +215,14 @@ class IdpServer(object):
         """
         Process pysaml2 configuration
         """
+        key_file_path = self._config.get('key_file')
+        cert_file_path = self._config.get('cert_file')
+        existing_key = os.path.isfile(key_file_path)
+        existing_cert = os.path.isfile(cert_file_path)
+        if not existing_key:
+            raise BadConfiguration('Chiave privata dell\'IdP di test non trovata: {} not found'.format(key_file_path))
+        if not existing_cert:
+            raise BadConfiguration('Certificato dell\'IdP di test non trovato: {} not found'.format(cert_file_path))
         idp_conf = {
             "entityid": self._config.get('entityid', ''),
             "description": self._config.get('description', ''),
@@ -671,6 +683,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     # Init server
     config = _get_config(args.path, args.configuration_type)
-    server = IdpServer(app=Flask(__name__), config=config)
-    # Start server
-    server.start()
+    try:
+        server = IdpServer(app=Flask(__name__), config=config)
+        # Start server
+        server.start()
+    except BadConfiguration as e:
+        print(e)
