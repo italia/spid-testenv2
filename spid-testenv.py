@@ -552,7 +552,8 @@ class IdpServer(object):
                 )
                 if user_id is not None:
                     # setup response
-                    identity = user['attrs']
+                    attribute_statement_on_response = self._config.get('attribute_statement_on_response')
+                    identity = user['attrs'] if attribute_statement_on_response else {}
                     AUTHN = {
                         "class_ref": spid_level,
                         "authn_auth": spid_level
@@ -579,6 +580,8 @@ class IdpServer(object):
                         relay_state=relay_state
                     )
                     # Setup confirmation page data
+                    if not attribute_statement_on_response:
+                        return http_args['data'], 200
                     ast = Assertion(identity)
                     policy = self.server.config.getattr("policy", "idp")
                     ast.acs = self.server.config.getattr("attribute_converters", "idp")
