@@ -1,5 +1,4 @@
 Flask==0.12.2
-pyopenssl
 pysaml2==4.5.0
 PyYAML==3.12
 passlib==1.7.1
