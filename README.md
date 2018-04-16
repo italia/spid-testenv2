@@ -13,12 +13,20 @@ Questo repository ospita lo sviluppo di un nuovo Identity Provider di test per c
 ## WORK IN PROGRESS
 Per ora si raccomanda di usare l'IdP di test già disponibile in https://github.com/italia/spid-testenv 
 
+## Requisiti
+
+Installare le seguenti librerie di sistema:
+
+* [xmlsec1](http://www.aleksey.com/xmlsec/)
+
+* [libffi-dev](http://sourceware.org/libffi/)
+
 ## Istruzioni
 
 1) Create ed attivare un virtualenv
     ```
     virtualenv -p /path/to/pythonbin env
-    . env/bin/actiate
+    . env/bin/activate
     ```
 
 2) Installare i pacchetti necessari tramite pip
