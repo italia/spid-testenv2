@@ -45,8 +45,8 @@ error_table = '''
         <table border=1>
             <thead>
                 <tr>
-                    <th>Error</th>
-                    <th>Detail(s)</th>
+                    <th>Errore</th>
+                    <th>Dettagli</th>
                 </tr>
             </thead>
             <tbody>
@@ -87,11 +87,11 @@ CONFIRM_PAGE = '''
     <head>
     </head>
     <body>
-        Do you want to transmit the following attributes?
+        Vuoi trasmettere i seguenti attributi?
         <table border=1>
             <thead>
                 <tr>
-                    <th>attribute</th>
+                    <th>atributo</th>
                 </tr>
             </thead>
             <tbody>
@@ -220,9 +220,9 @@ class IdpServer(object):
         existing_key = os.path.isfile(key_file_path)
         existing_cert = os.path.isfile(cert_file_path)
         if not existing_key:
-            raise BadConfiguration('Chiave privata dell\'IdP di test non trovata: {} not found'.format(key_file_path))
+            raise BadConfiguration('Chiave privata dell\'IdP di test non trovata: {} non trovato'.format(key_file_path))
         if not existing_cert:
-            raise BadConfiguration('Certificato dell\'IdP di test non trovato: {} not found'.format(cert_file_path))
+            raise BadConfiguration('Certificato dell\'IdP di test non trovato: {} non trovato'.format(cert_file_path))
         idp_conf = {
             "entityid": self._config.get('entityid', ''),
             "description": self._config.get('description', ''),
@@ -321,15 +321,15 @@ class IdpServer(object):
             )
 
     def _verify_spid_1(self, verify=False, **kwargs):
-        self.app.logger.debug('spid level 1 - verify ({})'.format(verify))
+        self.app.logger.debug('spid level 1 - verifica ({})'.format(verify))
         return self._verify_spid(1, verify, **kwargs)
 
     def _verify_spid_2(self, verify=False, **kwargs):
-        self.app.logger.debug('spid level 2 - verify ({})'.format(verify))
+        self.app.logger.debug('spid level 2 - verifica ({})'.format(verify))
         return self._verify_spid(2, verify, **kwargs)
 
     def _verify_spid_3(self, verify=False, **kwargs):
-        self.app.logger.debug('spid level 3 - verify ({})'.format(verify))
+        self.app.logger.debug('spid level 3 - verifica ({})'.format(verify))
         return self._verify_spid(3, verify, **kwargs)
 
     def _verify_spid(self, level=1, verify=False, **kwargs):
@@ -429,16 +429,16 @@ class IdpServer(object):
                 authn_req = req_info.message
             except KeyError as err:
                 self.app.logger.debug(str(err))
-                self._raise_error('Missing SAMLRequest parameter')
+                self._raise_error('Parametro SAMLRequest assente.')
 
             if not req_info:
-                self._raise_error('Message parsing failed')
+                self._raise_error('Processo di parsing del messaggio fallito.')
 
             self.app.logger.debug('AuthnRequest: {}'.format(authn_req))
             # Check if it is signed
             if "SigAlg" in saml_msg and "Signature" in saml_msg:
                 # Signed request
-                self.app.logger.debug('Signed request')
+                self.app.logger.debug('Messaggio SAML firmato.')
                 issuer_name = authn_req.issuer.text
                 _certs = self.server.metadata.certs(
                     issuer_name,
@@ -455,9 +455,8 @@ class IdpServer(object):
                                                     cert):
                         verified_ok = True
                         break
-                self.app.logger.debug('Verified request')
                 if not verified_ok:
-                    self._raise_error('Message signature verification failure')
+                    self._raise_error('Verifica della firma del messaggio fallita.')
             # Perform login
             key = self._store_request(req_info)
             relay_state = saml_msg.get('RelayState', '')
@@ -652,7 +651,7 @@ class IdpServer(object):
             key = self._config.get('https_key_file')
             cert = self._config.get('https_cert_file')
             if not key or not cert:
-                raise KeyError('Missing key or certificate needed by https mode!')
+                raise KeyError('Errore modalità https: Chiave e/o certificato assenti!')
             _cnf['ssl_context'] = (cert, key,)
         return _cnf
 
