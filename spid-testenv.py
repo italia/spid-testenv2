@@ -223,12 +223,18 @@ class IdpServer(object):
             raise BadConfiguration('Chiave privata dell\'IdP di test non trovata: {} non trovato'.format(key_file_path))
         if not existing_cert:
             raise BadConfiguration('Certificato dell\'IdP di test non trovato: {} non trovato'.format(cert_file_path))
+        self.entity_id = self._config.get('base_url')
+        if not self.entity_id:
+            self.entity_id = self._config.get('host')
+        port = self._config.get('port')
+        if port:
+            self.entity_id = '{}:{}'.format(self.entity_id, port)
         idp_conf = {
-            "entityid": self._config.get('entityid', ''),
-            "description": self._config.get('description', ''),
+            "entityid": self.entity_id,
+            "description": "Spid Test IdP",
             "service": {
                 "idp": {
-                    "name": self._config.get('name', 'Spid Testenv'),
+                    "name": "Spid Testenv",
                     "endpoints": {
                         "single_sign_on_service": [
                         ],
@@ -276,7 +282,7 @@ class IdpServer(object):
         for _service_type in self._endpoint_types:
             for binding, endpoint in self._config['endpoints'][_service_type].items():
                 idp_conf['service']['idp']['endpoints'][_service_type].append(
-                    ('{}{}'.format(self._config['entityid'], endpoint), self._binding_mapping.get(binding))
+                    ('{}{}'.format(self.entity_id, endpoint), self._binding_mapping.get(binding))
                 )
         return idp_conf
 
