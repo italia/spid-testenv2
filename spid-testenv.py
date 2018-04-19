@@ -217,8 +217,8 @@ class IdpServer(object):
         """
         key_file_path = self._config.get('key_file')
         cert_file_path = self._config.get('cert_file')
-        existing_key = os.path.isfile(key_file_path)
-        existing_cert = os.path.isfile(cert_file_path)
+        existing_key = os.path.isfile(key_file_path) if key_file_path else None
+        existing_cert = os.path.isfile(cert_file_path) if cert_file_path else None
         if not existing_key:
             raise BadConfiguration('Chiave privata dell\'IdP di test non trovata: {} non trovato'.format(key_file_path))
         if not existing_cert:
@@ -291,6 +291,9 @@ class IdpServer(object):
                 _ep_config = endpoints.get(ep_type)
                 if _ep_config:
                     for _binding, _url in _ep_config.items():
+                        if not _url.startswith('/'):
+                            raise BadConfiguration('Errore nella configurazione delle url, i path devono essere relativi ed iniziare con "/" (slash) - url {}'.format(_url)
+                        )
                         self.app.add_url_rule(_url, '{}_{}'.format(ep_type, _binding), getattr(self, ep_type), methods=['GET',])
         self.app.add_url_rule('/login', 'login', self.login, methods=['POST', 'GET',])
         # Endpoint for user add action
