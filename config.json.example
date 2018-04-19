@@ -21,8 +21,6 @@
     },
     "key_file": "<absolute-path>",
     "cert_file": "<absolute-path>"
-    "sign_assertions": true,
-    "attribute_statement_on_response": true,
     "metadata": {
         "local": [
             "<absolute-path>"
