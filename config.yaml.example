@@ -7,17 +7,13 @@ host: 0.0.0.0
 port: 8088
 # IdP server - secret key
 secret_key: sosecret
-# IdP - entity id
-entityid: "http://spid-testenv:8088"
+# IdP - Url base necessaria per ricavare EntityId dell'IdP
+base_url: "http://spid-testenv"
 # Abilita (true) o disabilita (false) la modalità HTTPS per l'IdP
 https: false
 # Chiave e certificato per HTTPS (indipendenti da chiave e certificato SAML)
 #https_key_file: "path/to/key"
 #https_cert_file: "path/to/cert"
-# IdP - descrizione
-description: Spid Test IdP
-# IdP - nome
-name: Spid test IdP
 # Endpoint del server IdP, suddivisi per funzionalità e binding
 # nota: utilizzare path relativi
 endpoints:
