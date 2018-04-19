@@ -296,6 +296,7 @@ class IdpServer(object):
         # Endpoint for user add action
         self.app.add_url_rule('/add-user', 'add_user', self.add_user, methods=['GET', 'POST',])
         self.app.add_url_rule('/continue-response', 'continue_response', self.continue_response, methods=['POST',])
+        self.app.add_url_rule('/metadata', 'metadata', self.metadata, methods=['POST', 'GET'])
 
     def _prepare_server(self):
         """
@@ -640,6 +641,13 @@ class IdpServer(object):
             "%s" % response, destination, response=True, sign=self.sign_assertion
         )
         return http_args['data'], 200
+
+    def metadata(self):
+        metadata = create_metadata_string(
+            __file__,
+            self.server.config,
+        )
+        return Response(metadata, mimetype='text/xml')
 
     @property
     def _wsgiconf(self):
