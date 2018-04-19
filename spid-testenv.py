@@ -24,6 +24,12 @@ from saml2.server import Server
 from saml2.sigver import verify_redirect_signature
 
 try:
+    FileNotFoundError
+except NameError:
+    #py2
+    FileNotFoundError = IOError
+
+try:
     from saml2.sigver import get_xmlsec_binary
 except ImportError:
     get_xmlsec_binary = None
@@ -122,12 +128,19 @@ class JsonUserManager(AbstractUserManager):
     """
     User manager class to handling json user objects
     """
+    FILE_NAME = 'users.json'
+
     def _load(self):
         try:
-            with open('users.json', 'r') as fp:
+            with open(self.FILE_NAME, 'r') as fp:
                 self.users = json.loads(fp.read())
         except FileNotFoundError:
             self.users = {}
+            self._save()
+
+    def _save(self):
+        with open(self.FILE_NAME, 'w') as fp:
+            json.dump(self.users, fp, indent=4)
 
     def __init__(self, *args, **kwargs):
         self._load()
@@ -145,8 +158,7 @@ class JsonUserManager(AbstractUserManager):
                 'sp': sp_id,
                 'attrs': extra
             }
-        with open('users.json', 'w') as fp:
-            json.dump(self.users, fp, indent=4)
+        self._save()
 
 
 
