@@ -17,12 +17,8 @@ https: false
 # Endpoint del server IdP, suddivisi per funzionalità e binding
 # nota: utilizzare path relativi
 endpoints:
-  single_sign_on_service:
-    http-redirect: "/sso/redirect"
-    http-post: "/sso/post"
-  single_logout_service:
-    http-redirect: "/slo/redirect"
-    http-post: "/slo/post"
+  single_sign_on_service: "/sso"
+  single_logout_service: "/slo"
 # Chiave e certificato necessari per la firma dei messaggi Spid
 key_file: "idp.key"
 cert_file: "idp.cert"

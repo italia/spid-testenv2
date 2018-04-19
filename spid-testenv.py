@@ -280,10 +280,13 @@ class IdpServer(object):
         }
         # setup services url
         for _service_type in self._endpoint_types:
-            for binding, endpoint in self._config['endpoints'][_service_type].items():
-                idp_conf['service']['idp']['endpoints'][_service_type].append(
-                    ('{}{}'.format(self.entity_id, endpoint), self._binding_mapping.get(binding))
-                )
+            endpoint = self._config['endpoints'][_service_type]
+            idp_conf['service']['idp']['endpoints'][_service_type].append(
+                ('{}{}'.format(self.entity_id, endpoint), BINDING_HTTP_REDIRECT)
+            )
+            idp_conf['service']['idp']['endpoints'][_service_type].append(
+                ('{}{}'.format(self.entity_id, endpoint), BINDING_HTTP_POST)
+            )
         return idp_conf
 
     def _setup_app_routes(self):
@@ -294,12 +297,12 @@ class IdpServer(object):
         endpoints = self._config.get('endpoints')
         if endpoints:
             for ep_type in self._endpoint_types:
-                _ep_config = endpoints.get(ep_type)
-                if _ep_config:
-                    for _binding, _url in _ep_config.items():
-                        if not _url.startswith('/'):
-                            raise BadConfiguration('Errore nella configurazione delle url, i path devono essere relativi ed iniziare con "/" (slash) - url {}'.format(_url)
-                        )
+                _url = endpoints.get(ep_type)
+                if _url:
+                    if not _url.startswith('/'):
+                        raise BadConfiguration('Errore nella configurazione delle url, i path devono essere relativi ed iniziare con "/" (slash) - url {}'.format(_url)
+                    )
+                    for _binding in self._binding_mapping.keys():
                         self.app.add_url_rule(_url, '{}_{}'.format(ep_type, _binding), getattr(self, ep_type), methods=['GET',])
         self.app.add_url_rule('/login', 'login', self.login, methods=['POST', 'GET',])
         # Endpoint for user add action
@@ -412,7 +415,7 @@ class IdpServer(object):
         self.ticket[key] = authnreq
         return key
 
-    def process_request(self, request, binding):
+    def single_sign_on_service(self):
         """
         Process Http-Redirect or Http-POST request
 
@@ -426,6 +429,7 @@ class IdpServer(object):
             req_info = self.ticket[_key]
         except KeyError as e:
             try:
+                binding = self._get_binding('single_sign_on_service', request)
                 # Parse AuthnRequest
                 req_info = self.server.parse_authn_request(
                     saml_msg["SAMLRequest"],
@@ -476,17 +480,6 @@ class IdpServer(object):
             return self._binding_mapping.get(binding)
         except IndexError:
             pass
-
-    def single_sign_on_service(self):
-        """
-        SSO endpoint
-
-        :param binding: 'redirect' is http-redirect, 'post' is http-post binding
-        """
-        _binding = self._get_binding('single_sign_on_service', request)
-        if _binding:
-            return self.process_request(request, _binding)
-        abort(404)
 
     @property
     def _spid_main_fields(self):
