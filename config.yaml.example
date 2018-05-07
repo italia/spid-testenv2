@@ -26,7 +26,7 @@ cert_file: "idp.cert"
 # 'local' indica il path ad un file .xml (metadata) raggiungibile localmente dall'IdP
 # 'remote' tramite url e certificato indica come ottenere un metadata remoto
 # Per ulteriori informazioni seguire le indicazioni qui presenti: https://pysaml2.readthedocs.io/en/latest/howto/config.html#metadata
-#metadata:
+metadata:
 #  local:
 #  - "metadata.xml"
 #  remote:
