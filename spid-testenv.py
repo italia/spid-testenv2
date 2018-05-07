@@ -217,6 +217,8 @@ class IdpServer(object):
         """
         key_file_path = self._config.get('key_file')
         cert_file_path = self._config.get('cert_file')
+        metadata = self._config.get('metadata')
+        metadata = metadata if metadata else []
         existing_key = os.path.isfile(key_file_path) if key_file_path else None
         existing_cert = os.path.isfile(cert_file_path) if cert_file_path else None
         if not existing_key:
@@ -254,7 +256,7 @@ class IdpServer(object):
             "debug": 1,
             "key_file": self._config.get('key_file'),
             "cert_file": self._config.get('cert_file'),
-            "metadata": self._config.get('metadata'),
+            "metadata": metadata,
             "organization": {
                 "display_name": "Spid testenv",
                 "name": "Spid testenv",
