@@ -3,21 +3,15 @@
     "host": "0.0.0.0",
     "port": 8088,
     "secret_key": "sosecret",
-    "entityid": "http://<host>:<port>",
+    "base_url": "http://spid-testenv",
     "https": false,
     "https_key_file": "<absolute-path>",
     "https_cert_file": "<absolute-path>",
     "description": "Spid Test IDP",
     "name": "Spid test IdP",
     "endpoints": {
-        "single_sign_on_service": {
-            "http-redirect": "<relative-url>",
-            "http-post":  "<relative-url>"
-        },
-        "single_logout_service": {
-            "http-redirect":  "<relative-url>",
-            "http-post":  "<relative-url>"
-        }
+        "single_sign_on_service": "sso",
+        "single_logout_service": "slo"
     },
     "key_file": "<absolute-path>",
     "cert_file": "<absolute-path>"
