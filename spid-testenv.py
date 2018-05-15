@@ -91,7 +91,7 @@ CONFIRM_PAGE = '''
         <table border=1>
             <thead>
                 <tr>
-                    <th>atributo</th>
+                    <th>attributo</th>
                 </tr>
             </thead>
             <tbody>
