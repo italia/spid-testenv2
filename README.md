@@ -26,9 +26,9 @@ Per ora si raccomanda di usare l'IdP di test già disponibile in https://github.
     pip install -r requirements.txt
     ```
 
-3) Creare e configurare il file config.json o config.yaml
+3) Creare e configurare il file config.yaml
     ```
-    cp config.<ext>.example config.<ext>
+    cp config.yaml.example config.yaml
     ```
 
 4) Lanciare l'eseguibile
