@@ -206,10 +206,14 @@ class IdpServer(object):
         self.user_manager = JsonUserManager()
         # setup
         self._config = config
-        self.app.secret_key = self._config.get('secret_key', 'sosecret')
+        self.app.secret_key = 'sosecret'
         handler = RotatingFileHandler('spid.log', maxBytes=500000, backupCount=1)
         self.app.logger.addHandler(handler)
         self._prepare_server()
+
+    @property
+    def _mode(self):
+        return 'https' if self._config.get('https', False) else 'http'
 
     def _idp_config(self):
         """
@@ -228,6 +232,7 @@ class IdpServer(object):
         self.entity_id = self._config.get('base_url')
         if not self.entity_id:
             self.entity_id = self._config.get('host')
+        self.entity_id = '{}://{}'.format(self._mode, self.entity_id)
         port = self._config.get('port')
         if port:
             self.entity_id = '{}:{}'.format(self.entity_id, port)
@@ -316,8 +321,7 @@ class IdpServer(object):
         Setup server
         """
         self.idp_config = Saml2Config()
-        protocol = 'https' if self._config.get('https', False) else 'http'
-        self.BASE = '{}://{}:{}'.format(protocol, self._config.get('host'), self._config.get('port'))
+        self.BASE = '{}://{}:{}'.format(self._mode, self._config.get('host'), self._config.get('port'))
         if 'entityid' not in self._config:
             # as fallback for entityid use host:port string
             self._config['entityid'] = self.BASE

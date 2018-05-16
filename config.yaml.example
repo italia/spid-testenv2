@@ -5,10 +5,8 @@ debug: true
 host: 0.0.0.0
 # IdP server - porta
 port: 8088
-# IdP server - secret key
-secret_key: sosecret
 # IdP - Url base necessaria per ricavare EntityId dell'IdP
-base_url: "http://spid-testenv"
+base_url: "spid-testenv"
 # Abilita (true) o disabilita (false) la modalità HTTPS per l'IdP
 https: false
 # Chiave e certificato per HTTPS (indipendenti da chiave e certificato SAML)
