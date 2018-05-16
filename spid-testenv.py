@@ -229,7 +229,7 @@ class IdpServer(object):
             raise BadConfiguration('Chiave privata dell\'IdP di test non trovata: {} non trovato'.format(key_file_path))
         if not existing_cert:
             raise BadConfiguration('Certificato dell\'IdP di test non trovato: {} non trovato'.format(cert_file_path))
-        self.entity_id = self._config.get('base_url')
+        self.entity_id = self._config.get('hostname')
         if not self.entity_id:
             self.entity_id = self._config.get('host')
         self.entity_id = '{}://{}'.format(self._mode, self.entity_id)
