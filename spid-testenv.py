@@ -51,8 +51,8 @@ error_table = '''
         <table border=1>
             <thead>
                 <tr>
-                    <th>Error</th>
-                    <th>Detail(s)</th>
+                    <th>Errore</th>
+                    <th>Dettagli</th>
                 </tr>
             </thead>
             <tbody>
@@ -93,11 +93,11 @@ CONFIRM_PAGE = '''
     <head>
     </head>
     <body>
-        Do you want to transmit the following attributes?
+        Vuoi trasmettere i seguenti attributi?
         <table border=1>
             <thead>
                 <tr>
-                    <th>attribute</th>
+                    <th>attributo</th>
                 </tr>
             </thead>
             <tbody>
@@ -111,6 +111,10 @@ CONFIRM_PAGE = '''
     </body>
 </html>
 '''
+
+
+class BadConfiguration(Exception):
+    pass
 
 
 class AbstractUserManager(object):
@@ -214,21 +218,42 @@ class IdpServer(object):
         self.user_manager = JsonUserManager()
         # setup
         self._config = config
-        self.app.secret_key = self._config.get('secret_key')
+        self.app.secret_key = 'sosecret'
         handler = RotatingFileHandler('spid.log', maxBytes=500000, backupCount=1)
         self.app.logger.addHandler(handler)
         self._prepare_server()
+
+    @property
+    def _mode(self):
+        return 'https' if self._config.get('https', False) else 'http'
 
     def _idp_config(self):
         """
         Process pysaml2 configuration
         """
+        key_file_path = self._config.get('key_file')
+        cert_file_path = self._config.get('cert_file')
+        metadata = self._config.get('metadata')
+        metadata = metadata if metadata else []
+        existing_key = os.path.isfile(key_file_path) if key_file_path else None
+        existing_cert = os.path.isfile(cert_file_path) if cert_file_path else None
+        if not existing_key:
+            raise BadConfiguration('Chiave privata dell\'IdP di test non trovata: {} non trovato'.format(key_file_path))
+        if not existing_cert:
+            raise BadConfiguration('Certificato dell\'IdP di test non trovato: {} non trovato'.format(cert_file_path))
+        self.entity_id = self._config.get('hostname')
+        if not self.entity_id:
+            self.entity_id = self._config.get('host')
+        self.entity_id = '{}://{}'.format(self._mode, self.entity_id)
+        port = self._config.get('port')
+        if port:
+            self.entity_id = '{}:{}'.format(self.entity_id, port)
         idp_conf = {
-            "entityid": self._config.get('entityid', ''),
-            "description": self._config.get('description', ''),
+            "entityid": self.entity_id,
+            "description": "Spid Test IdP",
             "service": {
                 "idp": {
-                    "name": self._config.get('name', 'Spid Testenv'),
+                    "name": "Spid Testenv",
                     "endpoints": {
                         "single_sign_on_service": [
                         ],
@@ -248,7 +273,7 @@ class IdpServer(object):
             "debug": 1,
             "key_file": self._config.get('key_file'),
             "cert_file": self._config.get('cert_file'),
-            "metadata": self._config.get('metadata'),
+            "metadata": metadata,
             "organization": {
                 "display_name": "Spid testenv",
                 "name": "Spid testenv",
@@ -274,10 +299,13 @@ class IdpServer(object):
         }
         # setup services url
         for _service_type in self._endpoint_types:
-            for binding, endpoint in self._config['endpoints'][_service_type].items():
-                idp_conf['service']['idp']['endpoints'][_service_type].append(
-                    ('{}{}'.format(self._config['entityid'], endpoint), self._binding_mapping.get(binding))
-                )
+            endpoint = self._config['endpoints'][_service_type]
+            idp_conf['service']['idp']['endpoints'][_service_type].append(
+                ('{}{}'.format(self.entity_id, endpoint), BINDING_HTTP_REDIRECT)
+            )
+            idp_conf['service']['idp']['endpoints'][_service_type].append(
+                ('{}{}'.format(self.entity_id, endpoint), BINDING_HTTP_POST)
+            )
         return idp_conf
 
     def _setup_app_routes(self):
@@ -288,9 +316,12 @@ class IdpServer(object):
         endpoints = self._config.get('endpoints')
         if endpoints:
             for ep_type in self._endpoint_types:
-                _ep_config = endpoints.get(ep_type)
-                if _ep_config:
-                    for _binding, _url in _ep_config.items():
+                _url = endpoints.get(ep_type)
+                if _url:
+                    if not _url.startswith('/'):
+                        raise BadConfiguration('Errore nella configurazione delle url, i path devono essere relativi ed iniziare con "/" (slash) - url {}'.format(_url)
+                    )
+                    for _binding in self._binding_mapping.keys():
                         self.app.add_url_rule(_url, '{}_{}'.format(ep_type, _binding), getattr(self, ep_type), methods=['GET',])
         self.app.add_url_rule('/login', 'login', self.login, methods=['POST', 'GET',])
         # Endpoint for user add action
@@ -303,8 +334,7 @@ class IdpServer(object):
         Setup server
         """
         self.idp_config = Saml2Config()
-        protocol = 'https' if self._config.get('https', False) else 'http'
-        self.BASE = '{}://{}:{}'.format(protocol, self._config.get('host'), self._config.get('port'))
+        self.BASE = '{}://{}:{}'.format(self._mode, self._config.get('host'), self._config.get('port'))
         if 'entityid' not in self._config:
             # as fallback for entityid use host:port string
             self._config['entityid'] = self.BASE
@@ -322,15 +352,15 @@ class IdpServer(object):
             )
 
     def _verify_spid_1(self, verify=False, **kwargs):
-        self.app.logger.debug('spid level 1 - verify ({})'.format(verify))
+        self.app.logger.debug('spid level 1 - verifica ({})'.format(verify))
         return self._verify_spid(1, verify, **kwargs)
 
     def _verify_spid_2(self, verify=False, **kwargs):
-        self.app.logger.debug('spid level 2 - verify ({})'.format(verify))
+        self.app.logger.debug('spid level 2 - verifica ({})'.format(verify))
         return self._verify_spid(2, verify, **kwargs)
 
     def _verify_spid_3(self, verify=False, **kwargs):
-        self.app.logger.debug('spid level 3 - verify ({})'.format(verify))
+        self.app.logger.debug('spid level 3 - verifica ({})'.format(verify))
         return self._verify_spid(3, verify, **kwargs)
 
     def _verify_spid(self, level=1, verify=False, **kwargs):
@@ -404,11 +434,7 @@ class IdpServer(object):
         self.ticket[key] = authnreq
         return key
 
-    @property
-    def sign_assertion(self):
-        return self._config.get('sign_assertions', False)
-
-    def process_request(self, request, binding):
+    def single_sign_on_service(self):
         """
         Process Http-Redirect or Http-POST request
 
@@ -422,6 +448,7 @@ class IdpServer(object):
             req_info = self.ticket[_key]
         except KeyError as e:
             try:
+                binding = self._get_binding('single_sign_on_service', request)
                 # Parse AuthnRequest
                 req_info = self.server.parse_authn_request(
                     saml_msg["SAMLRequest"],
@@ -430,16 +457,16 @@ class IdpServer(object):
                 authn_req = req_info.message
             except KeyError as err:
                 self.app.logger.debug(str(err))
-                self._raise_error('Missing SAMLRequest parameter')
+                self._raise_error('Parametro SAMLRequest assente.')
 
             if not req_info:
-                self._raise_error('Message parsing failed')
+                self._raise_error('Processo di parsing del messaggio fallito.')
 
             self.app.logger.debug('AuthnRequest: {}'.format(authn_req))
             # Check if it is signed
             if "SigAlg" in saml_msg and "Signature" in saml_msg:
                 # Signed request
-                self.app.logger.debug('Signed request')
+                self.app.logger.debug('Messaggio SAML firmato.')
                 issuer_name = authn_req.issuer.text
                 _certs = self.server.metadata.certs(
                     issuer_name,
@@ -456,9 +483,8 @@ class IdpServer(object):
                                                     cert):
                         verified_ok = True
                         break
-                self.app.logger.debug('Verified request')
                 if not verified_ok:
-                    self._raise_error('Message signature verification failure')
+                    self._raise_error('Verifica della firma del messaggio fallita.')
             # Perform login
             key = self._store_request(req_info)
             relay_state = saml_msg.get('RelayState', '')
@@ -473,17 +499,6 @@ class IdpServer(object):
             return self._binding_mapping.get(binding)
         except IndexError:
             pass
-
-    def single_sign_on_service(self):
-        """
-        SSO endpoint
-
-        :param binding: 'redirect' is http-redirect, 'post' is http-post binding
-        """
-        _binding = self._get_binding('single_sign_on_service', request)
-        if _binding:
-            return self.process_request(request, _binding)
-        abort(404)
 
     @property
     def _spid_main_fields(self):
@@ -566,7 +581,7 @@ class IdpServer(object):
                 if user_id is not None:
                     # setup response
                     attribute_statement_on_response = self._config.get('attribute_statement_on_response')
-                    identity = user['attrs'] if attribute_statement_on_response else {}
+                    identity = user['attrs']
                     AUTHN = {
                         "class_ref": spid_level,
                         "authn_auth": spid_level
@@ -579,7 +594,7 @@ class IdpServer(object):
                         authn=AUTHN, issuer=self.server.config.entityid,
                         sign_alg=SIGN_ALG,
                         digest_alg=DIGEST_ALG,
-                        sign_assertion=self.sign_assertion
+                        sign_assertion=True
                     )
                     response = self.server.create_authn_response(
                         **_data
@@ -589,12 +604,10 @@ class IdpServer(object):
                         response,
                         destination,
                         response=True,
-                        sign=self.sign_assertion,
+                        sign=True,
                         relay_state=relay_state
                     )
                     # Setup confirmation page data
-                    if not attribute_statement_on_response:
-                        return http_args['data'], 200
                     ast = Assertion(identity)
                     policy = self.server.config.getattr("policy", "idp")
                     ast.acs = self.server.config.getattr("attribute_converters", "idp")
@@ -629,7 +642,7 @@ class IdpServer(object):
             msg, [BINDING_HTTP_POST, BINDING_HTTP_REDIRECT],
             sign_alg=SIGN_ALG,
             digest_alg=DIGEST_ALG,
-            sign=self.sign_assertion
+            sign=True
         )
         binding, destination = self.server.pick_binding(
             "single_logout_service",
@@ -638,7 +651,7 @@ class IdpServer(object):
         )
         http_args = self.server.apply_binding(
             binding,
-            "%s" % response, destination, response=True, sign=self.sign_assertion
+            "%s" % response, destination, response=True, sign=True
         )
         return http_args['data'], 200
 
@@ -660,7 +673,7 @@ class IdpServer(object):
             key = self._config.get('https_key_file')
             cert = self._config.get('https_cert_file')
             if not key or not cert:
-                raise KeyError('Missing key or certificate needed by https mode!')
+                raise KeyError('Errore modalità https: Chiave e/o certificato assenti!')
             _cnf['ssl_context'] = (cert, key,)
         return _cnf
 
@@ -691,6 +704,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     # Init server
     config = _get_config(args.path, args.configuration_type)
-    server = IdpServer(app=Flask(__name__), config=config)
-    # Start server
-    server.start()
+    try:
+        server = IdpServer(app=Flask(__name__), config=config)
+        # Start server
+        server.start()
+    except BadConfiguration as e:
+        print(e)

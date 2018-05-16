@@ -1,28 +1,32 @@
 ---
+# Abilita (true) o disabilita (false) la modalità debug per il server IdP
 debug: true
+# IdP server - Indirizzo IP dell'interfaccia su cui esporre il server; lasciare 0.0.0.0 per ascoltare su tutte le interfacce
 host: 0.0.0.0
+# IdP server - porta
 port: 8088
-secret_key: sosecret
-entityid: "http://<host>:<port>"
+# IdP - Url base necessaria per ricavare EntityId dell'IdP
+hostname: "spid-testenv"
+# Abilita (true) o disabilita (false) la modalità HTTPS per l'IdP
 https: false
-https_key_file: "<absolute-path>"
-https_cert_file: "<absolute-path>"
-description: Spid Test IDP
-name: Spid test IdP
+# Chiave e certificato per HTTPS (indipendenti da chiave e certificato SAML)
+#https_key_file: "path/to/key"
+#https_cert_file: "path/to/cert"
+# Endpoint del server IdP, suddivisi per funzionalità e binding
+# nota: utilizzare path relativi
 endpoints:
-  single_sign_on_service:
-    http-redirect: "<relative-url>"
-    http-post: "<relative-url>"
-  single_logout_service:
-    http-redirect: "<relative-url>"
-    http-post: "<relative-url>"
-key_file: "<absolute-path>"
-cert_file: "<absolute-path>"
-sign_assertions: true
-attribute_statement_on_response: true
+  single_sign_on_service: "/sso"
+  single_logout_service: "/slo"
+# Chiave e certificato necessari per la firma dei messaggi Spid
+key_file: "idp.key"
+cert_file: "idp.cert"
+# Lista di metadati, relativi ai Sp registrati, necessari per verificare lo scambio di messaggi
+# 'local' indica il path ad un file .xml (metadata) raggiungibile localmente dall'IdP
+# 'remote' tramite url e certificato indica come ottenere un metadata remoto
+# Per ulteriori informazioni seguire le indicazioni qui presenti: https://pysaml2.readthedocs.io/en/latest/howto/config.html#metadata
 metadata:
-  local:
-  - "<absolute-path>"
-  remote:
-  - url: "<absolute-url>"
-    cert: "<absolute-path>"
+#  local:
+#  - "metadata.xml"
+#  remote:
+#  - url: "http://spid-sp/metadata/
+#    cert: "spid-sp.cert"
