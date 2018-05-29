@@ -205,6 +205,7 @@ class IdpServer(object):
         }
     }
     CHALLENGES_TIMEOUT = 30 # seconds
+    SAML_VERSION = '2.0'
 
     def __init__(self, app, config, *args, **kwargs):
         """
@@ -417,10 +418,22 @@ class IdpServer(object):
             )
         )
 
-    def _check_saml_message_restrictions(self, obj):
-        # TODO: Implement here or somewhere (e.g. mixin on pysaml2 subclasses)
-        # the logic to validate spid rules on saml entities
-        raise NotImplementedError
+    def _check_spid_restrictions(self, msg):
+        errors = {}
+        if msg.version != self.SAML_VERSION:
+            errors['version'] = {'error': 'La versione SAML deve essere uguale a "2.0" !'}
+        if msg.issue_instant is None or msg.issue_instant == '':
+            errors['issue_istant'] = {'error': 'IssueInstant null o non disponibile.'}
+        if not msg.name_id_policy:
+            errors['name_id_policy'] = {'error': 'NameIdPolicy non presente.'}
+        if not msg.msg.name_id.format or msg.msg.name_id.format != 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient':
+            errors['name_id_policy'] = {'error': 'Format di NameIdPolicy errato o non presente.'}
+        if not msg.msg.name_id.allow_create or msg.msg.name_id.allow_create != 'true':
+            errors['name_id_policy'] = {'error': 'AllowCreate di NameIdPolicy non presente o diverso da "true".'}
+        if msg.conditions:
+            if not msg.conditions.not_before or not msg.conditions.not_on_or_after:
+                errors['name_id_policy'] = {'error': 'NotBefore e/o NotOnOrAfter non presenti.'}
+        return errors
 
     def _store_request(self, authnreq):
         """
@@ -433,6 +446,10 @@ class IdpServer(object):
         # store the AuthnRequest
         self.ticket[key] = authnreq
         return key
+
+    def _handle_errors(self, errors):
+        # TODO: handle errors
+        pass
 
     def single_sign_on_service(self):
         """
@@ -455,9 +472,13 @@ class IdpServer(object):
                     binding
                 )
                 authn_req = req_info.message
+                errors = self._check_spid_restrictions(req_info)
             except KeyError as err:
                 self.app.logger.debug(str(err))
                 self._raise_error('Parametro SAMLRequest assente.')
+
+            if errors:
+                return self._handle_errors(errors)
 
             if not req_info:
                 self._raise_error('Processo di parsing del messaggio fallito.')
@@ -468,11 +489,14 @@ class IdpServer(object):
                 # Signed request
                 self.app.logger.debug('Messaggio SAML firmato.')
                 issuer_name = authn_req.issuer.text
-                _certs = self.server.metadata.certs(
-                    issuer_name,
-                    "any",
-                    "signing"
-                )
+                try:
+                    _certs = self.server.metadata.certs(
+                        issuer_name,
+                        "any",
+                        "signing"
+                    )
+                except KeyError:
+                    self._raise_error('entity ID {} non registrato, impossibile ricavare un certificato valido.'.format(issuer_name))
                 verified_ok = False
                 for cert in _certs:
                     self.app.logger.debug(
@@ -485,6 +509,8 @@ class IdpServer(object):
                         break
                 if not verified_ok:
                     self._raise_error('Verifica della firma del messaggio fallita.')
+            else:
+                self._raise_error('Messaggio SAML non firmato.')
             # Perform login
             key = self._store_request(req_info)
             relay_state = saml_msg.get('RelayState', '')
