@@ -113,6 +113,134 @@ CONFIRM_PAGE = '''
 '''
 
 
+class Attr(object):
+
+    MANDATORY_ERROR = 'L\'attributo {} è obbligatorio'
+    DEFAULT_VALUE_ERROR = '{} è diverso dal valore di riferimento {}'
+
+    def __init__(self, name, required=True, default=None, *args, **kwargs):
+        self._name = name
+        self._required = required
+        self._errors = {}
+        self._default = default
+
+    def validate(self, value=None):
+        if self._required and value is None:
+            self._errors['required_error'] = self.MANDATORY_ERROR.format(self._name)
+        if self._default is not None and self._default != value:
+            self._errors['value_error'] = self.DEFAULT_VALUE_ERROR.format(value, self._default)
+        return {
+            'value': value if not self._errors else None,
+            'errors': self._errors
+        }
+
+
+class Elem(object):
+
+    MANDATORY_ERROR = 'L\'attributo {} è obbligatorio'
+
+    def __init__(self, name, required=True, attributes=[], children=[], *args, **kwargs):
+        self._name = name
+        self._required = required
+        self._attributes = attributes
+        self._children = children
+
+    def validate(self, data):
+        res = { 'attrs': {}, 'children': {}, 'errors': {} }
+        if self._required and data is None:
+            res['errors']['required_error'] = self.MANDATORY_ERROR.format(self._name)
+        if data:
+            for attribute in self._attributes:
+                res['attrs'][attribute._name] = attribute.validate(getattr(data, attribute._name))
+            for child in self._children:
+                res['children'][child._name] = child.validate(getattr(data, child._name))
+        return res
+
+
+class SpidParser(object):
+
+    def __init__(self, *args, **kwargs):
+        self.schema = None
+        self.errors = 0
+
+    def get_schema(self, binding):
+        required_signature = False
+        if binding == BINDING_HTTP_POST:
+            required_signature = True
+        elif binding == BINDING_HTTP_REDIRECT:
+            required_signature = False
+
+        _schema = Elem(
+            name='auth_request',
+            attributes=[
+                Attr('id'),
+                Attr('version', default='2.0'),
+                Attr('issue_instant'),
+                Attr('destination'),
+                Attr('force_authn', required=False),
+                Attr('attribute_consuming_service_index', required=False),
+                Attr('assertion_consumer_service_url', required=False),
+                Attr('protocol_binding', default='urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST', required=False)
+            ],
+            children=[
+                Elem(
+                    'subject',
+                    required=False,
+                    attributes=[
+                        Attr('format', default='urn:oasis:names:tc:SAML:2.0:nameid-format:entity'),
+                        Attr('name_qualifier')
+                    ]
+                ),
+                Elem(
+                    'issuer',
+                    attributes=[
+                        Attr('format', default='urn:oasis:names:tc:SAML:2.0:nameid-format:entity'),
+                        Attr('name_qualifier')
+                    ]
+                ),
+                Elem(
+                    'name_id_policy',
+                    attributes=[
+                        Attr('allow_create', required=False, default='true'),
+                        Attr('format', default='urn:oasis:names:tc:SAML:2.0:nameid-format:transient')
+                    ]
+                ),
+                Elem(
+                    'conditions',
+                    required=False,
+                    attributes=[
+                        Attr('not_before'),
+                        Attr('Not_on_or_after')
+                    ]
+                ),
+                Elem(
+                    'requested_authn_context',
+                    attributes=[
+                        Attr('comparison'),
+                    ],
+                    children=[
+                        # Elem(
+                        #     'authn_context_class_ref',
+                        #     attributes=[
+                        #         Attr('text')
+                        #     ]
+                        # )
+                    ]
+                ),
+                Elem(
+                    'signature',
+                    required=required_signature,
+                ),
+            ]
+        )
+        return _schema
+
+    def parse(self, obj, binding, schema=None):
+        res = {}
+        _schema = self.get_schema(binding) if schema is None else schema
+        return _schema.validate(obj)
+
+
 class BadConfiguration(Exception):
     pass
 
@@ -418,21 +546,10 @@ class IdpServer(object):
             )
         )
 
-    def _check_spid_restrictions(self, msg):
-        errors = {}
-        if msg.version != self.SAML_VERSION:
-            errors['version'] = {'error': 'La versione SAML deve essere uguale a "2.0" !'}
-        if msg.issue_instant is None or msg.issue_instant == '':
-            errors['issue_istant'] = {'error': 'IssueInstant null o non disponibile.'}
-        if not msg.name_id_policy:
-            errors['name_id_policy'] = {'error': 'NameIdPolicy non presente.'}
-        if not msg.msg.name_id.format or msg.msg.name_id.format != 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient':
-            errors['name_id_policy'] = {'error': 'Format di NameIdPolicy errato o non presente.'}
-        if not msg.msg.name_id.allow_create or msg.msg.name_id.allow_create != 'true':
-            errors['name_id_policy'] = {'error': 'AllowCreate di NameIdPolicy non presente o diverso da "true".'}
-        if msg.conditions:
-            if not msg.conditions.not_before or not msg.conditions.not_on_or_after:
-                errors['name_id_policy'] = {'error': 'NotBefore e/o NotOnOrAfter non presenti.'}
+    def _check_spid_restrictions(self, msg, binding):
+        errors = []
+        parsed_msg = SpidParser().parse(msg.message, binding)
+        self.app.logger.debug('parsed authn_request: {}'.format(parsed_msg))
         return errors
 
     def _store_request(self, authnreq):
@@ -472,7 +589,7 @@ class IdpServer(object):
                     binding
                 )
                 authn_req = req_info.message
-                errors = self._check_spid_restrictions(req_info)
+                errors = self._check_spid_restrictions(req_info, binding)
             except KeyError as err:
                 self.app.logger.debug(str(err))
                 self._raise_error('Parametro SAMLRequest assente.')
