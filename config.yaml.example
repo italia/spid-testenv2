@@ -19,7 +19,7 @@ endpoints:
   single_logout_service: "/slo"
 # Chiave e certificato necessari per la firma dei messaggi Spid
 key_file: "idp.key"
-cert_file: "idp.cert"
+cert_file: "idp.crt"
 # Lista di metadati, relativi ai Sp registrati, necessari per verificare lo scambio di messaggi
 # 'local' indica il path ad un file .xml (metadata) raggiungibile localmente dall'IdP
 # 'remote' tramite url e certificato indica come ottenere un metadata remoto
