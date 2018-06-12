@@ -65,6 +65,7 @@ tramite log di Flask.
 * `/add-user` (GET, POST), accesso libero: Consente di aggiungere un utente sull'idp impostandone eventuali attributi spid primari e secondari. Ritorna una response con status code 200.
 * `/login` (GET, POST), accesso tramite chiave salvata in sessione: Gestisce e processa una AuthnRequest ritornando eventuali messaggei di errore.
 * `/continue-response` (POST), accesso tramite chiave salvata in sessione: Ritorna una response per la AuthnRequest in ingresso se l'utente acconsente a trasferire gli attributi richiesti.
+* `/metadata` (GET), restituisce il metadata dell'IdP generato automaticamente, da utilizzarsi nei Service Provider.
 
 Nota: gli endpoint (e rispettivi binding) per SSO e SLO sono impostati tramite file di configurazione.
 
