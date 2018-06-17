@@ -1,0 +1,5 @@
+---
+- hosts: testenv2
+  remote_user: root
+  roles:
+    - spid-testenv2

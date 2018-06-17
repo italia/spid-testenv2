@@ -46,6 +46,29 @@ openssl req -x509 -nodes -sha256 -days 365 -newkey rsa:2048 -keyout idp.key -out
 
 Nota: Le path dei due file (chiave e certificato) vanno inserite nel file di configurazione config.* .
 
+## Ansible install
+
+Alternativamente alla procedura di installazione manuale riportata sopra, è possible installare l'Identity Provider di test tramite lo strumento di configuration management [ansible](https://www.ansible.com/).
+
+Prima di iniziare:
+
+- effettuare il provisioning dell'[host](https://docs.ansible.com/ansible/devel/reference_appendices/glossary.html#term-host) su cui si vuole installare il testenv (che può essere una macchina fisica, una macchina virtuale o un container), con il sistema operativo **Debian 9.4 (stretch)**
+
+- assicurarsi che sull'host:
+  - python sia installato (è richiesto da ansible)
+  - esista l'utente simevo
+
+- assicurarsi che il controller (il computer da cui si intende controllare l'host):
+  - abbia ansible 2.2 o posteriori installato
+  - possa raggiungere l'host come `idp.simevo.com`
+  - possa effettuare l'accesso ssh con chiave crittografica come utente root e come utente simevo
+
+L'installazione si effettua con il comando:
+```
+ansible-playbook -i ansible/hosts ansible/site.yml
+```
+
+Verifica dell'installazione: [https://idp.simevo.com/metadata](https://idp.simevo.com/metadata) ritorna i metadati dell'IDP.
 
 ## Logging
 

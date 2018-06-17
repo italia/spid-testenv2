@@ -1,0 +1,12 @@
+[Unit]
+Description=SPID (SIP) IDentity Provider test environment
+After=multi-user.target
+
+[Service]
+Type=idle
+ExecStart=/srv/testenv2/env/bin/python /srv/testenv2/spid-testenv.py
+User=simevo
+WorkingDirectory=/srv/testenv2/
+
+[Install]
+WantedBy=multi-user.target 
