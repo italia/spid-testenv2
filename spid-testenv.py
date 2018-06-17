@@ -12,7 +12,8 @@ from logging.handlers import RotatingFileHandler
 
 import saml2.xmldsig as ds
 import yaml
-from flask import Flask, Response, abort, escape, redirect, render_template_string, request, session, url_for
+from flask import Flask, Response, abort, escape, redirect, render_template_string, request, session, url_for, \
+    render_template
 from passlib.hash import sha512_crypt
 from saml2 import (BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, BINDING_URI,
                    NAMESPACE)
@@ -829,8 +830,16 @@ class IdpServer(object):
         """
         spid_main_fields = self._spid_main_fields
         spid_secondary_fields = self._spid_secondary_fields
-        rendered_form = render_template_string(
-            FORM_ADD_USER,
+        # rendered_form = render_template_string(
+        #     FORM_ADD_USER,
+        #     **{
+        #         'action': '/add-user',
+        #         'primary_attributes': spid_main_fields,
+        #         'secondary_attributes': spid_secondary_fields
+        #     }
+        # )
+        rendered_form = render_template(
+            "add_user.html",
             **{
                 'action': '/add-user',
                 'primary_attributes': spid_main_fields,
@@ -1029,7 +1038,7 @@ if __name__ == '__main__':
     # Init server
     config = _get_config(args.path, args.configuration_type)
     try:
-        server = IdpServer(app=Flask(__name__), config=config)
+        server = IdpServer(app=Flask(__name__, static_url_path='/static'), config=config)
         # Start server
         server.start()
     except BadConfiguration as e:
