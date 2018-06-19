@@ -1,5 +1,7 @@
 ---
 - hosts: testenv2
   remote_user: root
+  vars_files:
+    - spid-testenv2_vars.yml
   roles:
     - spid-testenv2

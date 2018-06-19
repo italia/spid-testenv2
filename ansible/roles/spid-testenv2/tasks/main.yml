@@ -2,10 +2,10 @@
 # tasks file for spid-testenv2
 - name: make sure the directory exists
   file:
-    path: /srv/testenv2
+    path: "{{ spid_testenv2_dir }}"
     state: directory
-    owner: simevo
-    group: simevo
+    owner: "{{ spid_testenv2_user }}"
+    group: "{{ spid_testenv2_user }}"
     mode: 0755
 
 - name: install testenv2 preprequisites
@@ -19,31 +19,31 @@
 
 - name: get the spid-testenv2 repo
   git:
-    repo: 'https://github.com/italia/spid-testenv2.git'
-    dest: /srv/testenv2
+    repo: "https://github.com/italia/spid-testenv2.git"
+    dest: "{{ spid_testenv2_dir }}"
 
 - name: generate the IDP certificate
-  command: openssl req -x509 -nodes -sha256 -days 365 -newkey rsa:2048 -subj "/C=IT/ST=Italy/L=Rome/O=testenv2/CN=${ansible_fqdn}" -keyout /srv/testenv2/idp.key -out /srv/testenv2/idp.crt
+  command: openssl req -x509 -nodes -sha256 -days 365 -newkey rsa:2048 -subj "/C=IT/ST=Italy/L=Rome/O=testenv2/CN=${ansible_fqdn}" -keyout {{ spid_testenv2_dir }}/idp.key -out {{ spid_testenv2_dir }}/idp.crt
   args:
     creates: /etc/nginx/ssl/server.crt
-    
-- name: make sure the user simevo can read the key
+
+- name: make sure the non-privileged user can read the key
   file:
-    path: '/srv/testenv2/idp.key'
+    path: "{{ spid_testenv2_dir }}/idp.key"
     state: file
-    owner: simevo
+    owner: "{{ spid_testenv2_user }}"
 
 - name: install python dependencies
-  pip: requirements=/srv/testenv2/requirements.txt virtualenv=/srv/testenv2/env virtualenv_site_packages=yes
+  pip: requirements={{ spid_testenv2_dir }}/requirements.txt virtualenv={{ spid_testenv2_dir }}/env virtualenv_site_packages=yes
 
 - name: Add self IP address to the hosts file
   lineinfile:
     dest: /etc/hosts
-    line: "127.0.0.1   idp.simevo.com"
+    line: "127.0.0.1 {{ spid_testenv2_hostname }}"
     state: present
-    
+
 - name: use default config
-  command: cp /srv/testenv2/config.yaml.example /srv/testenv2/config.yaml
+  command: cp {{ spid_testenv2_dir }}/config.yaml.example {{ spid_testenv2_dir }}/config.yaml
 
 - name: install the systemd unit file
   template:
@@ -61,16 +61,16 @@
 
 - name: configure testenv2 so that it only listens on localhost
   lineinfile:
-    path: /srv/testenv2/config.yaml
-    regexp: '^host:'
-    line: 'host: 127.0.0.1'
+    path: "{{ spid_testenv2_dir }}/config.yaml"
+    regexp: "^host:"
+    line: "host: 127.0.0.1"
 
 - name: configure testenv2 so that it knows about its hostname
   lineinfile:
-    path: /srv/testenv2/config.yaml
-    regexp: '^hostname:'
-    line: 'hostname: idp.simevo.com'
-    
+    path: "{{ spid_testenv2_dir }}/config.yaml"
+    regexp: "^hostname:"
+    line: "hostname: {{ spid_testenv2_hostname }}"
+
 - name: start testenv2 service
   command: systemctl start testenv2
 
@@ -89,7 +89,7 @@
 
 - name: remove symlink to default nginx configuration
   file:
-   path: '/etc/nginx/sites-enabled/default'
+   path: "/etc/nginx/sites-enabled/default"
    state: absent
 
 - name: install the systemd unit file
@@ -99,7 +99,7 @@
     owner=root
     group=root
     mode=0644
-  
+
 - name: restart nginx service
   command: systemctl restart nginx
 

@@ -4,9 +4,9 @@ After=multi-user.target
 
 [Service]
 Type=idle
-ExecStart=/srv/testenv2/env/bin/python /srv/testenv2/spid-testenv.py
-User=simevo
-WorkingDirectory=/srv/testenv2/
+ExecStart={{ spid_testenv2_dir }}/env/bin/python {{ spid_testenv2_dir }}/spid-testenv.py
+User={{ spid_testenv2_user }}
+WorkingDirectory={{ spid_testenv2_dir }}/
 
 [Install]
-WantedBy=multi-user.target 
+WantedBy=multi-user.target

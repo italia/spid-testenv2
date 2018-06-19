@@ -56,14 +56,14 @@ Prima di iniziare:
 
 - assicurarsi che sull'host:
   - python sia installato (è richiesto da ansible)
-  - esista l'utente simevo
+  - esista un utente non privilegiato (username di difetto: `simevo`)
 
 - assicurarsi che il controller (il computer da cui si intende controllare l'host):
   - abbia ansible 2.2 o posteriori installato
-  - possa raggiungere l'host come `idp.simevo.com`
-  - possa effettuare l'accesso ssh con chiave crittografica come utente root e come utente simevo
+  - possa raggiungere l'host con un FQDN (valore di difetto `idp.simevo.com`)
+  - possa effettuare l'accesso ssh con chiave crittografica come utente root e come utente non privilegiato
 
-L'installazione si effettua con il comando:
+Configurare le variabili nel file `ansible/spid-testenv2_vars.yml` e il nome dell'host in `ansible/hosts` avviare l'installazione con il comando:
 ```
 ansible-playbook -i ansible/hosts ansible/site.yml
 ```
