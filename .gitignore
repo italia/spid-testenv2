@@ -99,3 +99,9 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+/idp.crt
+/idp.key
+/metadata.xml
+/users.json
+/config.yaml
