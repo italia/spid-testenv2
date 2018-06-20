@@ -109,3 +109,5 @@ ansible/site.retry
 /users.json
 /config.yaml
 
+#Idea
+.idea
