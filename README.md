@@ -13,12 +13,20 @@ Questo repository ospita lo sviluppo di un nuovo Identity Provider di test per c
 ## WORK IN PROGRESS
 Per ora si raccomanda di usare l'IdP di test già disponibile in https://github.com/italia/spid-testenv 
 
+## Requisiti
+
+Installare le seguenti librerie di sistema:
+
+* [xmlsec1](http://www.aleksey.com/xmlsec/)
+
+* [libffi-dev](http://sourceware.org/libffi/)
+
 ## Istruzioni
 
 1) Create ed attivare un virtualenv
     ```
     virtualenv -p /path/to/pythonbin env
-    . env/bin/actiate
+    . env/bin/activate
     ```
 
 2) Installare i pacchetti necessari tramite pip
@@ -26,9 +34,9 @@ Per ora si raccomanda di usare l'IdP di test già disponibile in https://github.
     pip install -r requirements.txt
     ```
 
-3) Creare e configurare il file config.json o config.yaml
+3) Creare e configurare il file config.yaml
     ```
-    cp config.<ext>.example config.<ext>
+    cp config.yaml.example config.yaml
     ```
 
 4) Lanciare l'eseguibile
@@ -80,6 +88,7 @@ tramite log di Flask.
 * `/add-user` (GET, POST), accesso libero: Consente di aggiungere un utente sull'idp impostandone eventuali attributi spid primari e secondari. Ritorna una response con status code 200.
 * `/login` (GET, POST), accesso tramite chiave salvata in sessione: Gestisce e processa una AuthnRequest ritornando eventuali messaggei di errore.
 * `/continue-response` (POST), accesso tramite chiave salvata in sessione: Ritorna una response per la AuthnRequest in ingresso se l'utente acconsente a trasferire gli attributi richiesti.
+* `/metadata` (GET), restituisce il metadata dell'IdP generato automaticamente, da utilizzarsi nei Service Provider.
 
 Nota: gli endpoint (e rispettivi binding) per SSO e SLO sono impostati tramite file di configurazione.
 

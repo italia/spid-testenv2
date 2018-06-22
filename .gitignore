@@ -102,3 +102,10 @@ ENV/
 
 # Ansible
 ansible/site.retry
+
+/idp.crt
+/idp.key
+/metadata.xml
+/users.json
+/config.yaml
+
