@@ -1,0 +1,15 @@
+galaxy_info:
+  author: Paolo Greppi
+  company: simevo s.r.l.
+  license: agpl-3.0
+  min_ansible_version: 2.2
+  platforms:
+  - name: Debian
+    versions:
+    - 9
+  galaxy_tags:
+  - authentication
+  - saml
+  - debian
+  - sso
+  dependencies: []

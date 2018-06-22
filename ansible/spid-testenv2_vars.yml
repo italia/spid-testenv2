@@ -1,0 +1,7 @@
+---
+
+spid_testenv2_hostname: 'idp.simevo.com'
+
+spid_testenv2_user: 'simevo'
+
+spid_testenv2_dir: '/srv/testenv2'
