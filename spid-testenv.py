@@ -883,8 +883,8 @@ class IdpServer(object):
             if request.method == 'GET':
                 # inject extra data in form login based on spid level
                 extra_challenge = callback(**{'key': key})
-                rendered_form = render_template_string(
-                    FORM_LOGIN,
+                rendered_form = render_template(
+                    'login.html',
                     **{
                         'action': url_for('login'),
                         'request_key': key,
@@ -941,8 +941,8 @@ class IdpServer(object):
                     for _attr in attrs:
                         attrs_list = '{}<tr><td>{}</td></tr>'.format(attrs_list, _attr)
                     self.responses[key] = http_args['data']
-                    rendered_response = render_template_string(
-                        CONFIRM_PAGE,
+                    rendered_response = render_template(
+                        'confirm.html',
                         **{
                             'lines':  escape(authn_request.xmlstr.decode()).splitlines(),
                             'attrs': attrs,

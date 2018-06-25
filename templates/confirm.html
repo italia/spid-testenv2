@@ -1,0 +1,32 @@
+{% extends 'main_page.html' %}
+{% block content %}
+    <article class="main-bodytext u-padding-all-xl">
+        <div id="message">
+            {% for line in lines %}
+                <pre class="xml-line">{{line}}</pre>
+            {% endfor %}
+        </div>
+        Vuoi trasmettere i seguenti attributi?
+        <table border=1>
+            <thead>
+                <tr>
+                    <th>attributo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for attr in attrs %}
+                    <tr>
+                        <td>{{attr}}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <form name="make_response" method="post" action="{{action}}">
+            <div class="FixedSmall u-padding-top-m u-padding-bottom-m">
+                <input type="hidden" name="request_key" value="{{request_key}}" />
+                <button type="submit" class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-primary u-margin-bottom-xs js-cta" >Invia</button>
+                <button type="button" class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-quaternary">Annulla</button>
+            </div>
+        </form>
+    </article>
+{% endblock %}
