@@ -1,32 +1,51 @@
 ---
-# Abilita (true) o disabilita (false) la modalità debug per il server IdP
-debug: true
-# IdP server - Indirizzo IP dell'interfaccia su cui esporre il server; lasciare 0.0.0.0 per ascoltare su tutte le interfacce
-host: 0.0.0.0
-# IdP server - porta
-port: 8088
-# IdP - Url base necessaria per ricavare EntityId dell'IdP
+# CONFIGURAZIONE IDENTITY PROVIDER
+
+# Hostname da usare per generare l'entityID dell'IdP. Non ha alcun effetto
+# pratico e non è necessario che sia risolvibile nel DNS; è solo un 
+# identificativo.
 hostname: "spid-testenv"
+
+# Chiave e certificato necessari per la firma dei messaggi SAML
+key_file: "idp.key"
+cert_file: "idp.crt"
+
+
+# CONFIGURAZIONE SERVICE PROVIDER
+
+# Si possono configurare più Service Provider. Per leggere i metadati da un 
+# file .xml è sufficiente inserirne il path sotto "local"; per leggerli da 
+# un URL remoto bisogna invece inserirlo sotto "remote" (insieme al path di
+# una copia locale del certificato del Service Provider, che per sicurezza 
+# deve coincidere con quello presente nei metadati).
+# cfr. https://pysaml2.readthedocs.io/en/latest/howto/config.html#metadata
+metadata:
+  local:
+#  - "metadata.xml"
+  remote:
+#  - url: "http://spid-sp/metadata/
+#    cert: "spid-sp.cert"
+
+
+# CONFIGURAZIONE TESTENV WEB SERVER
+
+# Abilita (true) o disabilita (false) la modalità debug
+debug: true
+
+# Indirizzo IP dell'interfaccia su cui esporre il server e porta
+# (0.0.0.0 per ascoltare su tutte le interfacce)
+host: 0.0.0.0
+port: 8088
+
 # Abilita (true) o disabilita (false) la modalità HTTPS per l'IdP
 https: false
-# Chiave e certificato per HTTPS (indipendenti da chiave e certificato SAML)
+
+# Se si abilita HTTPS è necessario specificare chiave e certificato
+# (indipendenti da chiave e certificato SAML)
 #https_key_file: "path/to/key"
 #https_cert_file: "path/to/cert"
-# Endpoint del server IdP, suddivisi per funzionalità e binding
-# nota: utilizzare path relativi
+
+# Endpoint del server IdP (path relativi)
 endpoints:
   single_sign_on_service: "/sso"
   single_logout_service: "/slo"
-# Chiave e certificato necessari per la firma dei messaggi Spid
-key_file: "idp.key"
-cert_file: "idp.crt"
-# Lista di metadati, relativi ai Sp registrati, necessari per verificare lo scambio di messaggi
-# 'local' indica il path ad un file .xml (metadata) raggiungibile localmente dall'IdP
-# 'remote' tramite url e certificato indica come ottenere un metadata remoto
-# Per ulteriori informazioni seguire le indicazioni qui presenti: https://pysaml2.readthedocs.io/en/latest/howto/config.html#metadata
-metadata:
-#  local:
-#  - "metadata.xml"
-#  remote:
-#  - url: "http://spid-sp/metadata/
-#    cert: "spid-sp.cert"
