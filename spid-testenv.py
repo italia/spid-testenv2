@@ -235,6 +235,10 @@ class IdpServer(object):
         cert_file_path = self._config.get('cert_file')
         metadata = self._config.get('metadata')
         metadata = metadata if metadata else []
+        if metadata:
+            for typ in ['local', 'remote']:
+                if metadata.get(typ) is None:
+                    metadata[typ] = []
         existing_key = os.path.isfile(key_file_path) if key_file_path else None
         existing_cert = os.path.isfile(cert_file_path) if cert_file_path else None
         if not existing_key:
