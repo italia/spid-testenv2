@@ -274,20 +274,6 @@ class IdpServer(object):
             "key_file": self._config.get('key_file'),
             "cert_file": self._config.get('cert_file'),
             "metadata": metadata,
-            "organization": {
-                "display_name": "Spid testenv",
-                "name": "Spid testenv",
-                "url": "http://www.example.com",
-            },
-            "contact_person": [
-                {
-                    "contact_type": "technical",
-                    "given_name": "support",
-                    "sur_name": "support",
-                    "email_address": "technical@example.com"
-                },
-            ],
-
             "logger": {
                 "rotating": {
                     "filename": "idp.log",
