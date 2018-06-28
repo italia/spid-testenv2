@@ -1,10 +1,9 @@
 ---
 # CONFIGURAZIONE IDENTITY PROVIDER
 
-# Hostname da usare per generare l'entityID dell'IdP. Non ha alcun effetto
-# pratico e non è necessario che sia risolvibile nel DNS; è solo un 
-# identificativo.
-hostname: "spid-testenv"
+# Hostname da usare per generare l'entityID dell'IdP e gli URL degli endpoint
+# SAML indicati nel metadata dell'IdP
+hostname: "localhost"
 
 # Chiave e certificato necessari per la firma dei messaggi SAML
 key_file: "idp.key"
@@ -20,10 +19,10 @@ cert_file: "idp.crt"
 # deve coincidere con quello presente nei metadati).
 # cfr. https://pysaml2.readthedocs.io/en/latest/howto/config.html#metadata
 metadata:
-  local:
-#  - "metadata.xml"
-  remote:
-#  - url: "http://spid-sp/metadata/
+#  local:
+#  - "sp_metadata.xml"
+#  remote:
+#  - url: "http://spid-sp/metadata
 #    cert: "spid-sp.cert"
 
 
