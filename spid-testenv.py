@@ -653,7 +653,14 @@ class IdpServer(object):
             binding,
             "%s" % response, destination, response=True, sign=True
         )
-        return http_args['data'], 200
+        if binding == BINDING_HTTP_POST:
+            return http_args['data'], 200
+        elif binding == BINDING_HTTP_REDIRECT:
+            headers = dict(http_args['headers'])
+            location = headers.get('Location')
+            if location:
+                return redirect(location)
+        abort(400)
 
     def metadata(self):
         metadata = create_metadata_string(
