@@ -525,6 +525,10 @@ class IdpServer(object):
         cert_file_path = self._config.get('cert_file')
         metadata = self._config.get('metadata')
         metadata = metadata if metadata else []
+        if metadata:
+            for typ in ['local', 'remote']:
+                if metadata.get(typ) is None:
+                    metadata[typ] = []
         existing_key = os.path.isfile(key_file_path) if key_file_path else None
         existing_cert = os.path.isfile(cert_file_path) if cert_file_path else None
         if not existing_key:
@@ -564,20 +568,6 @@ class IdpServer(object):
             "key_file": self._config.get('key_file'),
             "cert_file": self._config.get('cert_file'),
             "metadata": metadata,
-            "organization": {
-                "display_name": "Spid testenv",
-                "name": "Spid testenv",
-                "url": "http://www.example.com",
-            },
-            "contact_person": [
-                {
-                    "contact_type": "technical",
-                    "given_name": "support",
-                    "sur_name": "support",
-                    "email_address": "technical@example.com"
-                },
-            ],
-
             "logger": {
                 "rotating": {
                     "filename": "idp.log",
@@ -986,7 +976,14 @@ class IdpServer(object):
             binding,
             "%s" % response, destination, response=True, sign=True
         )
-        return http_args['data'], 200
+        if binding == BINDING_HTTP_POST:
+            return http_args['data'], 200
+        elif binding == BINDING_HTTP_REDIRECT:
+            headers = dict(http_args['headers'])
+            location = headers.get('Location')
+            if location:
+                return redirect(location)
+        abort(400)
 
     def metadata(self):
         metadata = create_metadata_string(
