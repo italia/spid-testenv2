@@ -45,6 +45,13 @@ else:
 SIGN_ALG = ds.SIG_RSA_SHA1
 DIGEST_ALG = ds.DIGEST_SHA1
 
+COMPARISONS = ('exact', 'minimum', 'better', 'maximum')
+SPID_LEVELS = (
+    'https://www.spid.gov.it/SpidL1',
+    'https://www.spid.gov.it/SpidL2',
+    'https://www.spid.gov.it/SpidL3'
+)
+
 error_table = '''
 <html>
     <head>
@@ -185,6 +192,14 @@ CONFIRM_PAGE = '''
 </html>
 '''
 
+def check_utc_date(date):
+    try:
+        datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
+    except ValueError:
+        return False
+    return True
+check_utc_date.error_msg = 'la data non è in formato UTC'
+
 
 class Observer(object):
 
@@ -211,17 +226,20 @@ class Attr(object):
 
     MANDATORY_ERROR = 'L\'attributo {} è obbligatorio'
     DEFAULT_VALUE_ERROR = '{} è diverso dal valore di riferimento {}'
+    DEFAULT_LIST_VALUE_ERROR = '{} non corrisponde a nessuno dei valori contenuti in {}'
 
-    def __init__(self, name, required=True, default=None, *args, **kwargs):
+    def __init__(self, name, required=True, default=None, func=None, *args, **kwargs):
         """
         :param name: attribute name
         :param required: flag to indicate if the attribute is mandatory (True by default)
-        :param default: default value (to be compared with the provided value to the 'validate' method)
+        :param default: default value (or list of values, to be compared with the provided value to the 'validate' method)
+        :param func: optional additional function to perform a validation on value passed to 'validated' method
         """
         self._name = name
         self._required = required
         self._errors = {}
         self._default = default
+        self._func = func
 
     def validate(self, value=None):
         """
@@ -229,8 +247,14 @@ class Attr(object):
         """
         if self._required and value is None:
             self._errors['required_error'] = self.MANDATORY_ERROR.format(self._name)
-        if self._default is not None and self._default != value:
-            self._errors['value_error'] = self.DEFAULT_VALUE_ERROR.format(value, self._default)
+        if self._default is not None:
+            if isinstance(self._default, list) and value not in self._default:
+                self._errors['value_error'] = self.DEFAULT_LIST_VALUE_ERROR.format(value, self._default)
+            elif isinstance(self._default, str) and self._default != value:
+                self._errors['value_error'] = self.DEFAULT_VALUE_ERROR.format(value, self._default)
+        if self._func is not None and value is not None:
+            if not self._func(value):
+                self._errors['validation_error'] = self._func.error_msg
         return {
             'value': value if not self._errors else None,
             'errors': self._errors
@@ -315,7 +339,7 @@ class SpidParser(object):
             attributes=[
                 Attr('id'),
                 Attr('version', default='2.0'),
-                Attr('issue_instant'),
+                Attr('issue_instant', func=check_utc_date),
                 Attr('destination'),
                 Attr('force_authn', required=False),
                 Attr('attribute_consuming_service_index', required=False),
@@ -360,22 +384,22 @@ class SpidParser(object):
                     tag='saml:Conditions',
                     required=False,
                     attributes=[
-                        Attr('not_before'),
-                        Attr('Not_on_or_after')
+                        Attr('not_before', func=check_utc_date),
+                        Attr('not_on_or_after', func=check_utc_date)
                     ]
                 ),
                 Elem(
                     'requested_authn_context',
                     tag='saml:AuthnContext',
                     attributes=[
-                        Attr('comparison'),
+                        Attr('comparison', default=COMPARISONS),
                     ],
                     children=[
                         Elem(
                             'authn_context_class_ref',
                             tag='saml:AuthnContextClassRef',
                             attributes=[
-                                Attr('text')
+                                Attr('text', default=SPID_LEVELS)
                             ]
                         )
                     ]
@@ -384,6 +408,14 @@ class SpidParser(object):
                     'signature',
                     tag='ds:Signature',
                     required=required_signature,
+                ),
+                Elem(
+                    'scoping',
+                    tag='saml2p:Scoping',
+                    required=False,
+                    attributes=[
+                        Attr('proxy_count', default=[0])
+                    ]
                 ),
             ]
         )
@@ -465,11 +497,7 @@ class IdpServer(object):
         'http-post': BINDING_HTTP_POST
     }
     _endpoint_types = ['single_sign_on_service', 'single_logout_service']
-    _spid_levels = [
-        'https://www.spid.gov.it/SpidL1',
-        'https://www.spid.gov.it/SpidL2',
-        'https://www.spid.gov.it/SpidL3'
-    ]
+    _spid_levels = SPID_LEVELS
     _spid_attributes = {
         'primary': {
             'spidCode' : 'xs:string',
