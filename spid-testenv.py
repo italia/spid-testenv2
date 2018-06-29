@@ -21,7 +21,7 @@ from saml2.assertion import Assertion
 from saml2.authn_context import AuthnBroker, authn_context_class_ref
 from saml2.config import Config as Saml2Config
 from saml2.metadata import create_metadata_string
-from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT
+from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, NAMEID_FORMAT_ENTITY
 from saml2.server import Server
 from saml2.sigver import verify_redirect_signature
 
@@ -320,7 +320,7 @@ class SpidParser(object):
                 Attr('force_authn', required=False),
                 Attr('attribute_consuming_service_index', required=False),
                 Attr('assertion_consumer_service_url', required=False),
-                Attr('protocol_binding', default='urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST', required=False)
+                Attr('protocol_binding', default=BINDING_HTTP_POST, required=False)
             ],
             children=[
                 Elem(
@@ -328,7 +328,7 @@ class SpidParser(object):
                     tag='saml:Subject',
                     required=False,
                     attributes=[
-                        Attr('format', default='urn:oasis:names:tc:SAML:2.0:nameid-format:entity'),
+                        Attr('format', default=NAMEID_FORMAT_ENTITY),
                         Attr('name_qualifier')
                     ]
                 ),
@@ -338,12 +338,12 @@ class SpidParser(object):
                     example='''
                         <saml:Issuer
                             NameQualifier="http://spid.serviceprovider.it"
-                            Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity">
+                            Format="{}">
                             spid-sp
                         </saml:Issuer>
-                    ''',
+                    '''.format(NAMEID_FORMAT_ENTITY),
                     attributes=[
-                        Attr('format', default='urn:oasis:names:tc:SAML:2.0:nameid-format:entity'),
+                        Attr('format', default=NAMEID_FORMAT_ENTITY),
                         Attr('name_qualifier')
                     ],
                 ),
@@ -352,7 +352,7 @@ class SpidParser(object):
                     tag='samlp:NameIDPolicy',
                     attributes=[
                         Attr('allow_create', required=False, default='true'),
-                        Attr('format', default='urn:oasis:names:tc:SAML:2.0:nameid-format:transient')
+                        Attr('format', default=NAMEID_FORMAT_TRANSIENT)
                     ]
                 ),
                 Elem(
