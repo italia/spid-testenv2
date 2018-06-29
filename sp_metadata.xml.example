@@ -1,0 +1,86 @@
+<!-- Esempio di metadata Service Provider
+     Per informazioni sulla compilazione fare riferimento alle Regole Tecniche SPID -->
+
+<?xml version="1.0"?> 
+
+<!-- entityID è una URI che individua univocamente il Service Provider -->
+<md:EntityDescriptor 
+    xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"  
+    xmlns:ds="http://www.w3.org/2000/09/xmldsig#"  
+    entityID="https://www.myserviceprovider.it/"  
+    ID="_681a637-6cd4-434f-92c3-4fed720b2ad8"> 
+    
+    <!-- Il certificato del Service Provider va riportato nei due tag KeyDescriptor
+         qui sotto, senza i delimitatori --- BEGIN CERTIFICATE --- e --- END CERTIFICATE -- !-->
+    <md:SPSSODescriptor  
+        protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol"  
+        AuthnRequestsSigned="true"  
+        WantAssertionsSigned="true"> 
+        
+        <md:KeyDescriptor use="signing"> 
+            <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#"> 
+                <ds:X509Data> 
+                    <ds:X509Certificate>certificato Service Provider</ds:X509Certificate> 
+                </ds:X509Data> 
+            </ds:KeyInfo> 
+        </md:KeyDescriptor> 
+        
+        <md:KeyDescriptor use="encryption"> 
+            <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#"> 
+                <ds:X509Data> 
+                    <ds:X509Certificate>certificato Service Provider</ds:X509Certificate> 
+                </ds:X509Data> 
+            </ds:KeyInfo> 
+        </md:KeyDescriptor> 
+        
+        <!-- Endpoint del Service Provider deputato a ricevere le LogoutRequest --!>
+        <md:SingleLogoutService 
+            Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+            Location="https://www.myserviceprovider.it/spid/logout" /> 
+
+        <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:transient</md:NameIDFormat> 
+
+        <!-- Endpoint del Service Provider deputato a ricevere le asserzioni di login.
+        	(può essere ripetuto più volte, incrementando l'attributo index) --!>
+        <md:AssertionConsumerService  
+            Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"  
+            Location="https://www.myserviceprovider.it/spid/acs"  
+            index="0"  
+            isDefault="true" /> 
+		
+		<!-- Gruppo di attributi predefinito, che il Service Provider potrà richiedere 
+			 durante in login. Si può specificare più volte. Si raccomanda di limitare
+			 gli attributi richiesti ai soli necessari per l'erogazione del proprio servizio. -->
+        <md:AttributeConsumingService index="1"> 
+            <md:ServiceName xml:lang="it">Nome del servizio</md:ServiceName> 
+            <md:ServiceDescription xml:lang="it">Descrizione del servizio</md:ServiceDescription> 
+            <md:RequestedAttribute Name="name" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic"/> 
+            <md:RequestedAttribute Name="fiscalNumber" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic"/> 
+            <md:RequestedAttribute Name="familyName" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic"/> 
+            <md:RequestedAttribute Name="spidCode" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic"/> 
+            <md:RequestedAttribute Name="gender" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic"/> 
+            <md:RequestedAttribute Name="dateOfBirth" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic"/> 
+            <md:RequestedAttribute Name="countyOfBirth" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic"/> 
+            <md:RequestedAttribute Name="idCard" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic"/> 
+            <md:RequestedAttribute Name="registeredOffice" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic"/> 
+            <md:RequestedAttribute Name="email" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic"/> 
+            <md:RequestedAttribute Name="digitalAddress" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic"/> 
+            <md:RequestedAttribute Name="ivaCode" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic"/> 
+            <md:RequestedAttribute Name="placeOfBirth" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic"/> 
+            <md:RequestedAttribute Name="companyName" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic"/> 
+            <md:RequestedAttribute Name="mobilePhone" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic"/> 
+            <md:RequestedAttribute Name="address" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic"/> 
+            <md:RequestedAttribute Name="expirationDate" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic"/> 
+        </md:AttributeConsumingService> 
+
+    </md:SPSSODescriptor> 
+	
+	<!-- Informazioni generali sul Service Provider -->
+    <md:Organization> 
+        <md:OrganizationName xml:lang="it">Nome del Service Provider</md:OrganizationName> 
+        <md:OrganizationDisplayName xml:lang="it">Nome completo del Service Provider</md:OrganizationDisplayName> 
+        <md:OrganizationURL xml:lang="it">https://www.myserviceprovider.it/</md:OrganizationURL> 
+    </md:Organization> 
+
+</md:EntityDescriptor>
+ 

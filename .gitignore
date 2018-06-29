@@ -106,6 +106,7 @@ ansible/site.retry
 /idp.crt
 /idp.key
 /metadata.xml
+/sp_metadata.xml
 /users.json
 /config.yaml
 
