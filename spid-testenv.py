@@ -848,14 +848,6 @@ class IdpServer(object):
         """
         spid_main_fields = self._spid_main_fields
         spid_secondary_fields = self._spid_secondary_fields
-        # rendered_form = render_template_string(
-        #     FORM_ADD_USER,
-        #     **{
-        #         'action': '/add-user',
-        #         'primary_attributes': spid_main_fields,
-        #         'secondary_attributes': spid_secondary_fields
-        #     }
-        # )
         rendered_form = render_template(
             "add_user.html",
             **{
