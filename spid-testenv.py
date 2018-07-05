@@ -3,6 +3,7 @@ import argparse
 import collections
 import json
 import logging
+import lxml.etree as etree
 import os.path
 import random
 import string
@@ -199,6 +200,11 @@ def check_utc_date(date):
         return False
     return True
 check_utc_date.error_msg = 'la data non è in formato UTC'
+
+
+def prettify_xml(msg):
+    msg = etree.tostring(etree.XML(msg), pretty_print=True)
+    return msg.decode()
 
 
 class Observer(object):
@@ -743,7 +749,7 @@ class IdpServer(object):
         return key
 
     def _handle_errors(self, errors, xmlstr):
-        _escaped_xml = escape(xmlstr.decode())
+        _escaped_xml = escape(prettify_xml(xmlstr.decode()))
         rendered_error_response = render_template_string(
             spid_error_table,
             **{
@@ -954,7 +960,7 @@ class IdpServer(object):
                     rendered_response = render_template(
                         'confirm.html',
                         **{
-                            'lines':  escape(authn_request.xmlstr.decode()).splitlines(),
+                            'lines':  escape(prettify_xml(authn_request.xmlstr.decode())).splitlines(),
                             'attrs': attrs,
                             'action': '/continue-response',
                             'request_key': key
