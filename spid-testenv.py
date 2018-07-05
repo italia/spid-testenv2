@@ -960,7 +960,7 @@ class IdpServer(object):
                     rendered_response = render_template(
                         'confirm.html',
                         **{
-                            'lines':  escape(prettify_xml(authn_request.xmlstr.decode())).splitlines(),
+                            'lines':  escape(prettify_xml(response)).splitlines(),
                             'attrs': attrs,
                             'action': '/continue-response',
                             'request_key': key
