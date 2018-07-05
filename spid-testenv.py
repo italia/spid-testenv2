@@ -1010,13 +1010,13 @@ class IdpServer(object):
                         }
                     )
                     return rendered_response, 200
-        abort(403)
+        return render_template('403.html'), 403
 
     def continue_response(self):
         key = request.form['request_key']
         if key and key in self.ticket and key in self.responses:
             return self.responses[key], 200
-        abort(403)
+        return render_template('403.html'), 403
 
     def single_logout_service(self):
         """
