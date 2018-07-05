@@ -327,113 +327,155 @@ class SpidParser(object):
 
     def __init__(self, *args, **kwargs):
         self.schema = None
-        self.observer = Observer()
 
-    def get_schema(self, binding):
+    def get_schema(self, action, binding):
         """
         :param binding:
         """
-        required_signature = False
-        if binding == BINDING_HTTP_POST:
-            required_signature = True
-        elif binding == BINDING_HTTP_REDIRECT:
+        _schema = None
+        if action == 'login':
             required_signature = False
+            if binding == BINDING_HTTP_POST:
+                required_signature = True
+            elif binding == BINDING_HTTP_REDIRECT:
+                required_signature = False
 
-        _schema = Elem(
-            name='auth_request',
-            tag='samlp:AuthnRequest',
-            attributes=[
-                Attr('id'),
-                Attr('version', default='2.0'),
-                Attr('issue_instant', func=check_utc_date),
-                Attr('destination'),
-                Attr('force_authn', required=False),
-                Attr('attribute_consuming_service_index', required=False),
-                Attr('assertion_consumer_service_url', required=False),
-                Attr('protocol_binding', default=BINDING_HTTP_POST, required=False)
-            ],
-            children=[
-                Elem(
-                    'subject',
-                    tag='saml:Subject',
-                    required=False,
-                    attributes=[
-                        Attr('format', default=NAMEID_FORMAT_ENTITY),
-                        Attr('name_qualifier')
-                    ]
-                ),
-                Elem(
-                    'issuer',
-                    tag='saml:Issuer',
-                    example='''
-                        <saml:Issuer
-                            NameQualifier="http://spid.serviceprovider.it"
-                            Format="{}">
-                            spid-sp
-                        </saml:Issuer>
-                    '''.format(NAMEID_FORMAT_ENTITY),
-                    attributes=[
-                        Attr('format', default=NAMEID_FORMAT_ENTITY),
-                        Attr('name_qualifier')
-                    ],
-                ),
-                Elem(
-                    'name_id_policy',
-                    tag='samlp:NameIDPolicy',
-                    attributes=[
-                        Attr('allow_create', required=False, default='true'),
-                        Attr('format', default=NAMEID_FORMAT_TRANSIENT)
-                    ]
-                ),
-                Elem(
-                    'conditions',
-                    tag='saml:Conditions',
-                    required=False,
-                    attributes=[
-                        Attr('not_before', func=check_utc_date),
-                        Attr('not_on_or_after', func=check_utc_date)
-                    ]
-                ),
-                Elem(
-                    'requested_authn_context',
-                    tag='saml:AuthnContext',
-                    attributes=[
-                        Attr('comparison', default=COMPARISONS),
-                    ],
-                    children=[
-                        Elem(
-                            'authn_context_class_ref',
-                            tag='saml:AuthnContextClassRef',
-                            attributes=[
-                                Attr('text', default=SPID_LEVELS)
-                            ]
-                        )
-                    ]
-                ),
-                Elem(
-                    'signature',
-                    tag='ds:Signature',
-                    required=required_signature,
-                ),
-                Elem(
-                    'scoping',
-                    tag='saml2p:Scoping',
-                    required=False,
-                    attributes=[
-                        Attr('proxy_count', default=[0])
-                    ]
-                ),
-            ]
-        )
+            _schema = Elem(
+                name='auth_request',
+                tag='samlp:AuthnRequest',
+                attributes=[
+                    Attr('id'),
+                    Attr('version', default='2.0'),
+                    Attr('issue_instant', func=check_utc_date),
+                    Attr('destination'),
+                    Attr('force_authn', required=False),
+                    Attr('attribute_consuming_service_index', required=False),
+                    Attr('assertion_consumer_service_url', required=False),
+                    Attr('protocol_binding', default=BINDING_HTTP_POST, required=False)
+                ],
+                children=[
+                    Elem(
+                        'subject',
+                        tag='saml:Subject',
+                        required=False,
+                        attributes=[
+                            Attr('format', default=NAMEID_FORMAT_ENTITY),
+                            Attr('name_qualifier')
+                        ]
+                    ),
+                    Elem(
+                        'issuer',
+                        tag='saml:Issuer',
+                        example='''
+                            <saml:Issuer
+                                NameQualifier="http://spid.serviceprovider.it"
+                                Format="{}">
+                                spid-sp
+                            </saml:Issuer>
+                        '''.format(NAMEID_FORMAT_ENTITY),
+                        attributes=[
+                            Attr('format', default=NAMEID_FORMAT_ENTITY),
+                            Attr('name_qualifier')
+                        ],
+                    ),
+                    Elem(
+                        'name_id_policy',
+                        tag='samlp:NameIDPolicy',
+                        attributes=[
+                            Attr('allow_create', required=False, default='true'),
+                            Attr('format', default=NAMEID_FORMAT_TRANSIENT)
+                        ]
+                    ),
+                    Elem(
+                        'conditions',
+                        tag='saml:Conditions',
+                        required=False,
+                        attributes=[
+                            Attr('not_before', func=check_utc_date),
+                            Attr('not_on_or_after', func=check_utc_date)
+                        ]
+                    ),
+                    Elem(
+                        'requested_authn_context',
+                        tag='saml:AuthnContext',
+                        attributes=[
+                            Attr('comparison', default=COMPARISONS),
+                        ],
+                        children=[
+                            Elem(
+                                'authn_context_class_ref',
+                                tag='saml:AuthnContextClassRef',
+                                attributes=[
+                                    Attr('text', default=SPID_LEVELS)
+                                ]
+                            )
+                        ]
+                    ),
+                    Elem(
+                        'signature',
+                        tag='ds:Signature',
+                        required=required_signature,
+                    ),
+                    Elem(
+                        'scoping',
+                        tag='saml2p:Scoping',
+                        required=False,
+                        attributes=[
+                            Attr('proxy_count', default=[0])
+                        ]
+                    ),
+                ]
+            )
+        elif action == 'logout':
+            _schema = Elem(
+                name='logout_request',
+                tag='samlp:LogoutReques',
+                attributes=[
+                    Attr('id'),
+                    Attr('version', default='2.0'),
+                    Attr('issue_instant', func=check_utc_date),
+                    Attr('destination'),
+                ],
+                children=[
+                    Elem(
+                        'issuer',
+                        tag='saml:Issuer',
+                        example='''
+                            <saml:Issuer
+                                NameQualifier="http://spid.serviceprovider.it"
+                                Format="{}">
+                                spid-sp
+                            </saml:Issuer>
+                        '''.format(NAMEID_FORMAT_ENTITY),
+                        attributes=[
+                            Attr('format', default=NAMEID_FORMAT_ENTITY),
+                            Attr('name_qualifier')
+                        ],
+                    ),
+                    Elem(
+                        'name_id',
+                        tag='saml:NameID',
+                        attributes=[
+                            Attr('name_qualifier'),
+                            Attr('format', default=NAMEID_FORMAT_TRANSIENT)
+                        ]
+                    ),
+                    Elem(
+                        'session_index',
+                        tag='samlp:SessionIndex',
+                    ),
+                ]
+            )
         return _schema
 
-    def parse(self, obj, binding, schema=None):
+    def parse(self, obj, action, binding, schema=None):
         """
         :param obj: pysaml2 object
         :param binding:
         :param schema: custom schema (None by default)
         """
-        _schema = self.get_schema(binding) if schema is None else schema
+        _schema = self.get_schema(action, binding) if schema is None else schema
+        self.observer = Observer()
         self.observer.attach(_schema)
         validated = _schema.validate(obj)
         errors = self.observer.evaluate()
@@ -546,6 +588,7 @@ class IdpServer(object):
         handler = RotatingFileHandler('spid.log', maxBytes=500000, backupCount=1)
         self.app.logger.addHandler(handler)
         self._prepare_server()
+        self.spid_parser = SpidParser()
 
     @property
     def _mode(self):
@@ -731,8 +774,8 @@ class IdpServer(object):
             )
         )
 
-    def _check_spid_restrictions(self, msg, binding):
-        parsed_msg, errors = SpidParser().parse(msg.message, binding)
+    def _check_spid_restrictions(self, msg, action, binding):
+        parsed_msg, errors = self.spid_parser.parse(msg.message, action, binding)
         self.app.logger.debug('parsed authn_request: {}'.format(parsed_msg))
         return parsed_msg, errors
 
@@ -780,7 +823,7 @@ class IdpServer(object):
                     binding
                 )
                 authn_req = req_info.message
-                _, errors = self._check_spid_restrictions(req_info, binding)
+                _, errors = self._check_spid_restrictions(req_info, 'login', binding)
             except KeyError as err:
                 self.app.logger.debug(str(err))
                 self._raise_error('Parametro SAMLRequest assente.')
@@ -987,6 +1030,9 @@ class IdpServer(object):
         _binding = self._get_binding('single_logout_service', request)
         req_info = self.server.parse_logout_request(saml_msg['SAMLRequest'], _binding)
         msg = req_info.message
+        _, errors = self._check_spid_restrictions(req_info, 'logout', _binding)
+        if errors:
+            return self._handle_errors(errors, req_info.xmlstr)
         response = self.server.create_logout_response(
             msg, [BINDING_HTTP_POST, BINDING_HTTP_REDIRECT],
             sign_alg=SIGN_ALG,
