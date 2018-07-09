@@ -113,11 +113,12 @@ $(window).load(function () {
 	});
 	
 	/* Listner all'uscita dal campo di input per gestire il disabling del bottone submit */
-	$('.Form-input').focusout(function() {
+	$('.Form-input').on('focusout, input', function() {
 	  var $inputs = $('.Form-input');
 	  var $cta = $('form button.js-cta');
 	  minValidator($inputs) ? $cta.removeAttr('disabled') : $cta.attr('disabled', 'disabled');
 	});
+
 
 	/* Animazione input */
 	$(function() {
