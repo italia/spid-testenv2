@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 import argparse
+import collections
 import json
 import logging
+import lxml.etree as etree
 import os.path
 import random
 import string
@@ -11,7 +13,8 @@ from logging.handlers import RotatingFileHandler
 
 import saml2.xmldsig as ds
 import yaml
-from flask import Flask, Response, abort, redirect, request, session, url_for
+from flask import Flask, Response, abort, escape, redirect, render_template_string, request, session, url_for, \
+    render_template
 from passlib.hash import sha512_crypt
 from saml2 import (BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, BINDING_URI,
                    NAMESPACE)
@@ -19,7 +22,7 @@ from saml2.assertion import Assertion
 from saml2.authn_context import AuthnBroker, authn_context_class_ref
 from saml2.config import Config as Saml2Config
 from saml2.metadata import create_metadata_string
-from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT
+from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, NAMEID_FORMAT_ENTITY
 from saml2.server import Server
 from saml2.sigver import verify_redirect_signature
 
@@ -43,6 +46,13 @@ else:
 SIGN_ALG = ds.SIG_RSA_SHA1
 DIGEST_ALG = ds.DIGEST_SHA1
 
+COMPARISONS = ['exact', 'minimum', 'better', 'maximum']
+SPID_LEVELS = [
+    'https://www.spid.gov.it/SpidL1',
+    'https://www.spid.gov.it/SpidL2',
+    'https://www.spid.gov.it/SpidL3'
+]
+
 error_table = '''
 <html>
     <head>
@@ -57,8 +67,8 @@ error_table = '''
             </thead>
             <tbody>
                 <tr>
-                    <td>{}</td>
-                    <td>{}</td>
+                    <td>{{msg}}</td>
+                    <td>{{extra}}</td>
                 </tr>
             </tbody>
         </table>
@@ -66,24 +76,90 @@ error_table = '''
 </html>
 '''
 
+spid_error_table = '''
+<html>
+    <head>
+    <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
+    </head>
+    <body>
+        <div id="message">
+            {% for line in lines %}
+                <pre class="xml-line">{{line}}</pre>
+            {% endfor %}
+        </div>
+        <table class="spid-error" border=1>
+            <thead>
+                <tr>
+                    <th>Elemento</th>
+                    <th>Dettagli errore</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for err in errors %}
+                    <tr>
+                        <td class="spid-error__elem" id="{{err.1}}">{{err.1}}</td>
+                        <td>
+                        <ul>
+                            {% for name, msgs in err.2.items() %}
+                                <li>{{name}}
+                                    <ul>
+                                        {% for type, msg in msgs.items() %}
+                                            <li>{{msg|safe}}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+    <script type="text/javascript">
+        $(document).ready(function(){
+            $.each($('.spid-error__elem'), function(){
+                var id = $(this).attr('id');
+                var line = $('.xml-line:contains("<' + id + '")');
+                var tag = line[0];
+                $(tag).css('background-color', 'red');
+            });
+        });
+    </script>
+    </body>
+</html>
+'''
+
 FORM_LOGIN = '''
-<form name="login" method="post" action="{}">
-   <input type="hidden" name="request_key" value="{}" />
-   <input type="hidden" name="relay_state" value="{}" />
+<form name="login" method="post" action="{{action}}">
+   <input type="hidden" name="request_key" value="{{request_key}}" />
+   <input type="hidden" name="relay_state" value="{{relay_state}}" />
    <span>Username</span> <input type="text" name="username" /><br>
    <span>Password</span> <input type="password" name="password" /><br>
-   {}
+   {{extra_challenge|safe}}
    <input type="submit"/>
 </form>
 '''
 
 FORM_ADD_USER = '''
-<form name="add_user" method="post" action="{}">
+<form name="add_user" method="post" action="{{action}}">
    <b>Credentials</b><br>
    <span>Username</span> <input type="text" name="username" /><br>
    <span>Password</span> <input type="password" name="password" /><br>
    <span>Service provider id</span> <input type="text" name="service_provider" /><br>
-   {}
+   <br>
+   <b>Attributi primari</b>
+   <br>
+    {% for attribute in primary_attributes %}
+        <span>{{attribute}}</span> <input type="text" name="{{attribute}}" /><br>
+    {% endfor %}
+   <br>
+   <b>Attributi secondari</b>
+   <br>
+    {% for attribute in secondary_attributes %}
+        <span>{{attribute}} </span><input type="text" name="{{attribute}}" /><br>
+    {% endfor %}
+    <br>
    <input type="submit"/>
 </form>
 '''
@@ -93,6 +169,11 @@ CONFIRM_PAGE = '''
     <head>
     </head>
     <body>
+        <div id="message">
+            {% for line in lines %}
+                <pre class="xml-line">{{line}}</pre>
+            {% endfor %}
+        </div>
         Vuoi trasmettere i seguenti attributi?
         <table border=1>
             <thead>
@@ -101,16 +182,330 @@ CONFIRM_PAGE = '''
                 </tr>
             </thead>
             <tbody>
-                {}
+                {% for attr in attrs %}
+                    <tr>
+                        <td>{{attr}}</td>
+                    </tr>
+                {% endfor %}
             </tbody>
         </table>
-        <form name="make_response" method="post" action="{}">
-            <input type="hidden" name="request_key" value="{}" />
+        <form name="make_response" method="post" action="{{action}}">
+            <input type="hidden" name="request_key" value="{{request_key}}" />
             <input type="submit"/>
         </form>
     </body>
 </html>
 '''
+
+def check_utc_date(date):
+    try:
+        datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
+    except ValueError:
+        return False
+    return True
+check_utc_date.error_msg = 'la data non è in formato UTC'
+
+
+def prettify_xml(msg):
+    msg = etree.tostring(etree.XML(msg), pretty_print=True)
+    return msg.decode()
+
+
+class Observer(object):
+
+    def __init__(self, *args, **kwargs):
+        self._pool = collections.OrderedDict()
+
+    def attach(self, obj):
+        self._pool[obj._name] = obj
+        for _child in obj._children:
+            self.attach(_child)
+
+    def evaluate(self):
+        _errors = []
+        for elem, obj in self._pool.items():
+            if obj._errors:
+                _errors.append([elem, obj._tag, obj._errors])
+        return _errors
+
+
+class Attr(object):
+    """
+    Define an attribute for a SAML2 element
+    """
+
+    MANDATORY_ERROR = 'L\'attributo è obbligatorio'
+    NO_WANT_ERROR = 'L\'attributo non è richiesto'
+    DEFAULT_VALUE_ERROR = '{} è diverso dal valore di riferimento {}'
+    DEFAULT_LIST_VALUE_ERROR = '{} non corrisponde a nessuno dei valori contenuti in {}'
+
+    def __init__(self, name, absent=False, required=True, default=None, func=None, *args, **kwargs):
+        """
+        :param name: attribute name
+        :param required: flag to indicate if the attribute is mandatory (True by default)
+        :param default: default value (or list of values, to be compared with the provided value to the 'validate' method)
+        :param func: optional additional function to perform a validation on value passed to 'validated' method
+        """
+        self._name = name
+        self._absent = absent
+        self._required = required
+        self._errors = {}
+        self._default = default
+        self._func = func
+
+    def validate(self, value=None):
+        """
+        :param value: attribute value
+        """
+        if self._absent and value is not None:
+            self._errors['no_want_error'] = self.NO_WANT_ERROR
+        else:
+            if self._required and value is None:
+                self._errors['required_error'] = self.MANDATORY_ERROR
+            if self._default is not None:
+                if isinstance(self._default, list) and value not in self._default:
+                    self._errors['value_error'] = self.DEFAULT_LIST_VALUE_ERROR.format(value, self._default)
+                elif isinstance(self._default, str) and self._default != value:
+                    self._errors['value_error'] = self.DEFAULT_VALUE_ERROR.format(value, self._default)
+            if self._func is not None and value is not None:
+                if not self._func(value):
+                    self._errors['validation_error'] = self._func.error_msg
+        return {
+            'value': value if not self._errors else None,
+            'errors': self._errors
+        }
+
+    @property
+    def real_name(self):
+        if self._name == 'id':
+            return 'ID'
+        else:
+            parsed_elements = []
+            for el in self._name.split('_'):
+                _new_element = el[0].upper() + el[1:]
+                parsed_elements.append(_new_element)
+            return ''.join(parsed_elements)
+
+
+class Elem(object):
+    """
+    Define a SAML2 element
+    """
+
+    MANDATORY_ERROR = 'L\'elemento è obbligatorio'
+    NO_WANT_ERROR = 'L\'elemento non è richiesto'
+
+    def __init__(self, name, tag, absent=False, required=True, attributes=[], children=[], example='', *args, **kwargs):
+        """
+        :param name: element name
+        :param tag: element 'namespace:tag_name'
+        :param required: flag to indicate if the element is mandatory (True by default)
+        :param attributes: list of Attr objects (element attributes)
+        :param children: list of Elem objects (nested elements)
+        :param example: string to explain how the missing element need to be implemented
+        """
+        self._name = name
+        self._required = required
+        self._absent = absent
+        self._attributes = attributes
+        self._children = children
+        self._errors = {}
+        self._tag = tag
+        self._example = example
+
+    def validate(self, data):
+        """
+        :param data: (nested) object returned by pysaml2
+        """
+        res = { 'attrs': {}, 'children': {}, 'errors': {} }
+        if self._absent and data is not None:
+            res['errors']['no_want_error'] = self.NO_WANT_ERROR
+            self._errors.update(res['errors'])
+        else:
+            if self._required and data is None:
+                # check if the element is required, if not provide and example
+                _error_msg = self.MANDATORY_ERROR
+                _example = '<br>Esempio:<br>'
+                lines = self._example.splitlines()
+                for line in lines:
+                    _example = '{}<pre>{}</pre>'.format(_example, escape(line))
+                _error_msg = '{} {}'.format(_error_msg, _example)
+                res['errors']['required_error'] = _error_msg
+                self._errors.update(res['errors'])
+            if data:
+                if isinstance(data, list):
+                    # TODO: handle list elements in a clean way
+                    data = data[0]
+                for attribute in self._attributes:
+                    _validated_attributes = attribute.validate(getattr(data, attribute._name))
+                    res['attrs'][attribute.real_name] = _validated_attributes
+                    if _validated_attributes['errors']:
+                        self._errors.update({attribute.real_name: _validated_attributes['errors']})
+                for child in self._children:
+                    res['children'][child._name] = child.validate(getattr(data, child._name))
+        return res
+
+
+class SpidParser(object):
+    """
+    Parser for spid messages
+    """
+
+    def __init__(self, *args, **kwargs):
+        self.schema = None
+
+    def get_schema(self, action, binding):
+        """
+        :param binding:
+        """
+        _schema = None
+        if action == 'login':
+            required_signature = False
+            if binding == BINDING_HTTP_POST:
+                required_signature = True
+            elif binding == BINDING_HTTP_REDIRECT:
+                required_signature = False
+
+            _schema = Elem(
+                name='auth_request',
+                tag='samlp:AuthnRequest',
+                attributes=[
+                    Attr('id'),
+                    Attr('version', default='2.0'),
+                    Attr('issue_instant', func=check_utc_date),
+                    Attr('destination'),
+                    Attr('force_authn', required=False),
+                    Attr('attribute_consuming_service_index', required=False),
+                    Attr('assertion_consumer_service_url', required=False),
+                    Attr('protocol_binding', default=BINDING_HTTP_POST, required=False)
+                ],
+                children=[
+                    Elem(
+                        'subject',
+                        tag='saml:Subject',
+                        required=False,
+                        attributes=[
+                            Attr('format', default=NAMEID_FORMAT_ENTITY),
+                            Attr('name_qualifier')
+                        ]
+                    ),
+                    Elem(
+                        'issuer',
+                        tag='saml:Issuer',
+                        example='''
+                            <saml:Issuer
+                                NameQualifier="http://spid.serviceprovider.it"
+                                Format="{}">
+                                spid-sp
+                            </saml:Issuer>
+                        '''.format(NAMEID_FORMAT_ENTITY),
+                        attributes=[
+                            Attr('format', default=NAMEID_FORMAT_ENTITY),
+                            Attr('name_qualifier')
+                        ],
+                    ),
+                    Elem(
+                        'name_id_policy',
+                        tag='samlp:NameIDPolicy',
+                        attributes=[
+                            Attr('allow_create', absent=True, required=False),
+                            Attr('format', default=NAMEID_FORMAT_TRANSIENT)
+                        ]
+                    ),
+                    Elem(
+                        'conditions',
+                        tag='saml:Conditions',
+                        required=False,
+                        attributes=[
+                            Attr('not_before', func=check_utc_date),
+                            Attr('not_on_or_after', func=check_utc_date)
+                        ]
+                    ),
+                    Elem(
+                        'requested_authn_context',
+                        tag='saml:AuthnContext',
+                        attributes=[
+                            Attr('comparison', default=COMPARISONS),
+                        ],
+                        children=[
+                            Elem(
+                                'authn_context_class_ref',
+                                tag='saml:AuthnContextClassRef',
+                                attributes=[
+                                    Attr('text', default=SPID_LEVELS)
+                                ]
+                            )
+                        ]
+                    ),
+                    Elem(
+                        'signature',
+                        tag='ds:Signature',
+                        required=required_signature,
+                    ),
+                    Elem(
+                        'scoping',
+                        tag='saml2p:Scoping',
+                        required=False,
+                        attributes=[
+                            Attr('proxy_count', default=[0])
+                        ]
+                    ),
+                ]
+            )
+        elif action == 'logout':
+            _schema = Elem(
+                name='logout_request',
+                tag='samlp:LogoutRequest',
+                attributes=[
+                    Attr('id'),
+                    Attr('version', default='2.0'),
+                    Attr('issue_instant', func=check_utc_date),
+                    Attr('destination'),
+                ],
+                children=[
+                    Elem(
+                        'issuer',
+                        tag='saml:Issuer',
+                        example='''
+                            <saml:Issuer
+                                NameQualifier="http://spid.serviceprovider.it"
+                                Format="{}">
+                                spid-sp
+                            </saml:Issuer>
+                        '''.format(NAMEID_FORMAT_ENTITY),
+                        attributes=[
+                            Attr('format', default=NAMEID_FORMAT_ENTITY),
+                            Attr('name_qualifier')
+                        ],
+                    ),
+                    Elem(
+                        'name_id',
+                        tag='saml:NameID',
+                        attributes=[
+                            Attr('name_qualifier'),
+                            Attr('format', default=NAMEID_FORMAT_TRANSIENT)
+                        ]
+                    ),
+                    Elem(
+                        'session_index',
+                        tag='samlp:SessionIndex',
+                    ),
+                ]
+            )
+        return _schema
+
+    def parse(self, obj, action, binding, schema=None):
+        """
+        :param obj: pysaml2 object
+        :param binding:
+        :param schema: custom schema (None by default)
+        """
+        _schema = self.get_schema(action, binding) if schema is None else schema
+        self.observer = Observer()
+        self.observer.attach(_schema)
+        validated = _schema.validate(obj)
+        errors = self.observer.evaluate()
+        return validated, errors
 
 
 class BadConfiguration(Exception):
@@ -176,11 +571,7 @@ class IdpServer(object):
         'http-post': BINDING_HTTP_POST
     }
     _endpoint_types = ['single_sign_on_service', 'single_logout_service']
-    _spid_levels = [
-        'https://www.spid.gov.it/SpidL1',
-        'https://www.spid.gov.it/SpidL2',
-        'https://www.spid.gov.it/SpidL3'
-    ]
+    _spid_levels = SPID_LEVELS
     _spid_attributes = {
         'primary': {
             'spidCode' : 'xs:string',
@@ -205,6 +596,7 @@ class IdpServer(object):
         }
     }
     CHALLENGES_TIMEOUT = 30 # seconds
+    SAML_VERSION = '2.0'
 
     def __init__(self, app, config, *args, **kwargs):
         """
@@ -222,6 +614,7 @@ class IdpServer(object):
         handler = RotatingFileHandler('spid.log', maxBytes=500000, backupCount=1)
         self.app.logger.addHandler(handler)
         self._prepare_server()
+        self.spid_parser = SpidParser()
 
     @property
     def _mode(self):
@@ -402,15 +795,15 @@ class IdpServer(object):
         """
         abort(
             Response(
-                error_table.format(msg, extra),
+                render_template_string(error_table, **{'msg': msg, 'extra': extra}),
                 200
             )
         )
 
-    def _check_saml_message_restrictions(self, obj):
-        # TODO: Implement here or somewhere (e.g. mixin on pysaml2 subclasses)
-        # the logic to validate spid rules on saml entities
-        raise NotImplementedError
+    def _check_spid_restrictions(self, msg, action, binding):
+        parsed_msg, errors = self.spid_parser.parse(msg.message, action, binding)
+        self.app.logger.debug('parsed authn_request: {}'.format(parsed_msg))
+        return parsed_msg, errors
 
     def _store_request(self, authnreq):
         """
@@ -423,6 +816,17 @@ class IdpServer(object):
         # store the AuthnRequest
         self.ticket[key] = authnreq
         return key
+
+    def _handle_errors(self, errors, xmlstr):
+        _escaped_xml = escape(prettify_xml(xmlstr.decode()))
+        rendered_error_response = render_template_string(
+            spid_error_table,
+            **{
+                'lines': _escaped_xml.splitlines(),
+                'errors': errors
+                }
+            )
+        return rendered_error_response
 
     def single_sign_on_service(self):
         """
@@ -445,9 +849,13 @@ class IdpServer(object):
                     binding
                 )
                 authn_req = req_info.message
+                _, errors = self._check_spid_restrictions(req_info, 'login', binding)
             except KeyError as err:
                 self.app.logger.debug(str(err))
                 self._raise_error('Parametro SAMLRequest assente.')
+
+            if errors:
+                return self._handle_errors(errors, req_info.xmlstr)
 
             if not req_info:
                 self._raise_error('Processo di parsing del messaggio fallito.')
@@ -458,11 +866,14 @@ class IdpServer(object):
                 # Signed request
                 self.app.logger.debug('Messaggio SAML firmato.')
                 issuer_name = authn_req.issuer.text
-                _certs = self.server.metadata.certs(
-                    issuer_name,
-                    "any",
-                    "signing"
-                )
+                try:
+                    _certs = self.server.metadata.certs(
+                        issuer_name,
+                        "any",
+                        "signing"
+                    )
+                except KeyError:
+                    self._raise_error('entity ID {} non registrato, impossibile ricavare un certificato valido.'.format(issuer_name))
                 verified_ok = False
                 for cert in _certs:
                     self.app.logger.debug(
@@ -475,6 +886,8 @@ class IdpServer(object):
                         break
                 if not verified_ok:
                     self._raise_error('Verifica della firma del messaggio fallita.')
+            else:
+                self._raise_error('Messaggio SAML non firmato.')
             # Perform login
             key = self._store_request(req_info)
             relay_state = saml_msg.get('RelayState', '')
@@ -510,14 +923,16 @@ class IdpServer(object):
         """
         spid_main_fields = self._spid_main_fields
         spid_secondary_fields = self._spid_secondary_fields
-        _fields = '<br><b>{}</b><br>'.format('Primary attributes')
-        for _field_name in spid_main_fields:
-            _fields = '{}<span>{}</span> <input type="text" name={} /><br>'.format(_fields, _field_name, _field_name)
-        _fields = '{}<br><b>{}</b><br>'.format(_fields, 'Secondary attributes')
-        for _field_name in spid_secondary_fields:
-            _fields = '{}<span>{}</span> <input type="text" name={} /><br>'.format(_fields, _field_name, _field_name)
+        rendered_form = render_template(
+            "add_user.html",
+            **{
+                'action': '/add-user',
+                'primary_attributes': spid_main_fields,
+                'secondary_attributes': spid_secondary_fields
+            }
+        )
         if request.method == 'GET':
-            return FORM_ADD_USER.format('/add-user', _fields), 200
+            return rendered_form, 200
         elif request.method == 'POST':
             username = request.form.get('username')
             password = request.form.get('password')
@@ -553,12 +968,16 @@ class IdpServer(object):
             if request.method == 'GET':
                 # inject extra data in form login based on spid level
                 extra_challenge = callback(**{'key': key})
-                return FORM_LOGIN.format(
-                    url_for('login'),
-                    key,
-                    relay_state,
-                    extra_challenge
-                ), 200
+                rendered_form = render_template(
+                    'login.html',
+                    **{
+                        'action': url_for('login'),
+                        'request_key': key,
+                        'relay_state': relay_state,
+                        'extra_challenge': extra_challenge
+                    }
+                )
+                return rendered_form, 200
             # verify optional challenge based on spid level
             verified = callback(verify=True, **{'key': key, 'data': request.form})
             if verified:
@@ -607,14 +1026,23 @@ class IdpServer(object):
                     for _attr in attrs:
                         attrs_list = '{}<tr><td>{}</td></tr>'.format(attrs_list, _attr)
                     self.responses[key] = http_args['data']
-                    return CONFIRM_PAGE.format(attrs_list, '/continue-response', key), 200
-        abort(403)
+                    rendered_response = render_template(
+                        'confirm.html',
+                        **{
+                            'lines':  escape(prettify_xml(response)).splitlines(),
+                            'attrs': attrs,
+                            'action': '/continue-response',
+                            'request_key': key
+                        }
+                    )
+                    return rendered_response, 200
+        return render_template('403.html'), 403
 
     def continue_response(self):
         key = request.form['request_key']
         if key and key in self.ticket and key in self.responses:
             return self.responses[key], 200
-        abort(403)
+        return render_template('403.html'), 403
 
     def single_logout_service(self):
         """
@@ -628,6 +1056,9 @@ class IdpServer(object):
         _binding = self._get_binding('single_logout_service', request)
         req_info = self.server.parse_logout_request(saml_msg['SAMLRequest'], _binding)
         msg = req_info.message
+        _, errors = self._check_spid_restrictions(req_info, 'logout', _binding)
+        if errors:
+            return self._handle_errors(errors, req_info.xmlstr)
         response = self.server.create_logout_response(
             msg, [BINDING_HTTP_POST, BINDING_HTTP_REDIRECT],
             sign_alg=SIGN_ALG,
@@ -702,7 +1133,7 @@ if __name__ == '__main__':
     # Init server
     config = _get_config(args.path, args.configuration_type)
     try:
-        server = IdpServer(app=Flask(__name__), config=config)
+        server = IdpServer(app=Flask(__name__, static_url_path='/static'), config=config)
         # Start server
         server.start()
     except BadConfiguration as e:

@@ -1,0 +1,60 @@
+<!DOCTYPE HTML>
+<!--[if lt IE 7]><html class="no-js lt-ie9 lt-ie8 lt-ie7" lang="it"><![endif]-->
+<!--[if IE 7]><html class="no-js lt-ie9 lt-ie8" lang="it"><![endif]-->
+<!--[if IE 8]><html class="no-js lt-ie9" lang="it"><![endif]-->
+<!--[if gt IE 8]><!--><html class="no-js" lang="it"><!--<![endif]-->
+<head>
+    <title>SPID</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link rel="apple-touch-icon" sizes="57x57" href="{{ url_for('static', filename='img/favicon/apple-touch-icon-57x57.png')}}">
+    <link rel="apple-touch-icon" sizes="60x60" href="{{ url_for('static', filename='img/favicon/apple-touch-icon-60x60.png')}}">
+    <link rel="apple-touch-icon" sizes="72x72" href="{{ url_for('static', filename='img/favicon/apple-touch-icon-72x72.png')}}">
+    <link rel="apple-touch-icon" sizes="76x76" href="{{ url_for('static', filename='img/favicon/apple-touch-icon-76x76.png')}}">
+    <link rel="apple-touch-icon" sizes="114x114" href="{{ url_for('static', filename='img/favicon/apple-touch-icon-114x114.png')}}">
+    <link rel="apple-touch-icon" sizes="120x120" href="{{ url_for('static', filename='img/favicon/apple-touch-icon-120x120.png')}}">
+    <link rel="apple-touch-icon" sizes="144x144" href="{{ url_for('static', filename='img/favicon/apple-touch-icon-144x144.png')}}">
+    <link rel="apple-touch-icon" sizes="152x152" href="{{ url_for('static', filename='img/favicon/apple-touch-icon-152x152.png')}}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/favicon/apple-touch-icon-180x180.png')}}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon/favicon-32x32.png" sizes="32x32')}}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon/android-chrome-192x192.png" sizes="192x192')}}">
+    <link rel="manifest" href="{{ url_for('static', filename='img/favicon/manifest.json')}}">
+    <link rel="mask-icon" href="{{ url_for('static', filename='img/favicon/safari-pinned-tab.svg')}}">
+    <meta name="msapplication-TileColor" content="#FFFFFF">
+    <meta name="msapplication-TileImage"  content="{{ url_for('static', filename='img/favicon/mstile-144x144.png')}}">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/italia-web-toolkit.min.css')}}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/spid-login.css')}}">
+	<!--[if lt IE 9]>
+    <script src="{{ url_for('static', filename='js/selectivizr.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/respond.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/rem.min.js') }}"></script>
+    <![endif]-->
+</head>
+<body class="extrabuttons">
+    <section class="main-wrapper u-layout u-layout-wide u-layoutCenter">
+        <header class="main-header u-padding-all-xxl">
+            <div class="main-header__inner Grid Grid--fill Grid--withGutter Grid--equalHeight Grid--alignMiddle">
+                <div class="u-size1of2">
+                    <div>
+                    <img src="{{ url_for('static', filename='img/spid-level3-logo-bb.svg') }}" class="main-header__spidlogo v2"
+                    onerror="this.src='img/spid-level3-logo-bb.png'; this.onerror=null;" alt="SPID Logo" >
+                    </div>
+                </div>
+                <div class="u-size1of2">
+                    <div class="u-textRight">
+                    <span class="u-text-r-xs u-color-grey-40 u-padding-all-xs u-border-all-xxs" >LOGO IDP</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <main class="main u-layout u-layout-extrasmall u-layoutCenter ">
+            {% block content %}
+        </main>
+            {% endblock %}
+        </section>
+        <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/spid-login.js') }}"></script>
+</body>
+</html>

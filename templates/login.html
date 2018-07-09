@@ -1,0 +1,29 @@
+{% extends 'main_page.html' %}
+{% block content %}
+    <article class="main-bodytext u-padding-all-xl">
+        <h1 class="u-text-r-xl u-margin-bottom-l">Login</h1>
+        <form class="Form Form--spaced u-margin-bottom-l " name="login" method="post" action="{{action}}">
+            <input type="hidden" name="request_key" value="{{request_key}}" />
+            <input type="hidden" name="relay_state" value="{{relay_state}}" />
+            <div class="Form-field form-animate-fields">
+                <input class="Form-input u-border-top-none u-border-right-none u-border-left-none u-border-bottom-xxs u-color-80 u-text-r-xs u-textWeight-600"
+                       id="username" name="username" aria-required="true" minlength="4" type="text" required>
+                <label class="Form-label is-required u-text-r-xs u-textWeight-400 u-color-grey-40 " for="username">
+                    <span class="form-label-content">Username</span>
+                </label>
+            </div>
+            <div class="Form-field form-animate-fields">
+                <input class="Form-input u-border-top-none u-border-right-none u-border-left-none u-border-bottom-xxs u-color-80 u-text-r-xs u-textWeight-600"
+                       id="password" name="password" aria-required="true" minlength="4" type="password" required>
+                <label class="Form-label is-required u-text-r-xs u-textWeight-400 u-color-grey-40 " for="password">
+                    <span class="form-label-content">Password</span>
+                </label>
+            </div>
+            {{extra_challenge|safe}}
+            <div class="FixedSmall u-padding-top-m u-padding-bottom-m">
+                <button type="submit" class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-primary u-margin-bottom-xs js-cta" >Invia</button>
+                <button type="button" class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-quaternary">Annulla</button>
+            </div>
+        </form>
+    </article>
+{% endblock %}
