@@ -1,38 +1,38 @@
-{% extends 'main_page.html' %}
+{% extends 'admin_area_base.html' %}
 {% block content %}
     <article class="main-bodytext u-padding-all-xl">
-        <h1 class="u-text-r-xl u-margin-bottom-l">Crea nuovo utente</h1>
-        <form class="Form Form--spaced u-margin-bottom-l " name="add_user" method="post" action="{{action}}">
+        <h1 class="mt-2 mb-5 text-center">Crea nuovo utente</h1>
+        <form class="Form Form--spaced u-margin-bottom-l" name="add_user" method="post" action="{{action}}">
 
-            <h2 class="u-text-r-xs u-lineHeight-l u-color-grey-40 u-textWeight-800">Credenziali</h2>
-            <div class="Form-field form-animate-fields">
-                <input class="Form-input u-border-top-none u-border-right-none u-border-left-none u-border-bottom-xxs u-color-80 u-text-r-xs u-textWeight-600"
-                       id="username" name="username" aria-required="true" minlength="4" type="text" required>
-                <label class="Form-label is-required u-text-r-xs u-textWeight-400 u-color-grey-40 " for="username">
-                    <span class="form-label-content">Username</span>
+            <h3 class="u-text-r-xs u-lineHeight-l u-color-grey-40 u-textWeight-800">Credenziali</h3>
+            <div class="form-group">
+                <input class="form-control"
+                       id="username" name="username" minlength="4" type="text" required>
+                <label for="username">
+                    Username
                 </label>
             </div>
-            <div class="Form-field form-animate-fields">
-                <input class="Form-input u-border-top-none u-border-right-none u-border-left-none u-border-bottom-xxs u-color-80 u-text-r-xs u-textWeight-600"
-                       id="password" name="password" aria-required="true" minlength="4" type="text" required>
-                <label class="Form-label is-required u-text-r-xs u-textWeight-400 u-color-grey-40 " for="password">
-                    <span class="form-label-content">Password</span>
+            <div class="form-group">
+                <input class="form-control"
+                       id="password" name="password" minlength="4" type="text" required>
+                <label for="password">
+                    Password
                 </label>
             </div>
-            <div class="Form-field form-animate-fields">
-                <input class="Form-input u-border-top-none u-border-right-none u-border-left-none u-border-bottom-xxs u-color-80 u-text-r-xs u-textWeight-600"
-                       id="service_provider" name="service_provider" aria-required="true" minlength="4" type="text" required>
-                <label class="Form-label is-required u-text-r-xs u-textWeight-400 u-color-grey-40 " for="service_provider">
-                    <span class="form-label-content">Service provider id</span>
+            <div class="form-group">
+                <input class="form-control"
+                       id="service_provider" name="service_provider" minlength="4" type="text" required>
+                <label for="service_provider">
+                    Service provider id
                 </label>
             </div>
-            <h2 class="u-text-r-xs u-lineHeight-l u-color-grey-40 u-textWeight-800">Attributi Primari</h2>
+            <h3 class="u-text-r-xs u-lineHeight-l u-color-grey-40 u-textWeight-800">Attributi Primari</h3>
             {% for attribute in primary_attributes %}
-                <div class="Form-field form-animate-fields">
-                    <input class="Form-input u-border-top-none u-border-right-none u-border-left-none u-border-bottom-xxs u-color-80 u-text-r-xs u-textWeight-600"
+                <div class="form-group">
+                    <input class="form-control"
                            id="{{attribute}}" name="{{attribute}}" aria-required="false" minlength="4" type="text" >
-                    <label class="Form-label is-required u-text-r-xs u-textWeight-400 u-color-grey-40 " for="{{attribute}}">
-                        <span class="form-label-content">{{attribute}}</span>
+                    <label for="{{attribute}}">
+                        {{attribute}}
                     </label>
                 </div>
             {% endfor %}
@@ -40,17 +40,17 @@
             <h2 class="u-text-r-xs u-lineHeight-l u-color-grey-40 u-textWeight-800">Attributi secondari</h2>
 
             {% for attribute in secondary_attributes %}
-                <div class="Form-field form-animate-fields">
-                    <input class="Form-input u-border-top-none u-border-right-none u-border-left-none u-border-bottom-xxs u-color-80 u-text-r-xs u-textWeight-600"
+                <div class="form-group">
+                    <input class="form-control"
                            id="{{attribute}}" name="{{attribute}}" aria-required="false" minlength="4" type="text" >
-                    <label class="Form-label is-required u-text-r-xs u-textWeight-400 u-color-grey-40 " for="{{attribute}}">
-                        <span class="form-label-content">{{attribute}}</span>
+                    <label for="{{attribute}}">
+                        {{attribute}}
                     </label>
                 </div>
             {% endfor %}
-            <div class="FixedSmall u-padding-top-m u-padding-bottom-m">
-                <button type="submit" class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-primary u-margin-bottom-xs js-cta" >Invia</button>
-                <button type="button" class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-quaternary">Annulla</button>
+            <div class="">
+                <button type="submit" class="btn btn-primary" >Invia</button>
+                <button type="button" class="btn btn-outline-primary">Annulla</button>
             </div>
         </form>
     </article>

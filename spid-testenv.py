@@ -706,6 +706,7 @@ class IdpServer(object):
                     )
                     for _binding in self._binding_mapping.keys():
                         self.app.add_url_rule(_url, '{}_{}'.format(ep_type, _binding), getattr(self, ep_type), methods=['GET',])
+        self.app.add_url_rule('/', 'index', self.index, methods=['GET'])
         self.app.add_url_rule('/login', 'login', self.login, methods=['POST', 'GET',])
         # Endpoint for user add action
         self.app.add_url_rule('/add-user', 'add_user', self.add_user, methods=['GET', 'POST',])
@@ -955,6 +956,16 @@ class IdpServer(object):
             self.user_manager.add(username, password, sp, extra)
         return 'Added a new user', 200
 
+    def index(self):
+        rendered_form = render_template(
+            "home.html",
+            **{
+                'sp_list': [
+                    {"name": "SP test 1", "spId": "http://spid-test-sp"}
+                ],
+            }
+        )
+        return rendered_form, 200
     def login(self):
         """
         Login endpoint (verify user credentials)
