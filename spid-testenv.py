@@ -257,7 +257,7 @@ class Attr(object):
         """
         :param value: attribute value
         """
-        if self._absent:
+        if self._absent and value is not None:
             self._errors['no_want_error'] = self.NO_WANT_ERROR
         else:
             if self._required and value is None:
@@ -318,7 +318,7 @@ class Elem(object):
         :param data: (nested) object returned by pysaml2
         """
         res = { 'attrs': {}, 'children': {}, 'errors': {} }
-        if self._absent:
+        if self._absent and data is not None:
             res['errors']['no_want_error'] = self.NO_WANT_ERROR
             self._errors.update(res['errors'])
         else:
@@ -408,7 +408,7 @@ class SpidParser(object):
                         'name_id_policy',
                         tag='samlp:NameIDPolicy',
                         attributes=[
-                            Attr('allow_create', absent=True, default='true'),
+                            Attr('allow_create', absent=True, required=False),
                             Attr('format', default=NAMEID_FORMAT_TRANSIENT)
                         ]
                     ),
