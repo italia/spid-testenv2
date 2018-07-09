@@ -151,14 +151,14 @@ class JsonUserManager(AbstractUserManager):
 
     def get(self, uid, pwd, sp_id):
         for user, _attrs in self.users.items():
-            if sha512_crypt.verify(pwd, _attrs['pwd']) and _attrs['sp'] == sp_id:
+            if pwd == _attrs['pwd'] and _attrs['sp'] == sp_id:
                 return user, self.users[user]
         return None, None
 
     def add(self, uid, pwd, sp_id, extra={}):
         if uid not in self.users:
             self.users[uid] = {
-                'pwd': sha512_crypt.encrypt(pwd),
+                'pwd': pwd,
                 'sp': sp_id,
                 'attrs': extra
             }
