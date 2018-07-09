@@ -1,11 +1,7 @@
 {% extends 'main_page.html' %}
 {% block content %}
     <article class="main-bodytext u-padding-all-xl">
-        <div id="message">
-            {% for line in lines %}
-                <pre class="xml-line">{{line}}</pre>
-            {% endfor %}
-        </div>
+
         <h1 class="u-text-r-xl u-margin-bottom-l">Autorizzi l'invio dei dati?</h1>
         <h2 class="u-text-r-xs u-lineHeight-l u-color-grey-40 u-textWeight-400">I seguenti dati stanno per essere inviati al servizio: <span class="u-color-95">[nome del servizio]</span></h2>
             <ul class="u-margin-bottom-xl u-margin-top-xl">
@@ -20,5 +16,10 @@
                 <button type="button" class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-quaternary">Annulla</button>
             </div>
         </form>
+        <div id="message">
+            {% for line in lines %}
+                <pre class="xml-line">{{line}}</pre>
+            {% endfor %}
+        </div>
     </article>
 {% endblock %}
