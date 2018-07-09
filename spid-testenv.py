@@ -46,12 +46,12 @@ else:
 SIGN_ALG = ds.SIG_RSA_SHA1
 DIGEST_ALG = ds.DIGEST_SHA1
 
-COMPARISONS = ('exact', 'minimum', 'better', 'maximum')
-SPID_LEVELS = (
+COMPARISONS = ['exact', 'minimum', 'better', 'maximum']
+SPID_LEVELS = [
     'https://www.spid.gov.it/SpidL1',
     'https://www.spid.gov.it/SpidL2',
     'https://www.spid.gov.it/SpidL3'
-)
+]
 
 error_table = '''
 <html>
