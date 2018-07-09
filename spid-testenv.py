@@ -97,7 +97,7 @@ spid_error_table = '''
             <tbody>
                 {% for err in errors %}
                     <tr>
-                        <td class="spid-error__elem" id="{{err.1}}">{{err.0}}</td>
+                        <td class="spid-error__elem" id="{{err.1}}">{{err.1}}</td>
                         <td>
                         <ul>
                             {% for name, msgs in err.2.items() %}
