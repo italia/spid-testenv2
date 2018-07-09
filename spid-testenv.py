@@ -962,6 +962,12 @@ class IdpServer(object):
             authn_request = self.ticket[key]
             sp_id = authn_request.message.issuer.text
             destination = authn_request.message.assertion_consumer_service_url
+            if destination is None:
+                acss = self.server.metadata.assertion_consumer_service(sp_id, authn_request.message.protocol_binding)
+                for acs in acss:
+                    if acs.get('index') == authn_request.message.attribute_consuming_service_index:
+                        destination = acs.get('location')
+                        break
             spid_level = authn_request.message.requested_authn_context.authn_context_class_ref[0].text
             authn_info = self.authn_broker.pick(authn_request.message.requested_authn_context)
             callback, reference = authn_info[0]
