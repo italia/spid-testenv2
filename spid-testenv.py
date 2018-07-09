@@ -207,7 +207,7 @@ check_utc_date.error_msg = 'la data non è in formato UTC'
 
 
 def prettify_xml(msg):
-    msg = etree.tostring(etree.XML(msg), pretty_print=True)
+    msg = etree.tostring(etree.XML(msg), pretty_print=True, encoding='utf-8')
     return msg.decode()
 
 
