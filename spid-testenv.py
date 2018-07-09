@@ -235,10 +235,11 @@ class Attr(object):
     """
 
     MANDATORY_ERROR = 'L\'attributo è obbligatorio'
+    NO_WANT_ERROR = 'L\'attributo non è richiesto'
     DEFAULT_VALUE_ERROR = '{} è diverso dal valore di riferimento {}'
     DEFAULT_LIST_VALUE_ERROR = '{} non corrisponde a nessuno dei valori contenuti in {}'
 
-    def __init__(self, name, required=True, default=None, func=None, *args, **kwargs):
+    def __init__(self, name, absent=False, required=True, default=None, func=None, *args, **kwargs):
         """
         :param name: attribute name
         :param required: flag to indicate if the attribute is mandatory (True by default)
@@ -246,6 +247,7 @@ class Attr(object):
         :param func: optional additional function to perform a validation on value passed to 'validated' method
         """
         self._name = name
+        self._absent = absent
         self._required = required
         self._errors = {}
         self._default = default
@@ -255,16 +257,19 @@ class Attr(object):
         """
         :param value: attribute value
         """
-        if self._required and value is None:
-            self._errors['required_error'] = self.MANDATORY_ERROR
-        if self._default is not None:
-            if isinstance(self._default, list) and value not in self._default:
-                self._errors['value_error'] = self.DEFAULT_LIST_VALUE_ERROR.format(value, self._default)
-            elif isinstance(self._default, str) and self._default != value:
-                self._errors['value_error'] = self.DEFAULT_VALUE_ERROR.format(value, self._default)
-        if self._func is not None and value is not None:
-            if not self._func(value):
-                self._errors['validation_error'] = self._func.error_msg
+        if self._absent:
+            self._errors['no_want_error'] = self.NO_WANT_ERROR
+        else:
+            if self._required and value is None:
+                self._errors['required_error'] = self.MANDATORY_ERROR
+            if self._default is not None:
+                if isinstance(self._default, list) and value not in self._default:
+                    self._errors['value_error'] = self.DEFAULT_LIST_VALUE_ERROR.format(value, self._default)
+                elif isinstance(self._default, str) and self._default != value:
+                    self._errors['value_error'] = self.DEFAULT_VALUE_ERROR.format(value, self._default)
+            if self._func is not None and value is not None:
+                if not self._func(value):
+                    self._errors['validation_error'] = self._func.error_msg
         return {
             'value': value if not self._errors else None,
             'errors': self._errors
@@ -288,8 +293,9 @@ class Elem(object):
     """
 
     MANDATORY_ERROR = 'L\'elemento è obbligatorio'
+    NO_WANT_ERROR = 'L\'elemento non è richiesto'
 
-    def __init__(self, name, tag, required=True, attributes=[], children=[], example='', *args, **kwargs):
+    def __init__(self, name, tag, absent=False, required=True, attributes=[], children=[], example='', *args, **kwargs):
         """
         :param name: element name
         :param tag: element 'namespace:tag_name'
@@ -300,6 +306,7 @@ class Elem(object):
         """
         self._name = name
         self._required = required
+        self._absent = absent
         self._attributes = attributes
         self._children = children
         self._errors = {}
@@ -311,27 +318,31 @@ class Elem(object):
         :param data: (nested) object returned by pysaml2
         """
         res = { 'attrs': {}, 'children': {}, 'errors': {} }
-        if self._required and data is None:
-            # check if the element is required, if not provide and example
-            _error_msg = self.MANDATORY_ERROR
-            _example = '<br>Esempio:<br>'
-            lines = self._example.splitlines()
-            for line in lines:
-                _example = '{}<pre>{}</pre>'.format(_example, escape(line))
-            _error_msg = '{} {}'.format(_error_msg, _example)
-            res['errors']['required_error'] = _error_msg
+        if self._absent:
+            res['errors']['no_want_error'] = self.NO_WANT_ERROR
             self._errors.update(res['errors'])
-        if data:
-            if isinstance(data, list):
-                # TODO: handle list elements in a clean way
-                data = data[0]
-            for attribute in self._attributes:
-                _validated_attributes = attribute.validate(getattr(data, attribute._name))
-                res['attrs'][attribute.real_name] = _validated_attributes
-                if _validated_attributes['errors']:
-                    self._errors.update({attribute.real_name: _validated_attributes['errors']})
-            for child in self._children:
-                res['children'][child._name] = child.validate(getattr(data, child._name))
+        else:
+            if self._required and data is None:
+                # check if the element is required, if not provide and example
+                _error_msg = self.MANDATORY_ERROR
+                _example = '<br>Esempio:<br>'
+                lines = self._example.splitlines()
+                for line in lines:
+                    _example = '{}<pre>{}</pre>'.format(_example, escape(line))
+                _error_msg = '{} {}'.format(_error_msg, _example)
+                res['errors']['required_error'] = _error_msg
+                self._errors.update(res['errors'])
+            if data:
+                if isinstance(data, list):
+                    # TODO: handle list elements in a clean way
+                    data = data[0]
+                for attribute in self._attributes:
+                    _validated_attributes = attribute.validate(getattr(data, attribute._name))
+                    res['attrs'][attribute.real_name] = _validated_attributes
+                    if _validated_attributes['errors']:
+                        self._errors.update({attribute.real_name: _validated_attributes['errors']})
+                for child in self._children:
+                    res['children'][child._name] = child.validate(getattr(data, child._name))
         return res
 
 
@@ -397,7 +408,7 @@ class SpidParser(object):
                         'name_id_policy',
                         tag='samlp:NameIDPolicy',
                         attributes=[
-                            Attr('allow_create', required=False, default='true'),
+                            Attr('allow_create', absent=True, default='true'),
                             Attr('format', default=NAMEID_FORMAT_TRANSIENT)
                         ]
                     ),
