@@ -102,7 +102,11 @@ spid_error_table = '''
                         <ul>
                             {% for name, msgs in err.2.items() %}
                                 <li>{{name}}
-                                    {{msgs|safe}}
+                                    <ul>
+                                        {% for type, msg in msgs.items() %}
+                                            <li>{{msg|safe}}</li>
+                                        {% endfor %}
+                                    </ul>
                                 </li>
                             {% endfor %}
                         </ul>
@@ -230,7 +234,7 @@ class Attr(object):
     Define an attribute for a SAML2 element
     """
 
-    MANDATORY_ERROR = 'L\'attributo {} è obbligatorio'
+    MANDATORY_ERROR = 'L\'attributo è obbligatorio'
     DEFAULT_VALUE_ERROR = '{} è diverso dal valore di riferimento {}'
     DEFAULT_LIST_VALUE_ERROR = '{} non corrisponde a nessuno dei valori contenuti in {}'
 
@@ -252,7 +256,7 @@ class Attr(object):
         :param value: attribute value
         """
         if self._required and value is None:
-            self._errors['required_error'] = self.MANDATORY_ERROR.format(self._name)
+            self._errors['required_error'] = self.MANDATORY_ERROR
         if self._default is not None:
             if isinstance(self._default, list) and value not in self._default:
                 self._errors['value_error'] = self.DEFAULT_LIST_VALUE_ERROR.format(value, self._default)
@@ -266,13 +270,24 @@ class Attr(object):
             'errors': self._errors
         }
 
+    @property
+    def real_name(self):
+        if self._name == 'id':
+            return 'ID'
+        else:
+            parsed_elements = []
+            for el in self._name.split('_'):
+                _new_element = el[0].upper() + el[1:]
+                parsed_elements.append(_new_element)
+            return ''.join(parsed_elements)
+
 
 class Elem(object):
     """
     Define a SAML2 element
     """
 
-    MANDATORY_ERROR = 'L\'elemento {} è obbligatorio'
+    MANDATORY_ERROR = 'L\'elemento è obbligatorio'
 
     def __init__(self, name, tag, required=True, attributes=[], children=[], example='', *args, **kwargs):
         """
@@ -298,7 +313,7 @@ class Elem(object):
         res = { 'attrs': {}, 'children': {}, 'errors': {} }
         if self._required and data is None:
             # check if the element is required, if not provide and example
-            _error_msg = self.MANDATORY_ERROR.format(self._name)
+            _error_msg = self.MANDATORY_ERROR
             _example = '<br>Esempio:<br>'
             lines = self._example.splitlines()
             for line in lines:
@@ -312,9 +327,9 @@ class Elem(object):
                 data = data[0]
             for attribute in self._attributes:
                 _validated_attributes = attribute.validate(getattr(data, attribute._name))
-                res['attrs'][attribute._name] = _validated_attributes
+                res['attrs'][attribute.real_name] = _validated_attributes
                 if _validated_attributes['errors']:
-                    self._errors.update({attribute._name: _validated_attributes['errors']})
+                    self._errors.update({attribute.real_name: _validated_attributes['errors']})
             for child in self._children:
                 res['children'][child._name] = child.validate(getattr(data, child._name))
         return res
