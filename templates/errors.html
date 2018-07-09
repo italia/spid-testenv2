@@ -1,0 +1,12 @@
+{% extends 'main_page.html' %}
+{% block content %}
+<article class="main-bodytext u-padding-all-xl">
+    <div class="u-textCenter">
+    <img src="{{ url_for('static', filename='img/icons/error.png')}}" class="icon-error"
+        onerror="this.src='{{ url_for("static", filename="img/icons/error.png")}}'; this.onerror=null;" alt="SPID Logo" >
+    </div>
+    <h1 class="u-text-r-xl u-margin-top-l u-margin-bottom-l">{{msg}}</h1>
+
+    <p class="u-text-r-xs u-color-grey-40 u-textWeight-400 u-lineHeight-l">{{extra}}</p>
+</article>
+{% endblock %}

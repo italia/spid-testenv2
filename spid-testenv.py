@@ -793,9 +793,13 @@ class IdpServer(object):
         :param msg: string for error type
         :param extra: optional string for error details
         """
+
         abort(
             Response(
-                render_template_string(error_table, **{'msg': msg, 'extra': extra}),
+               render_template(
+                    "error.html",
+                    **{'msg': msg, 'extra': extra or ""}
+                ),
                 200
             )
         )
