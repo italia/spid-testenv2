@@ -429,7 +429,7 @@ class SpidParser(object):
         elif action == 'logout':
             _schema = Elem(
                 name='logout_request',
-                tag='samlp:LogoutReques',
+                tag='samlp:LogoutRequest',
                 attributes=[
                     Attr('id'),
                     Attr('version', default='2.0'),
