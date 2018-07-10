@@ -56,5 +56,7 @@
         </section>
         <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
         <script src="{{ url_for('static', filename='js/spid-login.js') }}"></script>
+            {% block js %}
+            {% endblock %}
 </body>
 </html>

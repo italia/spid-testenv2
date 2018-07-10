@@ -1,0 +1,48 @@
+{% extends 'main_page.html' %}
+{% block content %}
+<div id="message">
+    {% for line in lines %}
+        <pre class="xml-line">{{line}}</pre>
+    {% endfor %}
+</div>
+<table border=1>
+    <thead>
+        <tr>
+            <th>Elemento</th>
+            <th>Dettagli errore</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for err in errors %}
+            <tr>
+                <td class="spid-error__elem" id="{{err.1}}">{{err.1}}</td>
+                <td>
+                <ul>
+                    {% for name, msgs in err.2.items() %}
+                        <li>{{name}}
+                            <ul>
+                                {% for type, msg in msgs.items() %}
+                                    <li>{{msg|safe}}</li>
+                                {% endfor %}
+                            </ul>
+                        </li>
+                    {% endfor %}
+                </ul>
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
+{% block js %}
+<script type="text/javascript">
+    $(document).ready(function(){
+        $.each($('.spid-error__elem'), function(){
+            var id = $(this).attr('id');
+            var line = $('.xml-line:contains("<' + id + '")');
+            var tag = line[0];
+            $(tag).css('background-color', 'red');
+        });
+    });
+</script>
+{% endblock %}
