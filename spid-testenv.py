@@ -960,9 +960,7 @@ class IdpServer(object):
         rendered_form = render_template(
             "home.html",
             **{
-                'sp_list': [
-                    {"name": "SP test 1", "spId": "http://spid-test-sp"}
-                ],
+                'sp_list': [{"name": sp, "spId": sp} for sp in self.server.metadata.service_providers()],
             }
         )
         return rendered_form, 200
