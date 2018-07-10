@@ -1057,6 +1057,7 @@ class IdpServer(object):
                     rendered_response = render_template(
                         'confirm.html',
                         **{
+                            'destination_service': sp_id,
                             'lines':  escape(prettify_xml(response)).splitlines(),
                             'attrs': attrs,
                             'action': '/continue-response',
