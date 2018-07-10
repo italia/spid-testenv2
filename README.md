@@ -79,6 +79,10 @@ L'unico valore che è necessario modificare rispetto ai default è `metadata`, c
 python spid-testenv.py
 ```
 
+## Home page
+
+Nella home page è presente una lista di Service Providers registrati sull'IdP di test.
+
 ## Metadata IdP
 
 Il metadata dell'Identity Provider di test è generato automaticamente ed esposto all'URL `/metadata`. Questo metadata deve essere inserito nella configurazione del proprio Service Provider.
