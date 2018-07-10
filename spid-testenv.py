@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
 import argparse
 import collections
 import json
@@ -26,6 +28,8 @@ from saml2.metadata import create_metadata_string
 from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, NAMEID_FORMAT_ENTITY
 from saml2.server import Server
 from saml2.sigver import verify_redirect_signature
+from saml2.s_utils import OtherError
+
 
 try:
     FileNotFoundError
@@ -859,6 +863,9 @@ class IdpServer(object):
             except KeyError as err:
                 self.app.logger.debug(str(err))
                 self._raise_error('Parametro SAMLRequest assente.')
+            except OtherError as err:
+                self.app.logger.debug(str(err))
+                self._raise_error('Destinazione messaggio errata.')
 
             if errors:
                 return self._handle_errors(errors, req_info.xmlstr)
