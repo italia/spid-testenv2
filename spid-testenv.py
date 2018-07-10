@@ -267,7 +267,7 @@ class Attr(object):
         else:
             if self._required and value is None:
                 self._errors['required_error'] = self.MANDATORY_ERROR
-            if self._default is not None:
+            if self._default is not None and value is not None:
                 if isinstance(self._default, list) and value not in self._default:
                     self._errors['value_error'] = self.DEFAULT_LIST_VALUE_ERROR.format(value, self._default)
                 elif isinstance(self._default, str) and self._default != value:
@@ -359,7 +359,7 @@ class SpidParser(object):
     def __init__(self, *args, **kwargs):
         self.schema = None
 
-    def get_schema(self, action, binding):
+    def get_schema(self, action, binding, **kwargs):
         """
         :param binding:
         """
@@ -370,7 +370,7 @@ class SpidParser(object):
                 required_signature = True
             elif binding == BINDING_HTTP_REDIRECT:
                 required_signature = False
-
+            attribute_consuming_service_indexes = kwargs.get('attribute_consuming_service_indexes')
             _schema = Elem(
                 name='auth_request',
                 tag='samlp:AuthnRequest',
@@ -380,7 +380,7 @@ class SpidParser(object):
                     Attr('issue_instant', func=check_utc_date),
                     Attr('destination'),
                     Attr('force_authn', required=False),
-                    Attr('attribute_consuming_service_index', required=False),
+                    Attr('attribute_consuming_service_index', default=attribute_consuming_service_indexes, required=False),
                     Attr('assertion_consumer_service_url', required=False),
                     Attr('protocol_binding', default=BINDING_HTTP_POST, required=False)
                 ],
@@ -499,13 +499,13 @@ class SpidParser(object):
             )
         return _schema
 
-    def parse(self, obj, action, binding, schema=None):
+    def parse(self, obj, action, binding, schema=None, **kwargs):
         """
         :param obj: pysaml2 object
         :param binding:
         :param schema: custom schema (None by default)
         """
-        _schema = self.get_schema(action, binding) if schema is None else schema
+        _schema = self.get_schema(action, binding, **kwargs) if schema is None else schema
         self.observer = Observer()
         self.observer.attach(_schema)
         validated = _schema.validate(obj)
@@ -810,8 +810,8 @@ class IdpServer(object):
             )
         )
 
-    def _check_spid_restrictions(self, msg, action, binding):
-        parsed_msg, errors = self.spid_parser.parse(msg.message, action, binding)
+    def _check_spid_restrictions(self, msg, action, binding, **kwargs):
+        parsed_msg, errors = self.spid_parser.parse(msg.message, action, binding, **kwargs)
         self.app.logger.debug('parsed authn_request: {}'.format(parsed_msg))
         return parsed_msg, errors
 
@@ -859,7 +859,13 @@ class IdpServer(object):
                     binding
                 )
                 authn_req = req_info.message
-                _, errors = self._check_spid_restrictions(req_info, 'login', binding)
+                extra = {}
+                sp_id = authn_req.issuer.text
+                # TODO: refactor a bit fetching this kind of data from pysaml2
+                acss = self.server.metadata.assertion_consumer_service(sp_id, authn_req.protocol_binding)
+                acss_indexes = [str(el.get('index')) for el in acss]
+                extra['attribute_consuming_service_indexes'] = acss_indexes
+                _, errors = self._check_spid_restrictions(req_info, 'login', binding, **extra)
             except KeyError as err:
                 self.app.logger.debug(str(err))
                 self._raise_error('Parametro SAMLRequest assente.')
