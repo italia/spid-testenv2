@@ -4,6 +4,7 @@ import collections
 import json
 import logging
 import lxml.etree as etree
+import os
 import os.path
 import random
 import string
@@ -1162,6 +1163,7 @@ if __name__ == '__main__':
     # Init server
     config = _get_config(args.path, args.configuration_type)
     try:
+        os.environ['FLASK_ENV'] = 'development'
         server = IdpServer(app=Flask(__name__, static_url_path='/static'), config=config)
         # Start server
         server.start()
