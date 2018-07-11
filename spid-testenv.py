@@ -1054,6 +1054,7 @@ class IdpServer(object):
                     response = self.server.create_authn_response(
                         **_data
                     )
+                    self.app.logger.debug('Response: \n{}'.format(response))
                     http_args = self.server.apply_binding(
                         BINDING_HTTP_POST,
                         response,
@@ -1112,6 +1113,7 @@ class IdpServer(object):
             digest_alg=DIGEST_ALG,
             sign=True
         )
+        self.app.logger.debug('Response: \n{}'.format(response))
         binding, destination = self.server.pick_binding(
             "single_logout_service",
             [BINDING_HTTP_POST, BINDING_HTTP_REDIRECT], "spsso",
