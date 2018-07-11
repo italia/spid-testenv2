@@ -48,8 +48,9 @@ else:
     xmlsec_path = '/usr/bin/xmlsec1'
 
 
-SIGN_ALG = ds.SIG_RSA_SHA1
-DIGEST_ALG = ds.DIGEST_SHA1
+SIGN_ALG = ds.SIG_RSA_SHA512
+DIGEST_ALG = ds.DIGEST_SHA512
+
 
 COMPARISONS = ['exact', 'minimum', 'better', 'maximum']
 SPID_LEVELS = [
