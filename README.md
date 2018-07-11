@@ -72,18 +72,18 @@ docker run -d -p 8088:8088  spid-testenv
 Generare una chiave privata ed un certificato.
 
 ```
-openssl req -x509 -nodes -sha256 -days 365 -newkey rsa:2048 -keyout idp.key -out idp.crt
+openssl req -x509 -nodes -sha256 -days 365 -newkey rsa:2048 -keyout conf/idp.key -out conf/idp.crt
 ```
 
 Creare e configurare il file config.yaml.
 
 ```
-cp config.yaml.example config.yaml
+cp conf/config.yaml.example conf/config.yaml
 ```
 
 L'unico valore che è necessario modificare rispetto ai default è `metadata`, che contiene i metadata dei Service Provider che si intendono collegare all'IdP di test. Per generare tali metadati vi sono tre possibilità:
 
-1. compilarli a mano a partire dal file [sp_metadata.xml.example](sp_metadata.xml.example);
+1. compilarli a mano a partire dal file [sp_metadata.xml.example](conf/sp_metadata.xml.example);
 2. compilarli usando l'interfaccia disponibile in https://idp.spid.gov.it:8080/
 3. generarli (ed esporli) automaticamente dalla propria implementazione Service Provider (ad esempio https://www.mioserviceprovider.it/spid/metadata).
 

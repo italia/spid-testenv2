@@ -1176,11 +1176,11 @@ def _get_config(f_name, f_type='yaml'):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-p', dest='path', help='Path to configuration file.', default='./config.yaml')
+    parser.add_argument('-c', dest='config', help='Path to configuration file.', default='./conf/config.yaml')
     parser.add_argument('-ct', dest='configuration_type', help='Configuration type [yaml|json]', default='yaml')
     args = parser.parse_args()
     # Init server
-    config = _get_config(args.path, args.configuration_type)
+    config = _get_config(args.config, args.configuration_type)
     try:
         os.environ['FLASK_ENV'] = 'development'
         server = IdpServer(app=Flask(__name__, static_url_path='/static'), config=config)
