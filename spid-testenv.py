@@ -28,7 +28,7 @@ from saml2.metadata import create_metadata_string
 from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, NAMEID_FORMAT_ENTITY
 from saml2.server import Server
 from saml2.sigver import verify_redirect_signature
-from saml2.s_utils import OtherError
+from saml2.s_utils import OtherError, UnknownSystemEntity
 
 
 try:
@@ -862,6 +862,7 @@ class IdpServer(object):
                 authn_req = req_info.message
                 extra = {}
                 sp_id = authn_req.issuer.text
+                issuer_name = authn_req.issuer.text
                 # TODO: refactor a bit fetching this kind of data from pysaml2
                 acss = self.server.metadata.assertion_consumer_service(sp_id, authn_req.protocol_binding)
                 acss_indexes = [str(el.get('index')) for el in acss]
@@ -873,6 +874,9 @@ class IdpServer(object):
             except OtherError as err:
                 self.app.logger.debug(str(err))
                 self._raise_error('Destinazione messaggio errata.')
+            except UnknownSystemEntity as err:
+                self.app.logger.debug(str(err))
+                self._raise_error('entity ID {} non registrato.'.format(issuer_name))
 
             if errors:
                 return self._handle_errors(errors, req_info.xmlstr)
@@ -885,7 +889,6 @@ class IdpServer(object):
             if "SigAlg" in saml_msg and "Signature" in saml_msg:
                 # Signed request
                 self.app.logger.debug('Messaggio SAML firmato.')
-                issuer_name = authn_req.issuer.text
                 try:
                     _certs = self.server.metadata.certs(
                         issuer_name,
