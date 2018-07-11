@@ -51,7 +51,21 @@ Alternativamente alla procedura di installazione manuale riportata sopra, è pos
 
 ### Docker
 
-[TODO](https://github.com/italia/spid-testenv2/issues/26)
+Alternativamente alla procedura di installazione manuale è possible installare ed eseguire l'Identity Provider di test tramite [Docker](https://www.docker.com/).
+
+Installazione:
+
+1) Creare immagine Docker tramite il Dockerfile incluso nel progetto
+
+```
+docker build -t spid-testenv:latest .
+```
+
+2) Eseguire un container basato sull'immagine Docker ottenuta al passo precedente
+
+```
+docker run -d -p 8088:8088  spid-testenv
+```
 
 ## Configurazione
 
