@@ -20,7 +20,7 @@ from flask import Flask, Response, abort, escape, redirect, render_template_stri
     render_template
 from passlib.hash import sha512_crypt
 from saml2 import (BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, BINDING_URI,
-                   NAMESPACE)
+                   NAMESPACE, time_util)
 from saml2.assertion import Assertion
 from saml2.authn_context import AuthnBroker, authn_context_class_ref
 from saml2.config import Config as Saml2Config
@@ -205,8 +205,8 @@ CONFIRM_PAGE = '''
 
 def check_utc_date(date):
     try:
-        datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
-    except ValueError:
+        time_util.str_to_time(date)
+    except Exception:
         return False
     return True
 check_utc_date.error_msg = 'la data non è in formato UTC'
