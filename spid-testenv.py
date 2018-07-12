@@ -522,6 +522,9 @@ class AbstractUserManager(object):
     """
     Base User manager class to handling user objects
     """
+    def __init__(self, config):
+        self._config = config
+    
     def get(self, uid, pwd, sp_id):
         raise NotImplementedError
 
@@ -533,21 +536,24 @@ class JsonUserManager(AbstractUserManager):
     """
     User manager class to handling json user objects
     """
-    FILE_NAME = 'users.json'
-
+    @property
+    def _filename(self):
+        return self._config.get('users_file', 'conf/users.json')
+    
     def _load(self):
         try:
-            with open(self.FILE_NAME, 'r') as fp:
+            with open(self._filename, 'r') as fp:
                 self.users = json.loads(fp.read())
         except FileNotFoundError:
             self.users = {}
             self._save()
 
     def _save(self):
-        with open(self.FILE_NAME, 'w') as fp:
+        with open(self._filename, 'w') as fp:
             json.dump(self.users, fp, indent=4)
 
     def __init__(self, *args, **kwargs):
+        AbstractUserManager.__init__(self, *args, **kwargs)
         self._load()
 
     def get(self, uid, pwd, sp_id):
@@ -613,7 +619,7 @@ class IdpServer(object):
         """
         # bind Flask app
         self.app = app
-        self.user_manager = JsonUserManager()
+        self.user_manager = JsonUserManager(config=config)
         # setup
         self._config = config
         self.app.secret_key = 'sosecret'
