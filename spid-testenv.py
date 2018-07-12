@@ -11,6 +11,7 @@ import os.path
 import random
 import string
 from datetime import datetime, timedelta
+from faker import Faker
 from hashlib import sha1, sha512
 from logging.handlers import RotatingFileHandler
 
@@ -48,6 +49,7 @@ if get_xmlsec_binary:
 else:
     xmlsec_path = '/usr/bin/xmlsec1'
 
+FAKER = Faker('it_IT')
 
 SIGN_ALG = ds.SIG_RSA_SHA512
 DIGEST_ALG = ds.DIGEST_SHA512
@@ -599,6 +601,22 @@ class JsonUserManager(AbstractUserManager):
                 self.users = json.loads(fp.read())
         except FileNotFoundError:
             self.users = {}
+            for idx, _ in enumerate(range(10)):
+                _is_even = (idx % 2 == 0)
+                self.users[FAKER.user_name()] = {
+                    'attrs': {
+                        'spidCode': FAKER.uuid4(),
+                        'name': FAKER.first_name_male() if _is_even else FAKER.first_name_female(),
+                        'familyName': FAKER.last_name_male() if _is_even else FAKER.last_name_female(),
+                        'gender': 'M' if _is_even else 'F',
+                        'birthDate': FAKER.date(),
+                        'companyName': FAKER.company(),
+                        'registeredOffice': FAKER.address(),
+                        'email': FAKER.email()
+                    },
+                    'pwd': 'test',
+                    'sp': None
+                }
             self._save()
 
     def _save(self):
@@ -610,11 +628,13 @@ class JsonUserManager(AbstractUserManager):
 
     def get(self, uid, pwd, sp_id):
         for user, _attrs in self.users.items():
-            if pwd == _attrs['pwd'] and _attrs['sp'] == sp_id:
+            if pwd == _attrs['pwd']:
+                if _attrs['sp'] is not None and _attrs['sp'] != sp_id:
+                    return None, None
                 return user, self.users[user]
         return None, None
 
-    def add(self, uid, pwd, sp_id, extra={}):
+    def add(self, uid, pwd, sp_id=None, extra={}):
         if uid not in self.users:
             self.users[uid] = {
                 'pwd': pwd,
@@ -623,6 +643,8 @@ class JsonUserManager(AbstractUserManager):
             }
         self._save()
 
+    def all(self):
+        return self.users
 
 
 class IdpServer(object):
@@ -773,7 +795,7 @@ class IdpServer(object):
         self.app.add_url_rule('/', 'index', self.index, methods=['GET'])
         self.app.add_url_rule('/login', 'login', self.login, methods=['POST', 'GET',])
         # Endpoint for user add action
-        self.app.add_url_rule('/add-user', 'add_user', self.add_user, methods=['GET', 'POST',])
+        self.app.add_url_rule('/users', 'users', self.users, methods=['GET', 'POST',])
         self.app.add_url_rule('/continue-response', 'continue_response', self.continue_response, methods=['POST',])
         self.app.add_url_rule('/metadata', 'metadata', self.metadata, methods=['POST', 'GET'])
 
@@ -995,18 +1017,20 @@ class IdpServer(object):
         """
         return self._spid_attributes['secondary'].keys()
 
-    def add_user(self):
+    def users(self):
         """
         Add user endpoint
         """
         spid_main_fields = self._spid_main_fields
         spid_secondary_fields = self._spid_secondary_fields
         rendered_form = render_template(
-            "add_user.html",
+            "users.html",
             **{
-                'action': '/add-user',
+                'action': '/users',
                 'primary_attributes': spid_main_fields,
-                'secondary_attributes': spid_secondary_fields
+                'secondary_attributes': spid_secondary_fields,
+                'users': self.user_manager.all(),
+                'sp_list': self.server.metadata.service_providers()
             }
         )
         if request.method == 'GET':
@@ -1015,7 +1039,7 @@ class IdpServer(object):
             username = request.form.get('username')
             password = request.form.get('password')
             sp = request.form.get('service_provider')
-            if not username or not password or not sp:
+            if not username or not password:
                 abort(400)
             extra = {}
             for spid_field in spid_main_fields:
