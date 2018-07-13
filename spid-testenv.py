@@ -360,7 +360,7 @@ class TimestampAttr(Attr):
     def validate(self, value=None):
         validation = super(TimestampAttr, self).validate(value)
         value = self._val_converter(value)
-        now = datetime.now()
+        now = datetime.utcnow()
         lower = now - timedelta(minutes=TIMEDELTA)
         upper = now + timedelta(minutes=TIMEDELTA)
         if value < lower or value > upper:
