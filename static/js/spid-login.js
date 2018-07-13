@@ -105,13 +105,19 @@ $(window).load(function () {
 	}
 
 	/* Listner click al submit utile per intercettare vampi non validi e mostrare icone */
-	$('form button[type="submit"] ').on('click',function(event) {
+	$('form button[type="submit"][name="confirm"]').on('click',function(event) {
 	    var $inputs = $('.Form-input');
 
 	    minValidator($inputs);
 	    
 	});
 	
+
+	/* Listner click al submit utile per intercettare vampi non validi e mostrare icone */
+	$('form button[type="submit"][name="delete"]').on('click',function(event) {
+		$('.Form-input').prop('required', false);
+	});
+
 	/* Listner all'uscita dal campo di input per gestire il disabling del bottone submit */
 	$('.Form-input').on('focusout, input', function() {
 	  var $inputs = $('.Form-input');
