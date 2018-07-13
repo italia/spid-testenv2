@@ -3,3 +3,4 @@ pysaml2==4.5.0
 PyYAML==3.12
 passlib==1.7.1
 lxml==4.2.3
+Faker==0.8.16
