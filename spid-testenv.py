@@ -10,7 +10,7 @@ import os
 import os.path
 import random
 import string
-from datetime import datetime
+from datetime import datetime, timedelta
 from faker import Faker
 from hashlib import sha1, sha512
 from logging.handlers import RotatingFileHandler
@@ -26,11 +26,12 @@ from saml2.assertion import Assertion
 from saml2.authn_context import AuthnBroker, authn_context_class_ref
 from saml2.config import Config as Saml2Config
 from saml2.metadata import create_metadata_string
+from saml2.request import AuthnRequest
 from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, NAMEID_FORMAT_ENTITY
 from saml2.server import Server
 from saml2.sigver import verify_redirect_signature
 from saml2.s_utils import OtherError, UnknownSystemEntity
-
+from saml2.samlp import STATUS_AUTHN_FAILED
 
 try:
     FileNotFoundError
@@ -52,7 +53,7 @@ FAKER = Faker('it_IT')
 
 SIGN_ALG = ds.SIG_RSA_SHA512
 DIGEST_ALG = ds.DIGEST_SHA512
-
+TIMEDELTA = 2
 
 COMPARISONS = ['exact', 'minimum', 'better', 'maximum']
 SPID_LEVELS = [
@@ -205,13 +206,61 @@ CONFIRM_PAGE = '''
 </html>
 '''
 
+AUTH_FAILED_ATTEMPTS = 19
+AUTH_WRONG_SPID_LEVEL = 20
+AUTH_TIMEOUT = 21
+AUTH_NO_CONSENT = 22
+AUTH_BLOCKED_CREDENTIALS = 23
+
+SPID_ERRORS = {
+    AUTH_FAILED_ATTEMPTS: STATUS_AUTHN_FAILED,
+    AUTH_WRONG_SPID_LEVEL : STATUS_AUTHN_FAILED,
+    AUTH_TIMEOUT: STATUS_AUTHN_FAILED,
+    AUTH_NO_CONSENT : STATUS_AUTHN_FAILED,
+    AUTH_BLOCKED_CREDENTIALS: STATUS_AUTHN_FAILED
+}
+
+def get_spid_error(code):
+    error_type = SPID_ERRORS.get(code)
+    return error_type, 'ErrorCode nr{}'.format(code)
+class SPidAuthnRequest(AuthnRequest):
+    def verify(self):
+        # TODO: move here a bit of parsing flow
+        return self
+
+
+class SpidServer(Server):
+    def parse_authn_request(self, enc_request, binding=BINDING_HTTP_REDIRECT):
+        """Parse a Authentication Request
+
+        :param enc_request: The request in its transport format
+        :param binding: Which binding that was used to transport the message
+            to this entity.
+        :return: A request instance
+        """
+
+        return self._parse_request(enc_request, SPidAuthnRequest,
+                                   "single_sign_on_service", binding)
+
+
+
 def check_utc_date(date):
     try:
         time_util.str_to_time(date)
-    except Exception:
+    except Exception as e:
         return False
     return True
 check_utc_date.error_msg = 'la data non è in formato UTC'
+
+
+def str_to_time(val):
+    try:
+        return datetime.strptime(val, '%Y-%m-%dT%H:%M:%S.%fZ')
+    except ValueError:
+        try:
+            return datetime.strptime(val, '%Y-%m-%dT%H:%M:%SZ')
+        except ValueError:
+            pass
 
 
 def prettify_xml(msg):
@@ -246,8 +295,9 @@ class Attr(object):
     NO_WANT_ERROR = 'L\'attributo non è richiesto'
     DEFAULT_VALUE_ERROR = '{} è diverso dal valore di riferimento {}'
     DEFAULT_LIST_VALUE_ERROR = '{} non corrisponde a nessuno dei valori contenuti in {}'
+    LIMITS_VALUE_ERROR = '{} non è compreso tra {} e {}'
 
-    def __init__(self, name, absent=False, required=True, default=None, func=None, *args, **kwargs):
+    def __init__(self, name, absent=False, required=True, default=None, limits=None, func=None, val_converter=None, *args, **kwargs):
         """
         :param name: attribute name
         :param required: flag to indicate if the attribute is mandatory (True by default)
@@ -260,6 +310,8 @@ class Attr(object):
         self._errors = {}
         self._default = default
         self._func = func
+        self._limits = limits
+        self._val_converter = val_converter
 
     def validate(self, value=None):
         """
@@ -275,6 +327,12 @@ class Attr(object):
                     self._errors['value_error'] = self.DEFAULT_LIST_VALUE_ERROR.format(value, self._default)
                 elif isinstance(self._default, str) and self._default != value:
                     self._errors['value_error'] = self.DEFAULT_VALUE_ERROR.format(value, self._default)
+            if self._limits is not None and value is not None:
+                if self._val_converter:
+                    value = self._val_converter(value)
+                lower, upper = self._limits
+                if value > upper or value < lower:
+                    self._errors['limits_error'] = self.LIMITS_VALUE_ERROR.format(value, lower, upper)
             if self._func is not None and value is not None:
                 if not self._func(value):
                     self._errors['validation_error'] = self._func.error_msg
@@ -293,6 +351,22 @@ class Attr(object):
                 _new_element = el[0].upper() + el[1:]
                 parsed_elements.append(_new_element)
             return ''.join(parsed_elements)
+
+
+class TimestampAttr(Attr):
+
+    RANGE_TIME_ERROR = '{} non è compreso tra {} e {}'
+
+    def validate(self, value=None):
+        validation = super(TimestampAttr, self).validate(value)
+        value = self._val_converter(value)
+        now = datetime.utcnow()
+        lower = now - timedelta(minutes=TIMEDELTA)
+        upper = now + timedelta(minutes=TIMEDELTA)
+        if value < lower or value > upper:
+            validation['errors']['range_time_error'] = self.RANGE_TIME_ERROR.format(value, lower, upper)
+        return validation
+
 
 
 class Elem(object):
@@ -374,14 +448,15 @@ class SpidParser(object):
             elif binding == BINDING_HTTP_REDIRECT:
                 required_signature = False
             attribute_consuming_service_indexes = kwargs.get('attribute_consuming_service_indexes')
+            receivers = kwargs.get('receivers')
             _schema = Elem(
                 name='auth_request',
                 tag='samlp:AuthnRequest',
                 attributes=[
                     Attr('id'),
                     Attr('version', default='2.0'),
-                    Attr('issue_instant', func=check_utc_date),
-                    Attr('destination'),
+                    TimestampAttr('issue_instant', func=check_utc_date, val_converter=str_to_time),
+                    Attr('destination', default=receivers),
                     Attr('force_authn', required=False),
                     Attr('attribute_consuming_service_index', default=attribute_consuming_service_indexes, required=False),
                     Attr('assertion_consumer_service_url', required=False),
@@ -757,7 +832,7 @@ class IdpServer(object):
             # as fallback for entityid use host:port string
             self._config['entityid'] = self.BASE
         self.idp_config.load(cnf=self._idp_config())
-        self.server = Server(config=self.idp_config)
+        self.server = SpidServer(config=self.idp_config)
         self._setup_app_routes()
         # setup custom methods in order to
         # prepare the login form and verify the challenge (optional)
@@ -883,8 +958,10 @@ class IdpServer(object):
             try:
                 binding = self._get_binding('single_sign_on_service', request)
                 # Parse AuthnRequest
+                if 'SAMLRequest' not in saml_msg:
+                    self._raise_error('Parametro SAMLRequest assente.')
                 req_info = self.server.parse_authn_request(
-                    saml_msg["SAMLRequest"],
+                    saml_msg['SAMLRequest'],
                     binding
                 )
                 authn_req = req_info.message
@@ -895,13 +972,8 @@ class IdpServer(object):
                 acss = self.server.metadata.assertion_consumer_service(sp_id, authn_req.protocol_binding)
                 acss_indexes = [str(el.get('index')) for el in acss]
                 extra['attribute_consuming_service_indexes'] = acss_indexes
+                extra['receivers'] = req_info.receiver_addrs
                 _, errors = self._check_spid_restrictions(req_info, 'login', binding, **extra)
-            except KeyError as err:
-                self.app.logger.debug(str(err))
-                self._raise_error('Parametro SAMLRequest assente.')
-            except OtherError as err:
-                self.app.logger.debug(str(err))
-                self._raise_error('Destinazione messaggio errata.')
             except UnknownSystemEntity as err:
                 self.app.logger.debug(str(err))
                 self._raise_error('entity ID {} non registrato.'.format(issuer_name))
@@ -912,7 +984,7 @@ class IdpServer(object):
             if not req_info:
                 self._raise_error('Processo di parsing del messaggio fallito.')
 
-            self.app.logger.debug('AuthnRequest: {}'.format(authn_req))
+            self.app.logger.debug('AuthnRequest: \n{}'.format(prettify_xml(str(authn_req))))
             # Check if it is signed
             if "SigAlg" in saml_msg and "Signature" in saml_msg:
                 # Signed request
@@ -1012,6 +1084,21 @@ class IdpServer(object):
             }
         )
         return rendered_form, 200
+
+    def get_destination(self, req, sp_id):
+        destination = None
+        if req.message.attribute_consuming_service_index is not None:
+            acss = self.server.metadata.assertion_consumer_service(sp_id, req.message.protocol_binding)
+            for acs in acss:
+                if acs.get('index') == req.message.attribute_consuming_service_index:
+                    destination = acs.get('location')
+                    break
+            self.app.logger.debug('AssertionConsumingServiceIndex Location: {}'.format(destination))
+        if destination is None:
+            destination = req.message.assertion_consumer_service_url
+            self.app.logger.debug('AssertionConsumerServiceUrl: {}'.format(destination))
+        return destination
+
     def login(self):
         """
         Login endpoint (verify user credentials)
@@ -1022,22 +1109,7 @@ class IdpServer(object):
         if key and key in self.ticket:
             authn_request = self.ticket[key]
             sp_id = authn_request.message.issuer.text
-            destination = None
-            if authn_request.message.attribute_consuming_service_index is not None:
-                acss = self.server.metadata.assertion_consumer_service(sp_id, authn_request.message.protocol_binding)
-                for acs in acss:
-                    if acs.get('index') == authn_request.message.attribute_consuming_service_index:
-                        destination = acs.get('location')
-                        break
-                self.app.logger.debug('AssertionConsumingServiceIndex Location: {}'.format(destination))
-            if destination is None:
-                destination = authn_request.message.assertion_consumer_service_url
-                self.app.logger.debug('AssertionConsumerServiceUrl: {}'.format(destination))
-            if destination is None:
-                self._raise_error(
-                    'Impossibile ricavare l\'url di risposta',
-                    'Verificare la presenza e la correttezza dell\'AssertionConsumerServiceIndex, o in alternativa della coppia di attributi AssertionConsumerServiceURL e ProtocolBinding'
-                )
+            destination = self.get_destination(authn_request, sp_id)
             spid_level = authn_request.message.requested_authn_context.authn_context_class_ref[0].text
             authn_info = self.authn_broker.pick(authn_request.message.requested_authn_context)
             callback, reference = authn_info[0]
@@ -1054,72 +1126,108 @@ class IdpServer(object):
                     }
                 )
                 return rendered_form, 200
-            # verify optional challenge based on spid level
-            verified = callback(verify=True, **{'key': key, 'data': request.form})
-            if verified:
-                # verify user credentials
-                user_id, user = self.user_manager.get(
-                    request.form['username'],
-                    request.form['password'],
-                    sp_id
-                )
-                if user_id is not None:
-                    # setup response
-                    attribute_statement_on_response = self._config.get('attribute_statement_on_response')
-                    identity = user['attrs']
-                    AUTHN = {
-                        "class_ref": spid_level,
-                        "authn_auth": spid_level
-                    }
-                    _data = dict(
-                        identity=identity, userid=user_id,
-                        in_response_to=authn_request.message.id,
-                        destination=destination,
-                        sp_entity_id=sp_id,
-                        authn=AUTHN, issuer=self.server.config.entityid,
-                        sign_alg=SIGN_ALG,
-                        digest_alg=DIGEST_ALG,
-                        sign_assertion=True
+
+            if 'confirm' in request.form:
+                # verify optional challenge based on spid level
+                verified = callback(verify=True, **{'key': key, 'data': request.form})
+                if verified:
+                    # verify user credentials
+                    user_id, user = self.user_manager.get(
+                        request.form['username'],
+                        request.form['password'],
+                        sp_id
                     )
-                    response = self.server.create_authn_response(
-                        **_data
-                    )
-                    self.app.logger.debug('Response: \n{}'.format(response))
-                    http_args = self.server.apply_binding(
-                        BINDING_HTTP_POST,
-                        response,
-                        destination,
-                        response=True,
-                        sign=True,
-                        relay_state=relay_state
-                    )
-                    # Setup confirmation page data
-                    ast = Assertion(identity)
-                    policy = self.server.config.getattr("policy", "idp")
-                    ast.acs = self.server.config.getattr("attribute_converters", "idp")
-                    res = ast.apply_policy(sp_id, policy, self.server.metadata)
-                    attrs = res.keys()
-                    attrs_list = ''
-                    for _attr in attrs:
-                        attrs_list = '{}<tr><td>{}</td></tr>'.format(attrs_list, _attr)
-                    self.responses[key] = http_args['data']
-                    rendered_response = render_template(
-                        'confirm.html',
-                        **{
-                            'destination_service': sp_id,
-                            'lines':  escape(prettify_xml(response)).splitlines(),
-                            'attrs': attrs,
-                            'action': '/continue-response',
-                            'request_key': key
+                    if user_id is not None:
+                        # setup response
+                        attribute_statement_on_response = self._config.get('attribute_statement_on_response')
+                        identity = user['attrs']
+                        AUTHN = {
+                            "class_ref": spid_level,
+                            "authn_auth": spid_level
                         }
-                    )
-                    return rendered_response, 200
+                        _data = dict(
+                            identity=identity, userid=user_id,
+                            in_response_to=authn_request.message.id,
+                            destination=destination,
+                            sp_entity_id=sp_id,
+                            authn=AUTHN, issuer=self.server.config.entityid,
+                            sign_alg=SIGN_ALG,
+                            digest_alg=DIGEST_ALG,
+                            sign_assertion=True
+                        )
+                        response = self.server.create_authn_response(
+                            **_data
+                        )
+                        self.app.logger.debug('Response: \n{}'.format(response))
+                        http_args = self.server.apply_binding(
+                            BINDING_HTTP_POST,
+                            response,
+                            destination,
+                            response=True,
+                            sign=True,
+                            relay_state=relay_state
+                        )
+                        # Setup confirmation page data
+                        ast = Assertion(identity)
+                        policy = self.server.config.getattr("policy", "idp")
+                        ast.acs = self.server.config.getattr("attribute_converters", "idp")
+                        res = ast.apply_policy(sp_id, policy, self.server.metadata)
+                        attrs = res.keys()
+                        attrs_list = ''
+                        for _attr in attrs:
+                            attrs_list = '{}<tr><td>{}</td></tr>'.format(attrs_list, _attr)
+                        self.responses[key] = http_args['data']
+                        rendered_response = render_template(
+                            'confirm.html',
+                            **{
+                                'destination_service': sp_id,
+                                'lines':  escape(prettify_xml(response)).splitlines(),
+                                'attrs': attrs,
+                                'action': '/continue-response',
+                                'request_key': key
+                            }
+                        )
+                        return rendered_response, 200
+            elif 'delete' in request.form:
+                error_response = self.server.create_error_response(
+                    in_response_to=authn_request.message.id,
+                    destination=destination,
+                    info=get_spid_error(AUTH_NO_CONSENT)
+                )
+                self.app.logger.debug('Error response: \n{}'.format(prettify_xml(str(error_response))))
+                http_args = self.server.apply_binding(
+                    BINDING_HTTP_POST,
+                    error_response,
+                    destination,
+                    response=True,
+                    sign=True,
+                    relay_state=relay_state
+                )
+                return http_args['data'], 200
         return render_template('403.html'), 403
 
     def continue_response(self):
         key = request.form['request_key']
         if key and key in self.ticket and key in self.responses:
-            return self.responses[key], 200
+            if 'confirm' in request.form:
+                return self.responses[key], 200
+            elif 'delete' in request.form:
+                auth_req = self.ticket[key]
+                destination = self.get_destination(auth_req, auth_req.message.issuer.text)
+                error_response = self.server.create_error_response(
+                    in_response_to=auth_req.message.id,
+                    destination=destination,
+                    info=get_spid_error(AUTH_NO_CONSENT)
+                )
+                self.app.logger.debug('Error response: \n{}'.format(prettify_xml(str(error_response))))
+                http_args = self.server.apply_binding(
+                    BINDING_HTTP_POST,
+                    error_response,
+                    destination,
+                    response=True,
+                    sign=True,
+                )
+                return http_args['data'], 200
         return render_template('403.html'), 403
 
     def single_logout_service(self):
