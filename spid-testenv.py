@@ -646,7 +646,7 @@ class JsonUserManager(AbstractUserManager):
             json.dump(self.users, fp, indent=4)
 
     def __init__(self, *args, **kwargs):
-        AbstractUserManager.__init__(self, *args, **kwargs)
+        super(JsonUserManager, self).__init__(*args, **kwargs)
         self._load()
 
     def get(self, uid, pwd, sp_id):
