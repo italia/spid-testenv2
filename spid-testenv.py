@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 import argparse
+import base64
 import collections
 import json
 import logging
@@ -25,12 +26,14 @@ from saml2 import (BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, BINDING_URI,
 from saml2.assertion import Assertion
 from saml2.authn_context import AuthnBroker, authn_context_class_ref
 from saml2.config import Config as Saml2Config
+from saml2.entity import UnknownBinding
 from saml2.metadata import create_metadata_string
 from saml2.request import AuthnRequest
+from saml2.response import IncorrectlySigned
 from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, NAMEID_FORMAT_ENTITY
 from saml2.server import Server
 from saml2.sigver import verify_redirect_signature
-from saml2.s_utils import OtherError, UnknownSystemEntity
+from saml2.s_utils import decode_base64_and_inflate, OtherError, UnknownSystemEntity, UnravelError
 from saml2.samlp import STATUS_AUTHN_FAILED
 
 try:
@@ -112,9 +115,13 @@ spid_error_table = '''
                             {% for name, msgs in err.2.items() %}
                                 <li>{{name}}
                                     <ul>
+                                    {% if msgs is mapping %}
                                         {% for type, msg in msgs.items() %}
                                             <li>{{msg|safe}}</li>
                                         {% endfor %}
+                                    {% else %}
+                                        <li>{{msgs}}</li>
+                                    {% endif %}
                                     </ul>
                                 </li>
                             {% endfor %}
@@ -223,6 +230,8 @@ SPID_ERRORS = {
 def get_spid_error(code):
     error_type = SPID_ERRORS.get(code)
     return error_type, 'ErrorCode nr{}'.format(code)
+
+
 class SPidAuthnRequest(AuthnRequest):
     def verify(self):
         # TODO: move here a bit of parsing flow
@@ -242,6 +251,30 @@ class SpidServer(Server):
         return self._parse_request(enc_request, SPidAuthnRequest,
                                    "single_sign_on_service", binding)
 
+    @staticmethod
+    def unravel(txt, binding, msgtype="response"):
+        """
+        Will unpack the received text. Depending on the context the original
+            response may have been transformed before transmission.
+        :param txt:
+        :param binding:
+        :param msgtype:
+        :return:
+        """
+        if binding not in [BINDING_HTTP_REDIRECT, BINDING_HTTP_POST,
+                            None]:
+            raise UnknownBinding("Don't know how to handle '%s'" % binding)
+        else:
+            try:
+                if binding == BINDING_HTTP_REDIRECT:
+                    xmlstr = decode_base64_and_inflate(txt)
+                elif binding == BINDING_HTTP_POST:
+                    xmlstr = base64.b64decode(txt)
+                else:
+                    xmlstr = txt
+            except Exception:
+                raise UnravelError("Unravelling binding '%s' failed" % binding)
+        return xmlstr
 
 
 def check_utc_date(date):
@@ -808,7 +841,7 @@ class IdpServer(object):
                         raise BadConfiguration('Errore nella configurazione delle url, i path devono essere relativi ed iniziare con "/" (slash) - url {}'.format(_url)
                     )
                     for _binding in self._binding_mapping.keys():
-                        self.app.add_url_rule(_url, '{}_{}'.format(ep_type, _binding), getattr(self, ep_type), methods=['GET',])
+                        self.app.add_url_rule(_url, ep_type, getattr(self, ep_type), methods=['GET', 'POST'])
         self.app.add_url_rule('/', 'index', self.index, methods=['GET'])
         self.app.add_url_rule('/login', 'login', self.login, methods=['POST', 'GET',])
         # Endpoint for user add action
@@ -950,15 +983,27 @@ class IdpServer(object):
             req_info = self.ticket[_key]
         except KeyError as e:
             try:
-                binding = self._get_binding('single_sign_on_service', request)
+                binding = BINDING_HTTP_REDIRECT
                 # Parse AuthnRequest
                 if 'SAMLRequest' not in saml_msg:
                     self._raise_error('Parametro SAMLRequest assente.')
-                req_info = self.server.parse_authn_request(
-                    saml_msg['SAMLRequest'],
-                    binding
-                )
+
+                try:
+                    req_info = self.server.parse_authn_request(
+                        saml_msg['SAMLRequest'],
+                        binding
+                    )
+                except IncorrectlySigned:
+                    binding = BINDING_HTTP_POST
+                    try:
+                        req_info = self.server.parse_authn_request(
+                            saml_msg['SAMLRequest'],
+                            binding
+                        )
+                    except IncorrectlySigned:
+                        raise
                 authn_req = req_info.message
+                self.app.logger.debug('AuthnRequest: \n{}'.format(prettify_xml(str(authn_req))))
                 extra = {}
                 sp_id = authn_req.issuer.text
                 issuer_name = authn_req.issuer.text
@@ -968,9 +1013,15 @@ class IdpServer(object):
                 extra['attribute_consuming_service_indexes'] = acss_indexes
                 extra['receivers'] = req_info.receiver_addrs
                 _, errors = self._check_spid_restrictions(req_info, 'login', binding, **extra)
+            except UnknownBinding as err:
+                self.app.logger.debug(str(err))
+                self._raise_error('Binding non supportato. Formati supportati ({}, {})'.format(BINDING_HTTP_POST, BINDING_HTTP_REDIRECT))
             except UnknownSystemEntity as err:
                 self.app.logger.debug(str(err))
                 self._raise_error('entity ID {} non registrato.'.format(issuer_name))
+            except IncorrectlySigned as err:
+                self.app.logger.debug(str(err))
+                self._raise_error('Messaggio corrotto o non firmato correttamente.'.format(issuer_name))
 
             if errors:
                 return self._handle_errors(errors, req_info.xmlstr)
@@ -978,33 +1029,33 @@ class IdpServer(object):
             if not req_info:
                 self._raise_error('Processo di parsing del messaggio fallito.')
 
-            self.app.logger.debug('AuthnRequest: \n{}'.format(prettify_xml(str(authn_req))))
             # Check if it is signed
-            if "SigAlg" in saml_msg and "Signature" in saml_msg:
-                # Signed request
-                self.app.logger.debug('Messaggio SAML firmato.')
-                try:
-                    _certs = self.server.metadata.certs(
-                        issuer_name,
-                        "any",
-                        "signing"
-                    )
-                except KeyError:
-                    self._raise_error('entity ID {} non registrato, impossibile ricavare un certificato valido.'.format(issuer_name))
-                verified_ok = False
-                for cert in _certs:
-                    self.app.logger.debug(
-                        'security backend: {}'.format(self.server.sec.sec_backend.__class__.__name__)
-                    )
-                    # Check signature
-                    if verify_redirect_signature(saml_msg, self.server.sec.sec_backend,
-                                                    cert):
-                        verified_ok = True
-                        break
-                if not verified_ok:
-                    self._raise_error('Verifica della firma del messaggio fallita.')
-            else:
-                self._raise_error('Messaggio SAML non firmato.')
+            if binding == BINDING_HTTP_REDIRECT:
+                if "SigAlg" in saml_msg and "Signature" in saml_msg:
+                    # Signed request
+                    self.app.logger.debug('Messaggio SAML firmato.')
+                    try:
+                        _certs = self.server.metadata.certs(
+                            issuer_name,
+                            "any",
+                            "signing"
+                        )
+                    except KeyError:
+                        self._raise_error('entity ID {} non registrato, impossibile ricavare un certificato valido.'.format(issuer_name))
+                    verified_ok = False
+                    for cert in _certs:
+                        self.app.logger.debug(
+                            'security backend: {}'.format(self.server.sec.sec_backend.__class__.__name__)
+                        )
+                        # Check signature
+                        if verify_redirect_signature(saml_msg, self.server.sec.sec_backend,
+                                                        cert):
+                            verified_ok = True
+                            break
+                    if not verified_ok:
+                        self._raise_error('Verifica della firma del messaggio fallita.')
+                else:
+                    self._raise_error('Messaggio SAML non firmato.')
             # Perform login
             key = self._store_request(req_info)
             relay_state = saml_msg.get('RelayState', '')
