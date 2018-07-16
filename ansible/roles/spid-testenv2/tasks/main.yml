@@ -42,8 +42,14 @@
     line: "127.0.0.1 {{ spid_testenv2_hostname }}"
     state: present
 
+- name: make sure the non-privileged user can access conf dir (required to write users.json)
+  file:
+    path: "{{ spid_testenv2_dir }}/conf"
+    state: directory
+    owner: "{{ spid_testenv2_user }}"
+
 - name: use default config
-  command: cp {{ spid_testenv2_dir }}/config.yaml.example {{ spid_testenv2_dir }}/config.yaml
+  command: cp {{ spid_testenv2_dir }}/conf/config.yaml.example {{ spid_testenv2_dir }}/conf/config.yaml
 
 - name: install the systemd unit file
   template:
@@ -61,13 +67,13 @@
 
 - name: configure testenv2 so that it only listens on localhost
   lineinfile:
-    path: "{{ spid_testenv2_dir }}/config.yaml"
+    path: "{{ spid_testenv2_dir }}/conf/config.yaml"
     regexp: "^host:"
     line: "host: 127.0.0.1"
 
 - name: configure testenv2 so that it knows about its hostname
   lineinfile:
-    path: "{{ spid_testenv2_dir }}/config.yaml"
+    path: "{{ spid_testenv2_dir }}/conf/config.yaml"
     regexp: "^hostname:"
     line: "hostname: {{ spid_testenv2_hostname }}"
 
