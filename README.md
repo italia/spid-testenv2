@@ -51,20 +51,28 @@ Alternativamente alla procedura di installazione manuale riportata sopra, è pos
 
 ### Docker
 
-Alternativamente alla procedura di installazione manuale è possible installare ed eseguire l'Identity Provider di test tramite [Docker](https://www.docker.com/).
+Alternativamente alla procedura di installazione manuale è possible installare ed eseguire l'Identity Provider di test usando l'immagine presente su [Docker Hub](https://hub.docker.com/).
 
-Installazione:
-
-1) Creare immagine Docker tramite il Dockerfile incluso nel progetto
+Per ottenere la persistenza della configurazione è necessario creare nell'host una directory. Tale directory sarà mappata in `conf/` all'interno del container.
 
 ```
-docker build -t spid-testenv:latest .
+mkdir /path/to/testenv/conf
 ```
 
-2) Eseguire un container basato sull'immagine Docker ottenuta al passo precedente
+Creare nella directory il file config.yaml e la coppia chiave/certificato per l'IdP, nonché eventuali metadata SP, come indicato nel paragrafo successivo.
+
+Creare il container con il seguente comando:
 
 ```
-docker run -d -p 8088:8088  spid-testenv
+docker create --name spid-testenv2 -p 8088:8088 \
+   --mount src="/path/to/testenv/conf",target="/app/conf",type=bind \
+   italia/spid-testenv2
+```
+
+Avviare il container:
+
+```
+docker start spid-testenv2
 ```
 
 ## Configurazione
@@ -72,18 +80,18 @@ docker run -d -p 8088:8088  spid-testenv
 Generare una chiave privata ed un certificato.
 
 ```
-openssl req -x509 -nodes -sha256 -days 365 -newkey rsa:2048 -keyout idp.key -out idp.crt
+openssl req -x509 -nodes -sha256 -days 365 -newkey rsa:2048 -keyout conf/idp.key -out conf/idp.crt
 ```
 
 Creare e configurare il file config.yaml.
 
 ```
-cp config.yaml.example config.yaml
+cp conf/config.yaml.example conf/config.yaml
 ```
 
 L'unico valore che è necessario modificare rispetto ai default è `metadata`, che contiene i metadata dei Service Provider che si intendono collegare all'IdP di test. Per generare tali metadati vi sono tre possibilità:
 
-1. compilarli a mano a partire dal file [sp_metadata.xml.example](sp_metadata.xml.example);
+1. compilarli a mano a partire dal file [sp_metadata.xml.example](conf/sp_metadata.xml.example);
 2. compilarli usando l'interfaccia disponibile in https://idp.spid.gov.it:8080/
 3. generarli (ed esporli) automaticamente dalla propria implementazione Service Provider (ad esempio https://www.mioserviceprovider.it/spid/metadata).
 

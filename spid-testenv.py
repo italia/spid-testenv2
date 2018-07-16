@@ -632,6 +632,9 @@ class AbstractUserManager(object):
     """
     Base User manager class to handling user objects
     """
+    def __init__(self, config):
+        self._config = config
+    
     def get(self, uid, pwd, sp_id):
         raise NotImplementedError
 
@@ -643,11 +646,13 @@ class JsonUserManager(AbstractUserManager):
     """
     User manager class to handling json user objects
     """
-    FILE_NAME = 'users.json'
-
+    @property
+    def _filename(self):
+        return self._config.get('users_file', 'conf/users.json')
+    
     def _load(self):
         try:
-            with open(self.FILE_NAME, 'r') as fp:
+            with open(self._filename, 'r') as fp:
                 self.users = json.loads(fp.read())
         except FileNotFoundError:
             self.users = {}
@@ -670,10 +675,11 @@ class JsonUserManager(AbstractUserManager):
             self._save()
 
     def _save(self):
-        with open(self.FILE_NAME, 'w') as fp:
+        with open(self._filename, 'w') as fp:
             json.dump(self.users, fp, indent=4)
 
     def __init__(self, *args, **kwargs):
+        super(JsonUserManager, self).__init__(*args, **kwargs)
         self._load()
 
     def get(self, uid, pwd, sp_id):
@@ -743,7 +749,7 @@ class IdpServer(object):
         """
         # bind Flask app
         self.app = app
-        self.user_manager = JsonUserManager()
+        self.user_manager = JsonUserManager(config=config)
         # setup
         self._config = config
         self.app.secret_key = 'sosecret'
@@ -1359,11 +1365,11 @@ def _get_config(f_name, f_type='yaml'):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-p', dest='path', help='Path to configuration file.', default='./config.yaml')
+    parser.add_argument('-c', dest='config', help='Path to configuration file.', default='./conf/config.yaml')
     parser.add_argument('-ct', dest='configuration_type', help='Configuration type [yaml|json]', default='yaml')
     args = parser.parse_args()
     # Init server
-    config = _get_config(args.path, args.configuration_type)
+    config = _get_config(args.config, args.configuration_type)
     try:
         os.environ['FLASK_ENV'] = 'development'
         server = IdpServer(app=Flask(__name__, static_url_path='/static'), config=config)
