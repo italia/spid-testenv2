@@ -33,7 +33,7 @@ from saml2.response import IncorrectlySigned
 from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, NAMEID_FORMAT_ENTITY
 from saml2.server import Server
 from saml2.sigver import verify_redirect_signature
-from saml2.s_utils import decode_base64_and_inflate, OtherError, UnknownSystemEntity, UnravelError
+from saml2.s_utils import decode_base64_and_inflate, OtherError, UnknownSystemEntity, UnravelError, UnsupportedBinding
 from saml2.samlp import STATUS_AUTHN_FAILED
 
 try:
@@ -1014,7 +1014,7 @@ class IdpServer(object):
                 sp_id = authn_req.issuer.text
                 issuer_name = authn_req.issuer.text
                 # TODO: refactor a bit fetching this kind of data from pysaml2
-                acss = self.server.metadata.assertion_consumer_service(sp_id, authn_req.protocol_binding)
+                acss = self.server.metadata.assertion_consumer_service(sp_id)
                 acss_indexes = [str(el.get('index')) for el in acss]
                 extra['attribute_consuming_service_indexes'] = acss_indexes
                 extra['receivers'] = req_info.receiver_addrs
