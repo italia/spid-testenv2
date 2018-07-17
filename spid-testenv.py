@@ -1069,14 +1069,6 @@ class IdpServer(object):
             session['relay_state'] = relay_state
         return redirect(url_for('login'))
 
-    def _get_binding(self, endpoint_type, request):
-        try:
-            endpoint = request.endpoint
-            binding = endpoint.split('{}_'.format(endpoint_type))[1]
-            return self._binding_mapping.get(binding)
-        except IndexError:
-            pass
-
     @property
     def _spid_main_fields(self):
         """
@@ -1290,9 +1282,17 @@ class IdpServer(object):
 
         self.app.logger.debug("req: '%s'", request)
         saml_msg = self.unpack_args(request.args)
-        _binding = self._get_binding('single_logout_service', request)
-        req_info = self.server.parse_logout_request(saml_msg['SAMLRequest'], _binding)
+        _binding = BINDING_HTTP_REDIRECT
+        try:
+            req_info = self.server.parse_logout_request(saml_msg['SAMLRequest'], _binding)
+        except IncorrectlySigned:
+            try:
+                req_info = self.server.parse_logout_request(saml_msg['SAMLRequest'], BINDING_HTTP_POST)
+            except IncorrectlySigned as err:
+                self.app.logger.debug(str(err))
+                self._raise_error('Messaggio corrotto o non firmato correttamente.'.format(issuer_name))
         msg = req_info.message
+        self.app.logger.debug('LogoutRequest: \n{}'.format(prettify_xml(str(msg))))
         _, errors = self._check_spid_restrictions(req_info, 'logout', _binding)
         if errors:
             return self._handle_errors(errors, req_info.xmlstr)
