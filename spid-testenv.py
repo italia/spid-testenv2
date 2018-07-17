@@ -6,22 +6,23 @@ import base64
 import collections
 import json
 import logging
-import lxml.etree as etree
 import os
 import os.path
 import random
 import string
 import sys
 from datetime import datetime, timedelta
-from faker import Faker
 from hashlib import sha1, sha512
 from importlib import import_module
 from logging.handlers import RotatingFileHandler
 
-import saml2.xmldsig as ds
+import lxml.etree as etree
 import yaml
-from flask import Flask, Response, abort, escape, redirect, render_template_string, request, session, url_for, \
-    render_template
+
+import saml2.xmldsig as ds
+from faker import Faker
+from flask import (Flask, Response, abort, escape, redirect, render_template,
+                   render_template_string, request, session, url_for)
 from passlib.hash import sha512_crypt
 from saml2 import (BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, BINDING_URI,
                    NAMESPACE, time_util)
@@ -33,11 +34,13 @@ from saml2.entity import UnknownBinding
 from saml2.metadata import create_metadata_string
 from saml2.request import AuthnRequest, LogoutRequest
 from saml2.response import IncorrectlySigned
-from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, NAMEID_FORMAT_ENTITY, XSI_TYPE, Attribute, AttributeValue
+from saml2.s_utils import (OtherError, UnknownSystemEntity, UnravelError,
+                           UnsupportedBinding, decode_base64_and_inflate, do_ava, factory)
+from saml2.saml import (NAME_FORMAT_BASIC, NAMEID_FORMAT_ENTITY,
+                        NAMEID_FORMAT_TRANSIENT, XSI_TYPE, Attribute, AttributeValue)
+from saml2.samlp import STATUS_AUTHN_FAILED
 from saml2.server import Server
 from saml2.sigver import verify_redirect_signature
-from saml2.s_utils import decode_base64_and_inflate, do_ava, factory, OtherError, UnknownSystemEntity, UnravelError, UnsupportedBinding
-from saml2.samlp import STATUS_AUTHN_FAILED
 
 
 try:
