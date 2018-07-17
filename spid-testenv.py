@@ -17,9 +17,8 @@ from importlib import import_module
 from logging.handlers import RotatingFileHandler
 
 import lxml.etree as etree
-import yaml
-
 import saml2.xmldsig as ds
+import yaml
 from faker import Faker
 from flask import (Flask, Response, abort, escape, redirect, render_template,
                    render_template_string, request, session, url_for)
