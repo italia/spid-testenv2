@@ -1136,10 +1136,10 @@ class IdpServer(object):
                 if acs.get('index') == req.message.attribute_consuming_service_index:
                     destination = acs.get('location')
                     break
-            self.app.logger.debug('AssertionConsumingServiceIndex Location: {}'.format(destination))
+            self.app.logger.debug('AssertionConsumerServiceIndex Location: {}'.format(destination))
         if destination is None:
             destination = req.message.assertion_consumer_service_url
-            self.app.logger.debug('AssertionConsumerServiceUrl: {}'.format(destination))
+            self.app.logger.debug('AssertionConsumerServiceURL: {}'.format(destination))
         return destination
 
     def login(self):
