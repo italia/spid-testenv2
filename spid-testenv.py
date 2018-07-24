@@ -481,6 +481,7 @@ class SpidParser(object):
             elif binding == BINDING_HTTP_REDIRECT:
                 required_signature = False
             attribute_consuming_service_indexes = kwargs.get('attribute_consuming_service_indexes')
+            assertion_consumer_service_indexes = kwargs.get('assertion_consumer_service_indexes')
             receivers = kwargs.get('receivers')
             _schema = Elem(
                 name='auth_request',
@@ -491,6 +492,7 @@ class SpidParser(object):
                     TimestampAttr('issue_instant', func=check_utc_date, val_converter=str_to_time),
                     Attr('destination', default=receivers),
                     Attr('force_authn', required=False),
+                    Attr('assertion_consumer_service_index', default=assertion_consumer_service_indexes, required=False),
                     Attr('attribute_consuming_service_index', default=attribute_consuming_service_indexes, required=False),
                     Attr('assertion_consumer_service_url', required=False),
                     Attr('protocol_binding', default=BINDING_HTTP_POST, required=False)
@@ -1014,9 +1016,18 @@ class IdpServer(object):
                 sp_id = authn_req.issuer.text
                 issuer_name = authn_req.issuer.text
                 # TODO: refactor a bit fetching this kind of data from pysaml2
-                acss = self.server.metadata.assertion_consumer_service(sp_id)
-                acss_indexes = [str(el.get('index')) for el in acss]
-                extra['attribute_consuming_service_indexes'] = acss_indexes
+                try:
+                    atcss = self.server.metadata.attribute_consuming_service(sp_id)
+                except UnknownSystemEntity as err:
+                    atcss = []
+                try:
+                    ascss = self.server.metadata.assertion_consumer_service(sp_id)
+                except UnknownSystemEntity as err:
+                    ascss = []
+                atcss_indexes = [str(el.get('index')) for el in atcss]
+                ascss_indexes = [str(el.get('index')) for el in ascss]
+                extra['attribute_consuming_service_indexes'] = atcss_indexes
+                extra['assertion_consumer_service_indexes'] = ascss_indexes
                 extra['receivers'] = req_info.receiver_addrs
                 _, errors = self._check_spid_restrictions(req_info, 'login', binding, **extra)
             except UnknownBinding as err:
