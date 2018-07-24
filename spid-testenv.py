@@ -1145,10 +1145,10 @@ class IdpServer(object):
 
     def get_destination(self, req, sp_id):
         destination = None
-        if req.message.attribute_consuming_service_index is not None:
+        if req.message.assertion_consumer_service_index is not None:
             acss = self.server.metadata.assertion_consumer_service(sp_id, req.message.protocol_binding)
             for acs in acss:
-                if acs.get('index') == req.message.attribute_consuming_service_index:
+                if acs.get('index') == req.message.assertion_consumer_service_index:
                     destination = acs.get('location')
                     break
             self.app.logger.debug('AssertionConsumerServiceIndex Location: {}'.format(destination))
