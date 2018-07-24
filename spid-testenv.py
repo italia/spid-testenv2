@@ -1020,9 +1020,13 @@ class IdpServer(object):
                     atcss = self.server.metadata.attribute_consuming_service(sp_id)
                 except UnknownSystemEntity as err:
                     atcss = []
+                except UnsupportedBinding as err:
+                    atcss = []
                 try:
                     ascss = self.server.metadata.assertion_consumer_service(sp_id)
                 except UnknownSystemEntity as err:
+                    ascss = []
+                except UnsupportedBinding as err:
                     ascss = []
                 atcss_indexes = [str(el.get('index')) for el in atcss]
                 ascss_indexes = [str(el.get('index')) for el in ascss]
