@@ -23,14 +23,15 @@ from flask import Flask, Response, abort, escape, redirect, render_template_stri
 from passlib.hash import sha512_crypt
 from saml2 import (BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, BINDING_URI,
                    NAMESPACE, time_util)
-from saml2.assertion import Assertion
+from saml2.assertion import Assertion, Policy, filter_on_demands
+from saml2.attribute_converter import ac_factory, list_to_local
 from saml2.authn_context import AuthnBroker, authn_context_class_ref
 from saml2.config import Config as Saml2Config
 from saml2.entity import UnknownBinding
 from saml2.metadata import create_metadata_string
 from saml2.request import AuthnRequest
 from saml2.response import IncorrectlySigned
-from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, NAMEID_FORMAT_ENTITY
+from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, NAMEID_FORMAT_ENTITY, XSI_TYPE, Attribute
 from saml2.server import Server
 from saml2.sigver import verify_redirect_signature
 from saml2.s_utils import decode_base64_and_inflate, OtherError, UnknownSystemEntity, UnravelError, UnsupportedBinding
@@ -227,9 +228,34 @@ SPID_ERRORS = {
     AUTH_BLOCKED_CREDENTIALS: STATUS_AUTHN_FAILED
 }
 
+
 def get_spid_error(code):
     error_type = SPID_ERRORS.get(code)
     return error_type, 'ErrorCode nr{}'.format(code)
+
+
+class SpidPolicy(Policy):
+
+    def __init__(self, restrictions=None, index=None):
+        super(SpidPolicy, self).__init__(restrictions=restrictions)
+        self.index = index
+
+    def restrict(self, ava, sp_entity_id, metadata=None):
+        """ Identity attribute names are expected to be expressed in
+        the local lingo (== friendlyName)
+
+        :return: A filtered ava according to the IdPs/AAs rules and
+            the list of required/optional attributes according to the SP.
+            If the requirements can't be met an exception is raised.
+        """
+        if metadata:
+            spec = metadata.attribute_requirement(sp_entity_id, index=self.index)
+            if spec:
+                return self.filter(ava, sp_entity_id, metadata,
+                                   spec["required"], spec["optional"])
+
+        return self.filter(ava, sp_entity_id, metadata, [], [])
+
 
 
 class SPidAuthnRequest(AuthnRequest):
@@ -660,13 +686,13 @@ class JsonUserManager(AbstractUserManager):
             self.users = {}
             for idx, _ in enumerate(range(10)):
                 _is_even = (idx % 2 == 0)
-                self.users[FAKER.user_name()] = {
+                self.users[FAKER.user_name() if idx > 0 else 'test'] = {
                     'attrs': {
                         'spidCode': FAKER.uuid4(),
                         'name': FAKER.first_name_male() if _is_even else FAKER.first_name_female(),
                         'familyName': FAKER.last_name_male() if _is_even else FAKER.last_name_female(),
                         'gender': 'M' if _is_even else 'F',
-                        'birthDate': FAKER.date(),
+                        'DateOfBirth': FAKER.date(),
                         'companyName': FAKER.company(),
                         'registeredOffice': FAKER.address(),
                         'email': FAKER.email()
@@ -815,6 +841,7 @@ class IdpServer(object):
             "key_file": self._config.get('key_file'),
             "cert_file": self._config.get('cert_file'),
             "metadata": metadata,
+            "attribute_map_dir": "attributemaps",
             "logger": {
                 "rotating": {
                     "filename": "idp.log",
@@ -1016,12 +1043,13 @@ class IdpServer(object):
                 sp_id = authn_req.issuer.text
                 issuer_name = authn_req.issuer.text
                 # TODO: refactor a bit fetching this kind of data from pysaml2
-                try:
-                    atcss = self.server.metadata.attribute_consuming_service(sp_id)
-                except UnknownSystemEntity as err:
-                    atcss = []
-                except UnsupportedBinding as err:
-                    atcss = []
+                atcss = []
+                for k, _md in self.server.metadata.items():
+                    if k == sp_id:
+                        _srvs = _md.get('spsso_descriptor', [])
+                        for _srv in _srvs:
+                            for _acs in _srv.get('attribute_consuming_service', []):
+                                atcss.append(_acs)
                 try:
                     ascss = self.server.metadata.assertion_consumer_service(sp_id)
                 except UnknownSystemEntity as err:
@@ -1203,6 +1231,23 @@ class IdpServer(object):
                             "class_ref": spid_level,
                             "authn_auth": spid_level
                         }
+                        self.app.logger.debug('Unfiltered data: {}'.format(identity))
+                        attribute_consuming_service_index = authn_request.message.attribute_consuming_service_index
+                        self.app.logger.debug('attribute_consuming_service_index: {}'.format(attribute_consuming_service_index))
+                        if attribute_consuming_service_index:
+                            attrs = self.server.wants(sp_id, attribute_consuming_service_index)
+                            required = [Attribute(name=el.get('name'), friendly_name=None, name_format=NAME_FORMAT_BASIC) for el in attrs.get('required')]
+                            optional = [Attribute(name=el.get('name'), friendly_name=None, name_format=NAME_FORMAT_BASIC) for el in attrs.get('optional')]
+                            acs = ac_factory('./attributemaps')
+                            rava = list_to_local(acs, required)
+                            oava = list_to_local(acs, optional)
+                        else:
+                            rava = {}
+                            oava = {}
+                        self.app.logger.debug('Required attributes: {}'.format(rava))
+                        self.app.logger.debug('Optional attributes: {}'.format(oava))
+                        identity = filter_on_demands(identity, rava, oava)
+                        self.app.logger.debug('Filtered data: {}'.format(identity))
                         _data = dict(
                             identity=identity, userid=user_id,
                             in_response_to=authn_request.message.id,
@@ -1211,11 +1256,35 @@ class IdpServer(object):
                             authn=AUTHN, issuer=self.server.config.entityid,
                             sign_alg=SIGN_ALG,
                             digest_alg=DIGEST_ALG,
-                            sign_assertion=True
+                            sign_assertion=True,
+                            release_policy=SpidPolicy(
+                                restrictions={
+                                    'default': {
+                                        'name_form': NAME_FORMAT_BASIC,
+                                    }
+                                },
+                                index=attribute_consuming_service_index
+                            )
                         )
                         response = self.server.create_authn_response(
                             **_data
                         )
+                        xml = etree.XML(response)
+                        for attribute_statement in xml.findall('.//{urn:oasis:names:tc:SAML:2.0:assertion}AttributeStatement'):
+                            for attribute in attribute_statement.iterchildren():
+                                try:
+                                    del attribute.attrib['FriendlyName']
+                                except KeyError:
+                                    pass
+                                _name = attribute.attrib['Name']
+                                if _name in self._spid_main_fields:
+                                    _type = self._spid_attributes['primary'][_name]
+                                elif _name in self._spid_secondary_fields:
+                                    _type = self.self._spid_attributes['primary'][_name]
+                                if _type == 'xs:date':
+                                    for attribute_value in attribute.iterchildren():
+                                        attribute_value.attrib['{http://www.w3.org/2001/XMLSchema-instance}type'] = 'xs:date'
+                        response = etree.tostring(xml).decode()
                         self.app.logger.debug('Response: \n{}'.format(response))
                         http_args = self.server.apply_binding(
                             BINDING_HTTP_POST,
@@ -1226,21 +1295,13 @@ class IdpServer(object):
                             relay_state=relay_state
                         )
                         # Setup confirmation page data
-                        ast = Assertion(identity)
-                        policy = self.server.config.getattr("policy", "idp")
-                        ast.acs = self.server.config.getattr("attribute_converters", "idp")
-                        res = ast.apply_policy(sp_id, policy, self.server.metadata)
-                        attrs = res.keys()
-                        attrs_list = ''
-                        for _attr in attrs:
-                            attrs_list = '{}<tr><td>{}</td></tr>'.format(attrs_list, _attr)
                         self.responses[key] = http_args['data']
                         rendered_response = render_template(
                             'confirm.html',
                             **{
                                 'destination_service': sp_id,
                                 'lines':  escape(prettify_xml(response)).splitlines(),
-                                'attrs': attrs,
+                                'attrs': identity.keys(),
                                 'action': '/continue-response',
                                 'request_key': key
                             }
