@@ -31,7 +31,7 @@ from saml2.entity import UnknownBinding
 from saml2.metadata import create_metadata_string
 from saml2.request import AuthnRequest
 from saml2.response import IncorrectlySigned
-from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, NAMEID_FORMAT_ENTITY, XSI_TYPE
+from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, NAMEID_FORMAT_ENTITY, XSI_TYPE, Attribute
 from saml2.server import Server
 from saml2.sigver import verify_redirect_signature
 from saml2.s_utils import decode_base64_and_inflate, OtherError, UnknownSystemEntity, UnravelError, UnsupportedBinding
