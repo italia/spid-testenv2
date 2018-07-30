@@ -1095,6 +1095,7 @@ class IdpServer(object):
         try:
             _key = session['request_key']
             req_info = self.ticket[_key]
+            self.app.logger.debug('AuthnRequest: \n{}'.format(prettify_xml(str(req_info.message))))
         except KeyError as e:
             try:
                 binding = BINDING_HTTP_REDIRECT
