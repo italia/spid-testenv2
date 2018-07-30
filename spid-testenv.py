@@ -1207,7 +1207,9 @@ class IdpServer(object):
 
     @property
     def _all_attributes(self):
-        return { **self._spid_attributes['primary'], **self._spid_attributes['secondary'] }
+        _dct = self._spid_attributes['primary'].copy()
+        _dct.update(self._spid_attributes['secondary'])
+        return _dct
 
     def users(self):
         """
