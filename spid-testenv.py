@@ -34,13 +34,14 @@ from saml2.metadata import create_metadata_string
 from saml2.request import AuthnRequest, LogoutRequest
 from saml2.response import IncorrectlySigned
 from saml2.s_utils import (OtherError, UnknownSystemEntity, UnravelError,
-                           UnsupportedBinding, decode_base64_and_inflate, do_ava, factory)
+                           UnsupportedBinding, decode_base64_and_inflate,
+                           do_ava, factory)
 from saml2.saml import (NAME_FORMAT_BASIC, NAMEID_FORMAT_ENTITY,
-                        NAMEID_FORMAT_TRANSIENT, XSI_TYPE, Attribute, AttributeValue)
+                        NAMEID_FORMAT_TRANSIENT, XSI_TYPE, Attribute,
+                        AttributeValue)
 from saml2.samlp import STATUS_AUTHN_FAILED
 from saml2.server import Server
 from saml2.sigver import verify_redirect_signature
-
 
 try:
     FileNotFoundError
