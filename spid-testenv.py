@@ -784,7 +784,7 @@ class JsonUserManager(AbstractUserManager):
 
     def get(self, uid, pwd, sp_id):
         for user, _attrs in self.users.items():
-            if pwd == _attrs['pwd']:
+            if pwd == _attrs['pwd'] and user == uid:
                 if _attrs['sp'] is not None and _attrs['sp'] != sp_id:
                     return None, None
                 return user, self.users[user]
