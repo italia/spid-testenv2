@@ -396,7 +396,7 @@ def str_to_time(val):
 
 def prettify_xml(msg):
     msg = etree.tostring(etree.XML(msg.encode('utf-8')), pretty_print=True, encoding='utf-8')
-    return msg.decode()
+    return msg.decode('utf-8')
 
 
 class Observer(object):
