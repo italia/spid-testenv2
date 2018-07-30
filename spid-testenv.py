@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
+import sys
+
+if (sys.version_info < (3, 0)):
+    reload(sys)
+    sys.setdefaultencoding('utf8')
+
+
 
 import argparse
 import base64
@@ -1269,7 +1276,10 @@ class IdpServer(object):
                         response = self.server.create_authn_response(
                             **_data
                         )
-                        xml = etree.XML(response)
+                        if (sys.version_info < (3, 0)):
+                            xml = etree.XML(response.decode('utf-8').encode('ascii'))
+                        else:
+                            xml = etree.XML(response)
                         for attribute_statement in xml.findall('.//{urn:oasis:names:tc:SAML:2.0:assertion}AttributeStatement'):
                             for attribute in attribute_statement.iterchildren():
                                 try:
