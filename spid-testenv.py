@@ -11,9 +11,11 @@ import os
 import os.path
 import random
 import string
+import sys
 from datetime import datetime, timedelta
 from faker import Faker
 from hashlib import sha1, sha512
+from importlib import import_module
 from logging.handlers import RotatingFileHandler
 
 import saml2.xmldsig as ds
@@ -24,17 +26,17 @@ from passlib.hash import sha512_crypt
 from saml2 import (BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, BINDING_URI,
                    NAMESPACE, time_util)
 from saml2.assertion import Assertion, Policy, filter_on_demands
-from saml2.attribute_converter import ac_factory, list_to_local
+from saml2.attribute_converter import AttributeConverter, list_to_local
 from saml2.authn_context import AuthnBroker, authn_context_class_ref
 from saml2.config import Config as Saml2Config
 from saml2.entity import UnknownBinding
 from saml2.metadata import create_metadata_string
 from saml2.request import AuthnRequest
 from saml2.response import IncorrectlySigned
-from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, NAMEID_FORMAT_ENTITY, XSI_TYPE, Attribute
+from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, NAMEID_FORMAT_ENTITY, XSI_TYPE, Attribute, AttributeValue
 from saml2.server import Server
 from saml2.sigver import verify_redirect_signature
-from saml2.s_utils import decode_base64_and_inflate, OtherError, UnknownSystemEntity, UnravelError, UnsupportedBinding
+from saml2.s_utils import decode_base64_and_inflate, do_ava, factory, OtherError, UnknownSystemEntity, UnravelError, UnsupportedBinding
 from saml2.samlp import STATUS_AUTHN_FAILED
 
 try:
@@ -232,6 +234,76 @@ SPID_ERRORS = {
 def get_spid_error(code):
     error_type = SPID_ERRORS.get(code)
     return error_type, 'ErrorCode nr{}'.format(code)
+
+
+def ac_factory(path="", **kwargs):
+    """Attribute Converter factory
+
+    :param path: The path to a directory where the attribute maps are expected
+        to reside.
+    :return: A AttributeConverter instance
+    """
+    acs = []
+
+    if path:
+        if path not in sys.path:
+            sys.path.insert(0, path)
+
+        for fil in os.listdir(path):
+            if fil.endswith(".py"):
+                mod = import_module(fil[:-3])
+                for key, item in mod.__dict__.items():
+                    if key.startswith("__"):
+                        continue
+                    if isinstance(item,
+                                  dict) and "to" in item and "fro" in item:
+                        atco = SpidAttributeConverter(item["identifier"], kwargs.get('override_types', {}))
+                        atco.from_dict(item)
+                        acs.append(atco)
+    else:
+        from saml2 import attributemaps
+
+        for typ in attributemaps.__all__:
+            mod = import_module(".%s" % typ, "saml2.attributemaps")
+            for key, item in mod.__dict__.items():
+                if key.startswith("__"):
+                    continue
+                if isinstance(item, dict) and "to" in item and "fro" in item:
+                    atco = SpidAttributeConverter(item["identifier"], kwargs.get('override_types', {}))
+                    atco.from_dict(item)
+                    acs.append(atco)
+
+    return acs
+
+
+class SpidAttributeConverter(AttributeConverter):
+
+    def __init__(self, name_format="", special_cases={}):
+        super(SpidAttributeConverter, self).__init__(name_format)
+        self._special_cases = special_cases
+
+    def to_(self, attrvals):
+        """ Create a list of Attribute instances.
+
+        :param attrvals: A dictionary of attributes and values
+        :return: A list of Attribute instances
+        """
+        attributes = []
+        for key, value in attrvals.items():
+            name = self._to.get(key.lower())
+            if name:
+                typ = self._special_cases.get(name, '')
+                attr_value = do_ava(value, typ)
+                attributes.append(factory(Attribute,
+                                          name=name,
+                                          name_format=self.name_format,
+                                          attribute_value=attr_value))
+            else:
+                attributes.append(factory(Attribute,
+                                          name=key,
+                                          attribute_value=do_ava(value)))
+
+        return attributes
 
 
 class SpidPolicy(Policy):
@@ -816,39 +888,38 @@ class IdpServer(object):
         if port:
             self.entity_id = '{}:{}'.format(self.entity_id, port)
         idp_conf = {
-            "entityid": self.entity_id,
-            "description": "Spid Test IdP",
-            "service": {
-                "idp": {
-                    "name": "Spid Testenv",
-                    "endpoints": {
-                        "single_sign_on_service": [
+            'entityid': self.entity_id,
+            'description': 'Spid Test IdP',
+            'service': {
+                'idp': {
+                    'name': 'Spid Testenv',
+                    'endpoints': {
+                        'single_sign_on_service': [
                         ],
-                        "single_logout_service": [
+                        'single_logout_service': [
                         ],
                     },
-                    "policy": {
-                        "default": {
-                            "name_form": NAME_FORMAT_BASIC,
+                    'policy': {
+                        'default': {
+                            'name_form': NAME_FORMAT_BASIC,
                         },
                     },
-                    "name_id_format": [
+                    'name_id_format': [
                         NAMEID_FORMAT_TRANSIENT,
                     ]
                 },
             },
-            "debug": 1,
-            "key_file": self._config.get('key_file'),
-            "cert_file": self._config.get('cert_file'),
-            "metadata": metadata,
-            "attribute_map_dir": "attributemaps",
-            "logger": {
-                "rotating": {
-                    "filename": "idp.log",
-                    "maxBytes": 500000,
-                    "backupCount": 1,
+            'debug': 1,
+            'key_file': self._config.get('key_file'),
+            'cert_file': self._config.get('cert_file'),
+            'metadata': metadata,
+            'logger': {
+                'rotating': {
+                    'filename': 'idp.log',
+                    'maxBytes': 500000,
+                    'backupCount': 1,
                 },
-                "loglevel": "debug",
+                'loglevel': 'debug',
             }
         }
         # setup services url
@@ -894,6 +965,14 @@ class IdpServer(object):
             # as fallback for entityid use host:port string
             self._config['entityid'] = self.BASE
         self.idp_config.load(cnf=self._idp_config())
+        setattr(
+            self.idp_config,
+            'attribute_converters',
+            ac_factory(
+                'attributemaps',
+                **{'override_types': self._all_attributes}
+            )
+        )
         self.server = SpidServer(config=self.idp_config)
         self._setup_app_routes()
         # setup custom methods in order to
@@ -1126,6 +1205,10 @@ class IdpServer(object):
         """
         return self._spid_attributes['secondary'].keys()
 
+    @property
+    def _all_attributes(self):
+        return { **self._spid_attributes['primary'], **self._spid_attributes['secondary'] }
+
     def users(self):
         """
         Add user endpoint
@@ -1238,7 +1321,10 @@ class IdpServer(object):
                             attrs = self.server.wants(sp_id, attribute_consuming_service_index)
                             required = [Attribute(name=el.get('name'), friendly_name=None, name_format=NAME_FORMAT_BASIC) for el in attrs.get('required')]
                             optional = [Attribute(name=el.get('name'), friendly_name=None, name_format=NAME_FORMAT_BASIC) for el in attrs.get('optional')]
-                            acs = ac_factory('./attributemaps')
+                            acs = ac_factory(
+                                './attributemaps',
+                                **{'override_types': self._all_attributes}
+                            )
                             rava = list_to_local(acs, required)
                             oava = list_to_local(acs, optional)
                         else:
@@ -1269,22 +1355,6 @@ class IdpServer(object):
                         response = self.server.create_authn_response(
                             **_data
                         )
-                        xml = etree.XML(response)
-                        for attribute_statement in xml.findall('.//{urn:oasis:names:tc:SAML:2.0:assertion}AttributeStatement'):
-                            for attribute in attribute_statement.iterchildren():
-                                try:
-                                    del attribute.attrib['FriendlyName']
-                                except KeyError:
-                                    pass
-                                _name = attribute.attrib['Name']
-                                if _name in self._spid_main_fields:
-                                    _type = self._spid_attributes['primary'][_name]
-                                elif _name in self._spid_secondary_fields:
-                                    _type = self.self._spid_attributes['secondary'][_name]
-                                if _type == 'xs:date':
-                                    for attribute_value in attribute.iterchildren():
-                                        attribute_value.attrib['{http://www.w3.org/2001/XMLSchema-instance}type'] = 'xs:date'
-                        response = etree.tostring(xml).decode()
                         self.app.logger.debug('Response: \n{}'.format(response))
                         http_args = self.server.apply_binding(
                             BINDING_HTTP_POST,
