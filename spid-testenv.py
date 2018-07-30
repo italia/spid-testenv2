@@ -1434,6 +1434,7 @@ class IdpServer(object):
         saml_msg = self.unpack_args(request.args)
         _binding = BINDING_HTTP_REDIRECT
         try:
+            # TODO: refactor and keep this logic in some isolated function
             req_info = self.server.parse_logout_request(saml_msg['SAMLRequest'], _binding)
             if request.method != 'GET':
                 self._raise_error('Il binding {} necessita del metodo {}'.format(BINDING_HTTP_REDIRECT, 'GET'))
@@ -1451,9 +1452,36 @@ class IdpServer(object):
         _, errors = self._check_spid_restrictions(req_info, 'logout', _binding)
         if errors:
             return self._handle_errors(errors, req_info.xmlstr)
-
-        _slo = None
+        # Check if it is signed
         issuer_name = req_info.issuer.text
+        if _binding == BINDING_HTTP_REDIRECT:
+            # TODO: refactor and keep this logic in some isolated function
+            if "SigAlg" in saml_msg and "Signature" in saml_msg:
+                # Signed request
+                self.app.logger.debug('Messaggio SAML firmato.')
+                try:
+                    _certs = self.server.metadata.certs(
+                        issuer_name,
+                        "any",
+                        "signing"
+                    )
+                except KeyError:
+                    self._raise_error('entity ID {} non registrato, impossibile ricavare un certificato valido.'.format(issuer_name))
+                verified_ok = False
+                for cert in _certs:
+                    self.app.logger.debug(
+                        'security backend: {}'.format(self.server.sec.sec_backend.__class__.__name__)
+                    )
+                    # Check signature
+                    if verify_redirect_signature(saml_msg, self.server.sec.sec_backend,
+                                                    cert):
+                        verified_ok = True
+                        break
+                if not verified_ok:
+                    self._raise_error('Verifica della firma del messaggio fallita.')
+            else:
+                self._raise_error('Messaggio SAML non firmato.')
+        _slo = None
         for binding in [BINDING_HTTP_POST, BINDING_HTTP_REDIRECT]:
             try:
                 _slo = self.server.metadata.single_logout_service(issuer_name, binding=binding, typ='spsso')
