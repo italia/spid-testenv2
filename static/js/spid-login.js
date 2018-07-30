@@ -125,6 +125,9 @@ $(window).load(function () {
 	  minValidator($inputs) ? $cta.removeAttr('disabled') : $cta.attr('disabled', 'disabled');
 	});
 
+	$('button[name="show_response"]').on('click', function(){
+		$('#message').toggle();
+	});
 
 	/* Animazione input */
 	$(function() {
@@ -144,5 +147,7 @@ $(window).load(function () {
 		});
 	});
 	});
+
+	$('#message').hide();
 });
 
