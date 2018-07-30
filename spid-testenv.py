@@ -39,6 +39,7 @@ from saml2.sigver import verify_redirect_signature
 from saml2.s_utils import decode_base64_and_inflate, do_ava, factory, OtherError, UnknownSystemEntity, UnravelError, UnsupportedBinding
 from saml2.samlp import STATUS_AUTHN_FAILED
 
+
 try:
     FileNotFoundError
 except NameError:
@@ -764,7 +765,7 @@ class JsonUserManager(AbstractUserManager):
                         'name': FAKER.first_name_male() if _is_even else FAKER.first_name_female(),
                         'familyName': FAKER.last_name_male() if _is_even else FAKER.last_name_female(),
                         'gender': 'M' if _is_even else 'F',
-                        'DateOfBirth': FAKER.date(),
+                        'dateOfBirth': FAKER.date(),
                         'companyName': FAKER.company(),
                         'registeredOffice': FAKER.address(),
                         'email': FAKER.email()
@@ -1102,12 +1103,13 @@ class IdpServer(object):
                 # Parse AuthnRequest
                 if 'SAMLRequest' not in saml_msg:
                     self._raise_error('Parametro SAMLRequest assente.')
-
                 try:
                     req_info = self.server.parse_authn_request(
                         saml_msg['SAMLRequest'],
                         binding
                     )
+                    if request.method != 'GET':
+                        self._raise_error('Il binding {} necessita del metodo {}'.format(BINDING_HTTP_REDIRECT, 'GET'))
                 except IncorrectlySigned:
                     binding = BINDING_HTTP_POST
                     try:
@@ -1115,6 +1117,8 @@ class IdpServer(object):
                             saml_msg['SAMLRequest'],
                             binding
                         )
+                        if request.method != 'POST':
+                            self._raise_error('Il binding {} necessita del metodo {}'.format(BINDING_HTTP_POST, 'POST'))
                     except IncorrectlySigned:
                         raise
                 authn_req = req_info.message
@@ -1311,8 +1315,7 @@ class IdpServer(object):
                     )
                     if user_id is not None:
                         # setup response
-                        attribute_statement_on_response = self._config.get('attribute_statement_on_response')
-                        identity = user['attrs']
+                        identity = user['attrs'].copy()
                         AUTHN = {
                             "class_ref": spid_level,
                             "authn_auth": spid_level
@@ -1425,8 +1428,6 @@ class IdpServer(object):
     def single_logout_service(self):
         """
         SLO endpoint
-
-        :param binding: 'redirect' is http-redirect, 'post' is http-post binding
         """
 
         self.app.logger.debug("req: '%s'", request)
@@ -1434,38 +1435,67 @@ class IdpServer(object):
         _binding = BINDING_HTTP_REDIRECT
         try:
             req_info = self.server.parse_logout_request(saml_msg['SAMLRequest'], _binding)
+            if request.method != 'GET':
+                self._raise_error('Il binding {} necessita del metodo {}'.format(BINDING_HTTP_REDIRECT, 'GET'))
         except IncorrectlySigned:
             try:
-                req_info = self.server.parse_logout_request(saml_msg['SAMLRequest'], BINDING_HTTP_POST)
+                _binding = BINDING_HTTP_POST
+                req_info = self.server.parse_logout_request(saml_msg['SAMLRequest'], _binding)
+                if request.method != 'POST':
+                    self._raise_error('Il binding {} necessita del metodo {}'.format(BINDING_HTTP_POST, 'POST'))
             except IncorrectlySigned as err:
                 self.app.logger.debug(str(err))
-                self._raise_error('Messaggio corrotto o non firmato correttamente.'.format(issuer_name))
+                self._raise_error('Messaggio corrotto o non firmato correttamente.')
         msg = req_info.message
         self.app.logger.debug('LogoutRequest: \n{}'.format(prettify_xml(str(msg))))
         _, errors = self._check_spid_restrictions(req_info, 'logout', _binding)
         if errors:
             return self._handle_errors(errors, req_info.xmlstr)
+
+        _slo = None
+        issuer_name = req_info.issuer.text
+        for binding in [BINDING_HTTP_POST, BINDING_HTTP_REDIRECT]:
+            try:
+                _slo = self.server.metadata.single_logout_service(issuer_name, binding=binding, typ='spsso')
+            except UnsupportedBinding:
+                pass
+        if _slo is None:
+            self._raise_error('Impossibile trovare un servizio di Single Logout per il service provider {}'.format(issuer_name))
+        response_binding = _slo[0].get('binding')
+        self.app.logger.debug('Response binding: \n{}'.format(response_binding))
+        _signing = True if response_binding == BINDING_HTTP_POST else False
+        self.app.logger.debug('Signature inside response: \n{}'.format(_signing))
         response = self.server.create_logout_response(
-            msg, [BINDING_HTTP_POST, BINDING_HTTP_REDIRECT],
+            msg, [response_binding],
             sign_alg=SIGN_ALG,
             digest_alg=DIGEST_ALG,
-            sign=True
+            sign=_signing
         )
         self.app.logger.debug('Response: \n{}'.format(response))
         binding, destination = self.server.pick_binding(
             "single_logout_service",
-            [BINDING_HTTP_POST, BINDING_HTTP_REDIRECT], "spsso",
+            [response_binding], "spsso",
             req_info
         )
+        self.app.logger.debug('Destination {}'.format(destination))
+        if response_binding == BINDING_HTTP_POST:
+            _sign = False
+            extra = {}
+        else:
+            _sign = True
+            extra = {'sigalg': SIGN_ALG}
         http_args = self.server.apply_binding(
             binding,
-            "%s" % response, destination, response=True, sign=True
+            "%s" % response, destination, response=True, sign=_sign, **extra
         )
-        if binding == BINDING_HTTP_POST:
+        if response_binding == BINDING_HTTP_POST:
+            self.app.logger.debug('Form post {}'.format(http_args['data']))
             return http_args['data'], 200
-        elif binding == BINDING_HTTP_REDIRECT:
+        elif response_binding == BINDING_HTTP_REDIRECT:
             headers = dict(http_args['headers'])
+            self.app.logger.debug('Headers {}'.format(headers))
             location = headers.get('Location')
+            self.app.logger.debug('Location {}'.format(location))
             if location:
                 return redirect(location)
         abort(400)
