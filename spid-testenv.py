@@ -1280,7 +1280,7 @@ class IdpServer(object):
                                 if _name in self._spid_main_fields:
                                     _type = self._spid_attributes['primary'][_name]
                                 elif _name in self._spid_secondary_fields:
-                                    _type = self.self._spid_attributes['primary'][_name]
+                                    _type = self.self._spid_attributes['secondary'][_name]
                                 if _type == 'xs:date':
                                     for attribute_value in attribute.iterchildren():
                                         attribute_value.attrib['{http://www.w3.org/2001/XMLSchema-instance}type'] = 'xs:date'
