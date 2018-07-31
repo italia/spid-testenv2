@@ -31,7 +31,7 @@ from saml2.authn_context import AuthnBroker, authn_context_class_ref
 from saml2.config import Config as Saml2Config
 from saml2.entity import UnknownBinding
 from saml2.metadata import create_metadata_string
-from saml2.request import AuthnRequest
+from saml2.request import AuthnRequest, LogoutRequest
 from saml2.response import IncorrectlySigned
 from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, NAMEID_FORMAT_ENTITY, XSI_TYPE, Attribute, AttributeValue
 from saml2.server import Server
@@ -264,7 +264,12 @@ class SpidPolicy(Policy):
 
 
 
-class SPidAuthnRequest(AuthnRequest):
+class SpidAuthnRequest(AuthnRequest):
+    def verify(self):
+        # TODO: move here a bit of parsing flow
+        return self
+
+class SpidLogoutRequest(LogoutRequest):
     def verify(self):
         # TODO: move here a bit of parsing flow
         return self
@@ -280,8 +285,22 @@ class SpidServer(Server):
         :return: A request instance
         """
 
-        return self._parse_request(enc_request, SPidAuthnRequest,
+        return self._parse_request(enc_request, SpidAuthnRequest,
                                    "single_sign_on_service", binding)
+
+    def parse_logout_request(self, xmlstr, binding=BINDING_HTTP_REDIRECT):
+        """ Deal with a LogoutRequest
+
+        :param xmlstr: The response as a xml string
+        :param binding: What type of binding this message came through.
+        :return: None if the reply doesn't contain a valid SAML LogoutResponse,
+            otherwise the reponse if the logout was successful and None if it
+            was not.
+        """
+
+        return self._parse_request(xmlstr, SpidLogoutRequest,
+                                   "single_logout_service", binding)
+
 
     @staticmethod
     def unravel(txt, binding, msgtype="response"):
@@ -506,6 +525,7 @@ class SpidParser(object):
         :param binding:
         """
         _schema = None
+        receivers = kwargs.get('receivers')
         if action == 'login':
             required_signature = False
             if binding == BINDING_HTTP_POST:
@@ -514,7 +534,6 @@ class SpidParser(object):
                 required_signature = False
             attribute_consuming_service_indexes = kwargs.get('attribute_consuming_service_indexes')
             assertion_consumer_service_indexes = kwargs.get('assertion_consumer_service_indexes')
-            receivers = kwargs.get('receivers')
             _schema = Elem(
                 name='auth_request',
                 tag='samlp:AuthnRequest',
@@ -610,7 +629,7 @@ class SpidParser(object):
                     Attr('id'),
                     Attr('version', default='2.0'),
                     Attr('issue_instant', func=check_utc_date),
-                    Attr('destination'),
+                    Attr('destination', default=receivers),
                 ],
                 children=[
                     Elem(
@@ -1356,6 +1375,7 @@ class IdpServer(object):
                 return http_args['data'], 200
         return render_template('403.html'), 403
 
+
     def single_logout_service(self):
         """
         SLO endpoint
@@ -1383,7 +1403,9 @@ class IdpServer(object):
                     self._raise_error('Messaggio corrotto o non firmato correttamente.')
             msg = req_info.message
             self.app.logger.debug('LogoutRequest: \n{}'.format(prettify_xml(str(msg))))
-            _, errors = self._check_spid_restrictions(req_info, 'logout', _binding)
+            extra = {}
+            extra['receivers'] = req_info.receiver_addrs
+            _, errors = self._check_spid_restrictions(req_info, 'logout', _binding, **extra)
         except UnknownBinding as err:
             self.app.logger.debug(str(err))
             self._raise_error('Binding non supportato. Formati supportati ({}, {})'.format(BINDING_HTTP_POST, BINDING_HTTP_REDIRECT))
