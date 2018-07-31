@@ -1036,6 +1036,66 @@ class IdpServer(object):
             )
         return rendered_error_response
 
+    def _verify_redirect(self, saml_msg, issuer_name):
+        """
+        Verify Http-Redirect signature
+
+        :param saml_msg: request parameters
+        :param issuer_name: issuer name (Service Provider)
+        """
+        if "SigAlg" in saml_msg and "Signature" in saml_msg:
+            # Signed request
+            self.app.logger.debug('Messaggio SAML firmato.')
+            try:
+                _certs = self.server.metadata.certs(
+                    issuer_name,
+                    "any",
+                    "signing"
+                )
+            except KeyError:
+                self._raise_error('entity ID {} non registrato, impossibile ricavare un certificato valido.'.format(issuer_name))
+            verified_ok = False
+            for cert in _certs:
+                self.app.logger.debug(
+                    'security backend: {}'.format(self.server.sec.sec_backend.__class__.__name__)
+                )
+                # Check signature
+                if verify_redirect_signature(saml_msg, self.server.sec.sec_backend,
+                                                cert):
+                    verified_ok = True
+                    break
+            if not verified_ok:
+                self._raise_error('Verifica della firma del messaggio fallita.')
+        else:
+            self._raise_error('Messaggio SAML non firmato.')
+
+    def _parse_message(self, saml_msg, method, action='login'):
+        """
+        Parse an AuthnRequest or a LogoutRequest using pysaml2 API
+
+        :param saml_msg: request parameters
+        :param method: request method
+        :param action: type of request
+        """
+        if 'SAMLRequest' not in saml_msg:
+            self._raise_error('Parametro SAMLRequest assente.')
+        if method == 'GET':
+            _binding = BINDING_HTTP_REDIRECT
+        elif method == 'POST':
+            _binding = BINDING_HTTP_POST
+        else:
+            self._raise_error('I metodi consentiti sono GET (Http-Redirect) o POST (Http-Post)')
+        if action == 'login':
+            _func = 'parse_authn_request'
+        elif action == 'logout':
+            _func = 'parse_logout_request'
+        try:
+            req_info = getattr(self.server, _func)(saml_msg['SAMLRequest'], _binding)
+        except IncorrectlySigned as err:
+            self.app.logger.debug(str(err))
+            self._raise_error('Messaggio corrotto o non firmato correttamente.')
+        return req_info, _binding
+
     def single_sign_on_service(self):
         """
         Process Http-Redirect or Http-POST request
@@ -1046,29 +1106,7 @@ class IdpServer(object):
         # Unpack parameters
         saml_msg = self.unpack_args(request.args)
         try:
-            binding = BINDING_HTTP_REDIRECT
-            # Parse AuthnRequest
-            if 'SAMLRequest' not in saml_msg:
-                self._raise_error('Parametro SAMLRequest assente.')
-            try:
-                req_info = self.server.parse_authn_request(
-                    saml_msg['SAMLRequest'],
-                    binding
-                )
-                if request.method != 'GET':
-                    self._raise_error('Il binding {} necessita del metodo {}'.format(BINDING_HTTP_REDIRECT, 'GET'))
-            except IncorrectlySigned:
-                binding = BINDING_HTTP_POST
-                try:
-                    req_info = self.server.parse_authn_request(
-                        saml_msg['SAMLRequest'],
-                        binding
-                    )
-                    if request.method != 'POST':
-                        self._raise_error('Il binding {} necessita del metodo {}'.format(BINDING_HTTP_POST, 'POST'))
-                except IncorrectlySigned:
-                    self.app.logger.debug(str(err))
-                    self._raise_error('Messaggio corrotto o non firmato correttamente.')
+            req_info, binding = self._parse_message(saml_msg, request.method, action='login')
             authn_req = req_info.message
             self.app.logger.debug('AuthnRequest: \n{}'.format(prettify_xml(str(authn_req))))
             extra = {}
@@ -1112,31 +1150,7 @@ class IdpServer(object):
 
         # Check if it is signed
         if binding == BINDING_HTTP_REDIRECT:
-            if "SigAlg" in saml_msg and "Signature" in saml_msg:
-                # Signed request
-                self.app.logger.debug('Messaggio SAML firmato.')
-                try:
-                    _certs = self.server.metadata.certs(
-                        issuer_name,
-                        "any",
-                        "signing"
-                    )
-                except KeyError:
-                    self._raise_error('entity ID {} non registrato, impossibile ricavare un certificato valido.'.format(issuer_name))
-                verified_ok = False
-                for cert in _certs:
-                    self.app.logger.debug(
-                        'security backend: {}'.format(self.server.sec.sec_backend.__class__.__name__)
-                    )
-                    # Check signature
-                    if verify_redirect_signature(saml_msg, self.server.sec.sec_backend,
-                                                    cert):
-                        verified_ok = True
-                        break
-                if not verified_ok:
-                    self._raise_error('Verifica della firma del messaggio fallita.')
-            else:
-                self._raise_error('Messaggio SAML non firmato.')
+            self._verify_redirect(saml_msg, issuer_name)
         # Perform login
         key = self._store_request(req_info)
         relay_state = saml_msg.get('RelayState', '')
@@ -1384,23 +1398,7 @@ class IdpServer(object):
         self.app.logger.debug("req: '%s'", request)
         saml_msg = self.unpack_args(request.args)
         try:
-            _binding = BINDING_HTTP_REDIRECT
-            try:
-                # TODO: refactor and keep this logic in some isolated function
-                if 'SAMLRequest' not in saml_msg:
-                    self._raise_error('Parametro SAMLRequest assente.')
-                req_info = self.server.parse_logout_request(saml_msg['SAMLRequest'], _binding)
-                if request.method != 'GET':
-                    self._raise_error('Il binding {} necessita del metodo {}'.format(BINDING_HTTP_REDIRECT, 'GET'))
-            except IncorrectlySigned:
-                try:
-                    _binding = BINDING_HTTP_POST
-                    req_info = self.server.parse_logout_request(saml_msg['SAMLRequest'], _binding)
-                    if request.method != 'POST':
-                        self._raise_error('Il binding {} necessita del metodo {}'.format(BINDING_HTTP_POST, 'POST'))
-                except IncorrectlySigned as err:
-                    self.app.logger.debug(str(err))
-                    self._raise_error('Messaggio corrotto o non firmato correttamente.')
+            req_info, _binding = self._parse_message(saml_msg, request.method, action='logout')
             msg = req_info.message
             self.app.logger.debug('LogoutRequest: \n{}'.format(prettify_xml(str(msg))))
             extra = {}
@@ -1422,32 +1420,7 @@ class IdpServer(object):
         # Check if it is signed
         issuer_name = req_info.issuer.text
         if _binding == BINDING_HTTP_REDIRECT:
-            # TODO: refactor and keep this logic in some isolated function
-            if "SigAlg" in saml_msg and "Signature" in saml_msg:
-                # Signed request
-                self.app.logger.debug('Messaggio SAML firmato.')
-                try:
-                    _certs = self.server.metadata.certs(
-                        issuer_name,
-                        "any",
-                        "signing"
-                    )
-                except KeyError:
-                    self._raise_error('entity ID {} non registrato, impossibile ricavare un certificato valido.'.format(issuer_name))
-                verified_ok = False
-                for cert in _certs:
-                    self.app.logger.debug(
-                        'security backend: {}'.format(self.server.sec.sec_backend.__class__.__name__)
-                    )
-                    # Check signature
-                    if verify_redirect_signature(saml_msg, self.server.sec.sec_backend,
-                                                    cert):
-                        verified_ok = True
-                        break
-                if not verified_ok:
-                    self._raise_error('Verifica della firma del messaggio fallita.')
-            else:
-                self._raise_error('Messaggio SAML non firmato.')
+            self._verify_redirect(saml_msg, issuer_name)
         _slo = None
         for binding in [BINDING_HTTP_POST, BINDING_HTTP_REDIRECT]:
             try:
