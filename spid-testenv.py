@@ -269,6 +269,7 @@ class SpidAuthnRequest(AuthnRequest):
         # TODO: move here a bit of parsing flow
         return self
 
+
 class SpidLogoutRequest(LogoutRequest):
     def verify(self):
         # TODO: move here a bit of parsing flow
@@ -384,9 +385,12 @@ class Attr(object):
     def __init__(self, name, absent=False, required=True, default=None, limits=None, func=None, val_converter=None, *args, **kwargs):
         """
         :param name: attribute name
+        :param absent: flag to indicate if the attribute is not allowed (False by default)
         :param required: flag to indicate if the attribute is mandatory (True by default)
         :param default: default value (or list of values, to be compared with the provided value to the 'validate' method)
-        :param func: optional additional function to perform a validation on value passed to 'validated' method
+        :param limits: tuple containing lower limit and upper limit
+        :param func: optional additional function to perform a validation on the value passed to 'validate' method
+        :param val_converter: optional additional function to perform a conversion on the value passed to 'validate' method
         """
         self._name = name
         self._absent = absent
