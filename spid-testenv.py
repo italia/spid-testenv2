@@ -1102,7 +1102,6 @@ class IdpServer(object):
 
         :param request: Flask request object
         """
-        self.app.logger.info("Http-Redirect")
         # Unpack parameters
         saml_msg = self.unpack_args(request.args)
         try:
