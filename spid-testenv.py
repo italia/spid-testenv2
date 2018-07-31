@@ -1389,6 +1389,15 @@ class IdpServer(object):
         return render_template('403.html'), 403
 
 
+    def _sp_single_logout_service(self, issuer_name):
+        _slo = None
+        for binding in [BINDING_HTTP_POST, BINDING_HTTP_REDIRECT]:
+            try:
+                _slo = self.server.metadata.single_logout_service(issuer_name, binding=binding, typ='spsso')
+            except UnsupportedBinding:
+                pass
+        return _slo
+
     def single_logout_service(self):
         """
         SLO endpoint
@@ -1420,12 +1429,7 @@ class IdpServer(object):
         issuer_name = req_info.issuer.text
         if _binding == BINDING_HTTP_REDIRECT:
             self._verify_redirect(saml_msg, issuer_name)
-        _slo = None
-        for binding in [BINDING_HTTP_POST, BINDING_HTTP_REDIRECT]:
-            try:
-                _slo = self.server.metadata.single_logout_service(issuer_name, binding=binding, typ='spsso')
-            except UnsupportedBinding:
-                pass
+        _slo = self._sp_single_logout_service(issuer_name)
         if _slo is None:
             self._raise_error('Impossibile trovare un servizio di Single Logout per il service provider {}'.format(issuer_name))
         response_binding = _slo[0].get('binding')
