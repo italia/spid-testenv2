@@ -1094,106 +1094,102 @@ class IdpServer(object):
         # Unpack parameters
         saml_msg = self.unpack_args(request.args)
         try:
-            _key = session['request_key']
-            req_info = self.ticket[_key]
-            self.app.logger.debug('AuthnRequest: \n{}'.format(prettify_xml(str(req_info.message))))
-        except KeyError as e:
+            binding = BINDING_HTTP_REDIRECT
+            # Parse AuthnRequest
+            if 'SAMLRequest' not in saml_msg:
+                self._raise_error('Parametro SAMLRequest assente.')
             try:
-                binding = BINDING_HTTP_REDIRECT
-                # Parse AuthnRequest
-                if 'SAMLRequest' not in saml_msg:
-                    self._raise_error('Parametro SAMLRequest assente.')
+                req_info = self.server.parse_authn_request(
+                    saml_msg['SAMLRequest'],
+                    binding
+                )
+                if request.method != 'GET':
+                    self._raise_error('Il binding {} necessita del metodo {}'.format(BINDING_HTTP_REDIRECT, 'GET'))
+            except IncorrectlySigned:
+                binding = BINDING_HTTP_POST
                 try:
                     req_info = self.server.parse_authn_request(
                         saml_msg['SAMLRequest'],
                         binding
                     )
-                    if request.method != 'GET':
-                        self._raise_error('Il binding {} necessita del metodo {}'.format(BINDING_HTTP_REDIRECT, 'GET'))
+                    if request.method != 'POST':
+                        self._raise_error('Il binding {} necessita del metodo {}'.format(BINDING_HTTP_POST, 'POST'))
                 except IncorrectlySigned:
-                    binding = BINDING_HTTP_POST
-                    try:
-                        req_info = self.server.parse_authn_request(
-                            saml_msg['SAMLRequest'],
-                            binding
-                        )
-                        if request.method != 'POST':
-                            self._raise_error('Il binding {} necessita del metodo {}'.format(BINDING_HTTP_POST, 'POST'))
-                    except IncorrectlySigned:
-                        raise
-                authn_req = req_info.message
-                self.app.logger.debug('AuthnRequest: \n{}'.format(prettify_xml(str(authn_req))))
-                extra = {}
-                sp_id = authn_req.issuer.text
-                issuer_name = authn_req.issuer.text
-                # TODO: refactor a bit fetching this kind of data from pysaml2
-                atcss = []
-                for k, _md in self.server.metadata.items():
-                    if k == sp_id:
-                        _srvs = _md.get('spsso_descriptor', [])
-                        for _srv in _srvs:
-                            for _acs in _srv.get('attribute_consuming_service', []):
-                                atcss.append(_acs)
-                try:
-                    ascss = self.server.metadata.assertion_consumer_service(sp_id)
-                except UnknownSystemEntity as err:
-                    ascss = []
-                except UnsupportedBinding as err:
-                    ascss = []
-                atcss_indexes = [str(el.get('index')) for el in atcss]
-                ascss_indexes = [str(el.get('index')) for el in ascss]
-                extra['attribute_consuming_service_indexes'] = atcss_indexes
-                extra['assertion_consumer_service_indexes'] = ascss_indexes
-                extra['receivers'] = req_info.receiver_addrs
-                _, errors = self._check_spid_restrictions(req_info, 'login', binding, **extra)
-            except UnknownBinding as err:
-                self.app.logger.debug(str(err))
-                self._raise_error('Binding non supportato. Formati supportati ({}, {})'.format(BINDING_HTTP_POST, BINDING_HTTP_REDIRECT))
+                    self.app.logger.debug(str(err))
+                    self._raise_error('Messaggio corrotto o non firmato correttamente.')
+            authn_req = req_info.message
+            self.app.logger.debug('AuthnRequest: \n{}'.format(prettify_xml(str(authn_req))))
+            extra = {}
+            sp_id = authn_req.issuer.text
+            issuer_name = authn_req.issuer.text
+            # TODO: refactor a bit fetching this kind of data from pysaml2
+            atcss = []
+            for k, _md in self.server.metadata.items():
+                if k == sp_id:
+                    _srvs = _md.get('spsso_descriptor', [])
+                    for _srv in _srvs:
+                        for _acs in _srv.get('attribute_consuming_service', []):
+                            atcss.append(_acs)
+            try:
+                ascss = self.server.metadata.assertion_consumer_service(sp_id)
             except UnknownSystemEntity as err:
-                self.app.logger.debug(str(err))
-                self._raise_error('entity ID {} non registrato.'.format(issuer_name))
-            except IncorrectlySigned as err:
-                self.app.logger.debug(str(err))
-                self._raise_error('Messaggio corrotto o non firmato correttamente.'.format(issuer_name))
+                ascss = []
+            except UnsupportedBinding as err:
+                ascss = []
+            atcss_indexes = [str(el.get('index')) for el in atcss]
+            ascss_indexes = [str(el.get('index')) for el in ascss]
+            extra['attribute_consuming_service_indexes'] = atcss_indexes
+            extra['assertion_consumer_service_indexes'] = ascss_indexes
+            extra['receivers'] = req_info.receiver_addrs
+            _, errors = self._check_spid_restrictions(req_info, 'login', binding, **extra)
+        except UnknownBinding as err:
+            self.app.logger.debug(str(err))
+            self._raise_error('Binding non supportato. Formati supportati ({}, {})'.format(BINDING_HTTP_POST, BINDING_HTTP_REDIRECT))
+        except UnknownSystemEntity as err:
+            self.app.logger.debug(str(err))
+            self._raise_error('entity ID {} non registrato.'.format(issuer_name))
+        except IncorrectlySigned as err:
+            self.app.logger.debug(str(err))
+            self._raise_error('Messaggio corrotto o non firmato correttamente.'.format(issuer_name))
 
-            if errors:
-                return self._handle_errors(errors, req_info.xmlstr)
+        if errors:
+            return self._handle_errors(errors, req_info.xmlstr)
 
-            if not req_info:
-                self._raise_error('Processo di parsing del messaggio fallito.')
+        if not req_info:
+            self._raise_error('Processo di parsing del messaggio fallito.')
 
-            # Check if it is signed
-            if binding == BINDING_HTTP_REDIRECT:
-                if "SigAlg" in saml_msg and "Signature" in saml_msg:
-                    # Signed request
-                    self.app.logger.debug('Messaggio SAML firmato.')
-                    try:
-                        _certs = self.server.metadata.certs(
-                            issuer_name,
-                            "any",
-                            "signing"
-                        )
-                    except KeyError:
-                        self._raise_error('entity ID {} non registrato, impossibile ricavare un certificato valido.'.format(issuer_name))
-                    verified_ok = False
-                    for cert in _certs:
-                        self.app.logger.debug(
-                            'security backend: {}'.format(self.server.sec.sec_backend.__class__.__name__)
-                        )
-                        # Check signature
-                        if verify_redirect_signature(saml_msg, self.server.sec.sec_backend,
-                                                        cert):
-                            verified_ok = True
-                            break
-                    if not verified_ok:
-                        self._raise_error('Verifica della firma del messaggio fallita.')
-                else:
-                    self._raise_error('Messaggio SAML non firmato.')
-            # Perform login
-            key = self._store_request(req_info)
-            relay_state = saml_msg.get('RelayState', '')
-            session['request_key'] = key
-            session['relay_state'] = relay_state
+        # Check if it is signed
+        if binding == BINDING_HTTP_REDIRECT:
+            if "SigAlg" in saml_msg and "Signature" in saml_msg:
+                # Signed request
+                self.app.logger.debug('Messaggio SAML firmato.')
+                try:
+                    _certs = self.server.metadata.certs(
+                        issuer_name,
+                        "any",
+                        "signing"
+                    )
+                except KeyError:
+                    self._raise_error('entity ID {} non registrato, impossibile ricavare un certificato valido.'.format(issuer_name))
+                verified_ok = False
+                for cert in _certs:
+                    self.app.logger.debug(
+                        'security backend: {}'.format(self.server.sec.sec_backend.__class__.__name__)
+                    )
+                    # Check signature
+                    if verify_redirect_signature(saml_msg, self.server.sec.sec_backend,
+                                                    cert):
+                        verified_ok = True
+                        break
+                if not verified_ok:
+                    self._raise_error('Verifica della firma del messaggio fallita.')
+            else:
+                self._raise_error('Messaggio SAML non firmato.')
+        # Perform login
+        key = self._store_request(req_info)
+        relay_state = saml_msg.get('RelayState', '')
+        session['request_key'] = key
+        session['relay_state'] = relay_state
         return redirect(url_for('login'))
 
     @property
@@ -1398,16 +1394,18 @@ class IdpServer(object):
                     sign=True,
                     relay_state=relay_state
                 )
+                del self.ticket[key]
                 return http_args['data'], 200
         return render_template('403.html'), 403
 
     def continue_response(self):
         key = request.form['request_key']
-        if key and key in self.ticket and key in self.responses:
+        if key and key in self.responses and key in self.responses:
+            _response = self.responses.pop(key)
+            auth_req = self.ticket.pop(key)
             if 'confirm' in request.form:
-                return self.responses[key], 200
+                return _response, 200
             elif 'delete' in request.form:
-                auth_req = self.ticket[key]
                 destination = self.get_destination(auth_req, auth_req.message.issuer.text)
                 error_response = self.server.create_error_response(
                     in_response_to=auth_req.message.id,
@@ -1432,26 +1430,40 @@ class IdpServer(object):
 
         self.app.logger.debug("req: '%s'", request)
         saml_msg = self.unpack_args(request.args)
-        _binding = BINDING_HTTP_REDIRECT
         try:
-            # TODO: refactor and keep this logic in some isolated function
-            req_info = self.server.parse_logout_request(saml_msg['SAMLRequest'], _binding)
-            if request.method != 'GET':
-                self._raise_error('Il binding {} necessita del metodo {}'.format(BINDING_HTTP_REDIRECT, 'GET'))
-        except IncorrectlySigned:
+            _binding = BINDING_HTTP_REDIRECT
             try:
-                _binding = BINDING_HTTP_POST
+                # TODO: refactor and keep this logic in some isolated function
+                if 'SAMLRequest' not in saml_msg:
+                    self._raise_error('Parametro SAMLRequest assente.')
                 req_info = self.server.parse_logout_request(saml_msg['SAMLRequest'], _binding)
-                if request.method != 'POST':
-                    self._raise_error('Il binding {} necessita del metodo {}'.format(BINDING_HTTP_POST, 'POST'))
-            except IncorrectlySigned as err:
-                self.app.logger.debug(str(err))
-                self._raise_error('Messaggio corrotto o non firmato correttamente.')
-        msg = req_info.message
-        self.app.logger.debug('LogoutRequest: \n{}'.format(prettify_xml(str(msg))))
-        _, errors = self._check_spid_restrictions(req_info, 'logout', _binding)
+                if request.method != 'GET':
+                    self._raise_error('Il binding {} necessita del metodo {}'.format(BINDING_HTTP_REDIRECT, 'GET'))
+            except IncorrectlySigned:
+                try:
+                    _binding = BINDING_HTTP_POST
+                    req_info = self.server.parse_logout_request(saml_msg['SAMLRequest'], _binding)
+                    if request.method != 'POST':
+                        self._raise_error('Il binding {} necessita del metodo {}'.format(BINDING_HTTP_POST, 'POST'))
+                except IncorrectlySigned as err:
+                    self.app.logger.debug(str(err))
+                    self._raise_error('Messaggio corrotto o non firmato correttamente.')
+            msg = req_info.message
+            self.app.logger.debug('LogoutRequest: \n{}'.format(prettify_xml(str(msg))))
+            _, errors = self._check_spid_restrictions(req_info, 'logout', _binding)
+        except UnknownBinding as err:
+            self.app.logger.debug(str(err))
+            self._raise_error('Binding non supportato. Formati supportati ({}, {})'.format(BINDING_HTTP_POST, BINDING_HTTP_REDIRECT))
+        except UnknownSystemEntity as err:
+            self.app.logger.debug(str(err))
+            self._raise_error('entity ID {} non registrato.'.format(issuer_name))
+        except IncorrectlySigned as err:
+            self.app.logger.debug(str(err))
+            self._raise_error('Messaggio corrotto o non firmato correttamente.'.format(issuer_name))
+
         if errors:
             return self._handle_errors(errors, req_info.xmlstr)
+
         # Check if it is signed
         issuer_name = req_info.issuer.text
         if _binding == BINDING_HTTP_REDIRECT:
