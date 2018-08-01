@@ -81,12 +81,12 @@ Generare una chiave privata ed un certificato.
 
 ### Versione Docker
 ```
-openssl req -x509 -nodes -sha256 -days 365 -newkey rsa:2048 -keyout conf/idp.key -out conf/idp.crt
+openssl req -x509 -nodes -sha256 -subj '/C=IT' -newkey rsa:2048 -keyout conf/idp.key -out conf/idp.crt
 ```
 
 ### Versione manuale
 ```
-openssl req -x509 -nodes -sha256 -days 365 -newkey rsa:2048 -keyout idp.key -out idp.crt
+openssl req -x509 -nodes -sha256 -subj '/C=IT -newkey rsa:2048 -keyout idp.key -out idp.crt
 ```
 
 
