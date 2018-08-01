@@ -14,7 +14,7 @@ Questo repository ospita lo sviluppo di un nuovo Identity Provider di test per c
 
 Ad oggi questo pacchetto è funzionante ma è in corso un lavoro di evoluzione e documentazione. Se ne raccomanda l'uso, ed eventuali problemi possono essere segnalati aprendo issue.
 
-In alternativa è possibile usare il [precedente IdP di test](https://github.com/italia/spid-testenv). 
+In alternativa è possibile usare il [precedente IdP di test](https://github.com/italia/spid-testenv).
 
 ## Requisiti
 
@@ -79,9 +79,17 @@ docker start spid-testenv2
 
 Generare una chiave privata ed un certificato.
 
+### Versione Docker
 ```
 openssl req -x509 -nodes -sha256 -days 365 -newkey rsa:2048 -keyout conf/idp.key -out conf/idp.crt
 ```
+
+### Versione manuale
+```
+openssl req -x509 -nodes -sha256 -days 365 -newkey rsa:2048 -keyout idp.key -out idp.crt
+```
+
+
 
 Creare e configurare il file config.yaml.
 
