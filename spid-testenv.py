@@ -1544,9 +1544,11 @@ class IdpServer(object):
         else:
             _sign = True
             extra = {'sigalg': SIGN_ALG}
+
+        relay_state = saml_msg.get('RelayState', '')
         http_args = self.server.apply_binding(
             binding,
-            "%s" % response, destination, response=True, sign=_sign, **extra
+            "%s" % response, destination, response=True, sign=_sign, relay_state=relay_state, **extra
         )
         if response_binding == BINDING_HTTP_POST:
             self.app.logger.debug('Form post {}'.format(http_args['data']))
