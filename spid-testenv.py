@@ -1158,7 +1158,7 @@ class IdpServer(object):
         else:
             self._raise_error('Messaggio SAML non firmato.')
 
-    def _parse_message(self, saml_msg, method, action='login'):
+    def _parse_message(self, action='login'):
         """
         Parse an AuthnRequest or a LogoutRequest using pysaml2 API
 
@@ -1166,14 +1166,18 @@ class IdpServer(object):
         :param method: request method
         :param action: type of request
         """
-        if 'SAMLRequest' not in saml_msg:
-            self._raise_error('Parametro SAMLRequest assente.')
+        method = request.method
+
         if method == 'GET':
             _binding = BINDING_HTTP_REDIRECT
+            saml_msg = self.unpack_args(request.args)
         elif method == 'POST':
             _binding = BINDING_HTTP_POST
+            saml_msg = self.unpack_args(request.form)
         else:
             self._raise_error('I metodi consentiti sono GET (Http-Redirect) o POST (Http-Post)')
+        if 'SAMLRequest' not in saml_msg:
+            self._raise_error('Parametro SAMLRequest assente.')
         if action == 'login':
             _func = 'parse_authn_request'
         elif action == 'logout':
@@ -1194,7 +1198,7 @@ class IdpServer(object):
         # Unpack parameters
         saml_msg = self.unpack_args(request.args)
         try:
-            req_info, binding = self._parse_message(saml_msg, request.method, action='login')
+            req_info, binding = self._parse_message(action='login')
             authn_req = req_info.message
             self.app.logger.debug('AuthnRequest: \n{}'.format(prettify_xml(str(authn_req))))
             extra = {}
@@ -1495,7 +1499,7 @@ class IdpServer(object):
         self.app.logger.debug("req: '%s'", request)
         saml_msg = self.unpack_args(request.args)
         try:
-            req_info, _binding = self._parse_message(saml_msg, request.method, action='logout')
+            req_info, _binding = self._parse_message(action='logout')
             msg = req_info.message
             self.app.logger.debug('LogoutRequest: \n{}'.format(prettify_xml(str(msg))))
             extra = {}
