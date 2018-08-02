@@ -60,6 +60,13 @@ else:
 
 FAKER = Faker('it_IT')
 
+ALLOWED_SIG_ALGS = [
+    ds.SIG_RSA_SHA256,
+    ds.SIG_RSA_SHA384,
+    ds.SIG_RSA_SHA512,
+    ds.SIG_RSA_RIPEMD160,
+]
+
 SIGN_ALG = ds.SIG_RSA_SHA512
 DIGEST_ALG = ds.DIGEST_SHA512
 TIMEDELTA = 2
@@ -1135,6 +1142,9 @@ class IdpServer(object):
         if "SigAlg" in saml_msg and "Signature" in saml_msg:
             # Signed request
             self.app.logger.debug('Messaggio SAML firmato.')
+            _sig_alg = saml_msg['SigAlg']
+            if _sig_alg not in ALLOWED_SIG_ALGS:
+                self._raise_error('L\'Algoritmo {} non è supportato.'.format(_sig_alg))
             try:
                 _certs = self.server.metadata.certs(
                     issuer_name,
