@@ -12,9 +12,12 @@ import random
 import string
 import sys
 from datetime import datetime, timedelta
+from faker import Faker
+from functools import reduce
 from hashlib import sha1, sha512
 from importlib import import_module
 from logging.handlers import RotatingFileHandler
+from operator import and_, xor
 
 import lxml.etree as etree
 import saml2.xmldsig as ds
@@ -272,6 +275,7 @@ class SpidAuthnRequest(AuthnRequest):
         # TODO: move here a bit of parsing flow
         return self
 
+
 class SpidLogoutRequest(LogoutRequest):
     def verify(self):
         # TODO: move here a bit of parsing flow
@@ -387,9 +391,12 @@ class Attr(object):
     def __init__(self, name, absent=False, required=True, default=None, limits=None, func=None, val_converter=None, *args, **kwargs):
         """
         :param name: attribute name
+        :param absent: flag to indicate if the attribute is not allowed (False by default)
         :param required: flag to indicate if the attribute is mandatory (True by default)
         :param default: default value (or list of values, to be compared with the provided value to the 'validate' method)
-        :param func: optional additional function to perform a validation on value passed to 'validated' method
+        :param limits: tuple containing lower limit and upper limit
+        :param func: optional additional function to perform a validation on the value passed to 'validate' method
+        :param val_converter: optional additional function to perform a conversion on the value passed to 'validate' method
         """
         self._name = name
         self._absent = absent
@@ -438,6 +445,78 @@ class Attr(object):
                 _new_element = el[0].upper() + el[1:]
                 parsed_elements.append(_new_element)
             return ''.join(parsed_elements)
+
+
+class MultiAttr(object):
+    def __init__(self, *attrs):
+        self._attrs = []
+        for attr in attrs:
+            self._attrs.append(attr)
+
+    @property
+    def real_name(self):
+        return [attr.real_name for attr in self._attrs]
+
+
+class And(MultiAttr):
+
+    def validate(self, obj):
+        _validations = {}
+        _validations_secondary = {}
+        _errors = {}
+        _validation_matrix = []
+        for attr in self._attrs:
+            if isinstance(attr, MultiAttr):
+                _vals, _err = attr.validate(obj)
+                _validations_secondary.update(_vals)
+                if not _err:
+                    _validation_matrix.append(True)
+                else:
+                    _validation_matrix.append(False)
+            else:
+                _elem = getattr(obj, attr._name)
+                _validations[attr.real_name] = attr.validate(_elem)
+                if _elem is not None:
+                    _validation_matrix.append(True)
+                else:
+                    _validation_matrix.append(False)
+        if not all(_validation_matrix) and not reduce((lambda x,y: x or y), _validation_matrix):
+            _errors['required_error'] = 'Tutti gli attributi o gruppi di attributi devono essere presenti: {}'.format(
+                [a.real_name for a in self._attrs]
+            )
+        _validations.update(_validations_secondary)
+        return _validations, _errors
+
+
+
+class Or(MultiAttr):
+
+    def validate(self, obj):
+        _validations = {}
+        _validations_secondary = {}
+        _errors = {}
+        _validation_matrix = []
+        for attr in self._attrs:
+            if isinstance(attr, MultiAttr):
+                _vals, _err = attr.validate(obj)
+                _validations_secondary.update(_vals)
+                if not _err:
+                    _validation_matrix.append(True)
+                else:
+                    _validation_matrix.append(False)
+            else:
+                _elem = getattr(obj, attr._name)
+                _validations[attr.real_name] = attr.validate(_elem)
+                if _elem is not None:
+                    _validation_matrix.append(True)
+                else:
+                    _validation_matrix.append(False)
+        if not reduce((lambda x,y: x ^ y), _validation_matrix):
+            _errors['required_error'] = 'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: {}'.format(
+                [a.real_name for a in self._attrs]
+            )
+        _validations.update(_validations_secondary)
+        return _validations, _errors
 
 
 class TimestampAttr(Attr):
@@ -506,10 +585,17 @@ class Elem(object):
                     # TODO: handle list elements in a clean way
                     data = data[0]
                 for attribute in self._attributes:
-                    _validated_attributes = attribute.validate(getattr(data, attribute._name))
-                    res['attrs'][attribute.real_name] = _validated_attributes
-                    if _validated_attributes['errors']:
-                        self._errors.update({attribute.real_name: _validated_attributes['errors']})
+                    if isinstance(attribute, MultiAttr):
+                        _validations, _err = attribute.validate(data)
+                        res['attrs'].update(_validations)
+                        if _err:
+                            res['errors']['multi_attribute_error'] = _err
+                            self._errors.update(res['errors'])
+                    else:
+                        _validated_attributes = attribute.validate(getattr(data, attribute._name))
+                        res['attrs'][attribute.real_name] = _validated_attributes
+                        if _validated_attributes['errors']:
+                            self._errors.update({attribute.real_name: _validated_attributes['errors']})
                 for child in self._children:
                     res['children'][child._name] = child.validate(getattr(data, child._name))
         return res
@@ -546,10 +632,14 @@ class SpidParser(object):
                     TimestampAttr('issue_instant', func=check_utc_date, val_converter=str_to_time),
                     Attr('destination', default=receivers),
                     Attr('force_authn', required=False),
-                    Attr('assertion_consumer_service_index', default=assertion_consumer_service_indexes, required=False),
                     Attr('attribute_consuming_service_index', default=attribute_consuming_service_indexes, required=False),
-                    Attr('assertion_consumer_service_url', required=False),
-                    Attr('protocol_binding', default=BINDING_HTTP_POST, required=False)
+                    Or(
+                        Attr('assertion_consumer_service_index', default=assertion_consumer_service_indexes, required=False),
+                        And(
+                            Attr('assertion_consumer_service_url', required=False),
+                            Attr('protocol_binding', default=BINDING_HTTP_POST, required=False)
+                        )
+                    )
                 ],
                 children=[
                     Elem(
@@ -1072,7 +1162,7 @@ class IdpServer(object):
         else:
             self._raise_error('Messaggio SAML non firmato.')
 
-    def _parse_message(self, saml_msg, method, action='login'):
+    def _parse_message(self, action='login'):
         """
         Parse an AuthnRequest or a LogoutRequest using pysaml2 API
 
@@ -1080,14 +1170,18 @@ class IdpServer(object):
         :param method: request method
         :param action: type of request
         """
-        if 'SAMLRequest' not in saml_msg:
-            self._raise_error('Parametro SAMLRequest assente.')
+        method = request.method
+
         if method == 'GET':
             _binding = BINDING_HTTP_REDIRECT
+            saml_msg = self.unpack_args(request.args)
         elif method == 'POST':
             _binding = BINDING_HTTP_POST
+            saml_msg = self.unpack_args(request.form)
         else:
             self._raise_error('I metodi consentiti sono GET (Http-Redirect) o POST (Http-Post)')
+        if 'SAMLRequest' not in saml_msg:
+            self._raise_error('Parametro SAMLRequest assente.')
         if action == 'login':
             _func = 'parse_authn_request'
         elif action == 'logout':
@@ -1108,7 +1202,7 @@ class IdpServer(object):
         # Unpack parameters
         saml_msg = self.unpack_args(request.args)
         try:
-            req_info, binding = self._parse_message(saml_msg, request.method, action='login')
+            req_info, binding = self._parse_message(action='login')
             authn_req = req_info.message
             self.app.logger.debug('AuthnRequest: \n{}'.format(prettify_xml(str(authn_req))))
             extra = {}
@@ -1409,7 +1503,7 @@ class IdpServer(object):
         self.app.logger.debug("req: '%s'", request)
         saml_msg = self.unpack_args(request.args)
         try:
-            req_info, _binding = self._parse_message(saml_msg, request.method, action='logout')
+            req_info, _binding = self._parse_message(action='logout')
             msg = req_info.message
             self.app.logger.debug('LogoutRequest: \n{}'.format(prettify_xml(str(msg))))
             extra = {}
@@ -1458,9 +1552,11 @@ class IdpServer(object):
         else:
             _sign = True
             extra = {'sigalg': SIGN_ALG}
+
+        relay_state = saml_msg.get('RelayState', '')
         http_args = self.server.apply_binding(
             binding,
-            "%s" % response, destination, response=True, sign=_sign, **extra
+            "%s" % response, destination, response=True, sign=_sign, relay_state=relay_state, **extra
         )
         if response_binding == BINDING_HTTP_POST:
             self.app.logger.debug('Form post {}'.format(http_args['data']))
