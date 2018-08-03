@@ -1,0 +1,15 @@
+---
+debug: true
+host: 0.0.0.0
+port: 8088
+hostname: spid-testenv
+https: false
+endpoints:
+  single_sign_on_service: "/sso-test"
+  single_logout_service: "/slo-test"
+key_file: "tests/data/idp.key"
+cert_file: "tests/data/idp.crt"
+metadata:
+  local:
+  - "tests/data/sp-metadata.xml"
+users_file: "tests/data/users.json"
