@@ -13,7 +13,7 @@ from freezegun import freeze_time
 from OpenSSL import crypto
 from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 from saml2.saml import NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
-from saml2.xmldsig import SIG_DSA_SHA256
+from saml2.xmldsig import SIG_RSA_SHA256, SIG_RSA_SHA1
 
 sys.path.insert(0, '../')
 spid_testenv = __import__("spid-testenv")
@@ -22,6 +22,11 @@ try:
     from unittest.mock import patch
 except ImportError:
     from mock import patch
+
+try:
+    from urllib import quote  # Python 2.X
+except ImportError:
+    from urllib.parse import quote  # Python 3+
 
 DATA_DIR = 'tests/data/'
 
@@ -38,18 +43,36 @@ def generate_certificate(fname, path=DATA_DIR):
         crypto.dump_privatekey(crypto.FILETYPE_PEM, key))
 
 
-def generate_authn_request(data={}):
+def generate_authn_request(data={}, acs_level=0):
     version = data.get('version') if data.get('version') else '2.0'
     issue_instant = data.get('issue_instant') if data.get('issue_instant') else '2018-07-16T09:38:29Z'
     destination = data.get('destination') if data.get('destination') else 'http://spid-testenv:8088/sso-test'
     protocol_binding = data.get('protocol_binding') if data.get('protocol_binding') else BINDING_HTTP_POST
-    acs = data.get('assertion_consumer_service_url') if data.get('assertion_consumer_service_url') else 'https://spid.test:8000/acs-test'
+    acsi = data.get('assertion_consumer_service_index') if data.get('assertion_consumer_service_index') else '1'
+    acsu = data.get('assertion_consumer_service_url') if data.get('assertion_consumer_service_url') else 'https://spid.test:8000/acs-test'
     issuer__format = data.get('issuer__format') if data.get('issuer__format') else NAMEID_FORMAT_ENTITY
     issuer_url = data.get('issuer__url') if data.get('issuer__url') else 'https://spid.test:8000'
     name_id_policy__format = data.get('name_id_policy__format') if data.get('name_id_policy__format') else NAMEID_FORMAT_TRANSIENT
     requested_authn_context__comparison = data.get('requested_authn_context__comparison') if data.get('requested_authn_context__comparison') else 'exact'
     requested_authn_context__authn_context_class_ref = data.get('requested_authn_context__authn_context_class_ref') if data.get('requested_authn_context__authn_context_class_ref') else 'https://www.spid.gov.it/SpidL1'
 
+    if acs_level == 0:
+        _acs = '''
+            ProtocolBinding="%s"
+            AssertionConsumerServiceURL="%s">
+        ''' % (protocol_binding, acsu)
+    elif acs_level == 1:
+        _acs = '''
+            AssertionConsumerServiceIndex="%s"
+        '''  % (acsi)
+    elif acs_level == 2:
+        _acs = '''
+            ProtocolBinding="%s"
+            AssertionConsumerServiceURL="%s"
+            AssertionConsumerServiceIndex="%s"
+        '''  % (protocol_binding, acsu, acsi)
+    else:
+        _acs = ''
 
     xmlstr = '''<samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
                     xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
@@ -57,8 +80,7 @@ def generate_authn_request(data={}):
                     Version="%s"
                     IssueInstant="%s"
                     Destination="%s"
-                    ProtocolBinding="%s"
-                    AssertionConsumerServiceURL="%s">
+                    %s>
         <saml:Issuer Format="%s"
                     NameQualifier="%s">%s</saml:Issuer>
         <samlp:NameIDPolicy Format="%s" />
@@ -70,8 +92,7 @@ def generate_authn_request(data={}):
         version,
         issue_instant,
         destination,
-        protocol_binding,
-        acs,
+        _acs,
         issuer__format,
         issuer_url,
         issuer_url,
@@ -163,7 +184,7 @@ class SpidTestenvTest(unittest.TestCase):
     @patch('spid-testenv.verify_redirect_signature', return_value=True)
     def test_issue_instant_out_of_range(self, unravel, verified):
         response = self.test_client.get(
-            u'/sso-test?SAMLRequest=b64encodedrequest&SigAlg=alg&Signature={}'.format(SIG_DSA_SHA256),
+            u'/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
             follow_redirects=True
         )
         self.assertEqual(response.status_code, 200)
@@ -182,7 +203,7 @@ class SpidTestenvTest(unittest.TestCase):
     @patch('spid-testenv.verify_redirect_signature', return_value=True)
     def test_issue_instant_ms(self, unravel, verified):
         response = self.test_client.get(
-            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg=alg&Signature={}'.format(SIG_DSA_SHA256),
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
             follow_redirects=True
         )
         self.assertEqual(response.status_code, 200)
@@ -201,7 +222,7 @@ class SpidTestenvTest(unittest.TestCase):
     @patch('spid-testenv.verify_redirect_signature', return_value=True)
     def test_wrong_protocol_binding(self, unravel, verified):
         response = self.test_client.get(
-            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(SIG_DSA_SHA256),
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
             follow_redirects=True
         )
         self.assertEqual(response.status_code, 200)
@@ -216,7 +237,7 @@ class SpidTestenvTest(unittest.TestCase):
     @patch('spid-testenv.verify_redirect_signature', return_value=True)
     def test_right_protocol_binding(self, unravel, verified):
         response = self.test_client.get(
-            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(SIG_DSA_SHA256),
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
             follow_redirects=True
         )
         self.assertEqual(response.status_code, 200)
@@ -225,6 +246,97 @@ class SpidTestenvTest(unittest.TestCase):
             u'{} è diverso dal valore di riferimento {}'.format(BINDING_HTTP_REDIRECT, BINDING_HTTP_POST),
             response_text
         )
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request())
+    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    def test_no_assertion_consumer_service_index(self, unravel, verified):
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        response_text = response.get_data(as_text=True)
+        self.assertNotIn(
+            u'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [\'AssertionConsumerServiceIndex\', [\'AssertionConsumerServiceUrl\', \'ProtocolBinding\']]',            response_text
+        )
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request(acs_level=1))
+    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    def test_no_assertion_consumer_service_url_and_protocol_binding(self, unravel, verified):
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        response_text = response.get_data(as_text=True)
+        self.assertNotIn(
+            u'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [\'AssertionConsumerServiceIndex\', [\'AssertionConsumerServiceUrl\', \'ProtocolBinding\']]',
+            response_text
+        )
+
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request(acs_level=2))
+    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    def test_all_assertion_consumer_service_attributes(self, unravel, verified):
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        response_text = response.get_data(as_text=True)
+        self.assertIn(
+            u'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [\'AssertionConsumerServiceIndex\', [\'AssertionConsumerServiceUrl\', \'ProtocolBinding\']]',
+            response_text
+        )
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request(acs_level=3))
+    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    def test_no_assertion_consumer_service_attributes(self, unravel, verified):
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        response_text = response.get_data(as_text=True)
+        self.assertIn(
+            u'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [\'AssertionConsumerServiceIndex\', [\'AssertionConsumerServiceUrl\', \'ProtocolBinding\']]',
+            response_text
+        )
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request())
+    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    def test_wrong_signature_algorithm(self, unravel, verified):
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA1)),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        response_text = response.get_data(as_text=True)
+        self.assertIn(
+            u'{} non è supportato.'.format(SIG_RSA_SHA1),
+            response_text
+        )
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request())
+    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    def test_right_signature_algorithm(self, unravel, verified):
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        response_text = response.get_data(as_text=True)
+        self.assertNotIn(
+            u'{} non è supportato.'.format(SIG_RSA_SHA256),
+            response_text
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
