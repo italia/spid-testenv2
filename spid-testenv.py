@@ -12,7 +12,6 @@ import random
 import string
 import sys
 from datetime import datetime, timedelta
-from faker import Faker
 from functools import reduce
 from hashlib import sha1, sha512
 from importlib import import_module
@@ -594,6 +593,9 @@ class Elem(object):
                 for attribute in self._attributes:
                     if isinstance(attribute, MultiAttr):
                         _validations, _err = attribute.validate(data)
+                        for k, v in _validations.items():
+                            if v['errors']:
+                                self._errors.update({k: v['errors']})
                         res['attrs'].update(_validations)
                         if _err:
                             res['errors']['multi_attribute_error'] = _err

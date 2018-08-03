@@ -13,6 +13,7 @@ from freezegun import freeze_time
 from OpenSSL import crypto
 from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 from saml2.saml import NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
+from saml2.xmldsig import SIG_DSA_SHA256
 
 sys.path.insert(0, '../')
 spid_testenv = __import__("spid-testenv")
@@ -162,7 +163,7 @@ class SpidTestenvTest(unittest.TestCase):
     @patch('spid-testenv.verify_redirect_signature', return_value=True)
     def test_issue_instant_out_of_range(self, unravel, verified):
         response = self.test_client.get(
-            u'/sso-test?SAMLRequest=b64encodedrequest&SigAlg=alg&Signature=sign',
+            u'/sso-test?SAMLRequest=b64encodedrequest&SigAlg=alg&Signature={}'.format(SIG_DSA_SHA256),
             follow_redirects=True
         )
         self.assertEqual(response.status_code, 200)
@@ -181,7 +182,7 @@ class SpidTestenvTest(unittest.TestCase):
     @patch('spid-testenv.verify_redirect_signature', return_value=True)
     def test_issue_instant_ms(self, unravel, verified):
         response = self.test_client.get(
-            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg=alg&Signature=sign',
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg=alg&Signature={}'.format(SIG_DSA_SHA256),
             follow_redirects=True
         )
         self.assertEqual(response.status_code, 200)
@@ -200,7 +201,7 @@ class SpidTestenvTest(unittest.TestCase):
     @patch('spid-testenv.verify_redirect_signature', return_value=True)
     def test_wrong_protocol_binding(self, unravel, verified):
         response = self.test_client.get(
-            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg=alg&Signature=sign',
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(SIG_DSA_SHA256),
             follow_redirects=True
         )
         self.assertEqual(response.status_code, 200)
@@ -215,7 +216,7 @@ class SpidTestenvTest(unittest.TestCase):
     @patch('spid-testenv.verify_redirect_signature', return_value=True)
     def test_right_protocol_binding(self, unravel, verified):
         response = self.test_client.get(
-            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg=alg&Signature=sign',
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(SIG_DSA_SHA256),
             follow_redirects=True
         )
         self.assertEqual(response.status_code, 200)
