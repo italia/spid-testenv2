@@ -12,6 +12,8 @@ import random
 import string
 import sys
 from datetime import datetime, timedelta
+from faker import Faker
+import exrex
 from functools import reduce
 from hashlib import sha1, sha512
 from importlib import import_module
@@ -822,6 +824,7 @@ class JsonUserManager(AbstractUserManager):
                         'dateOfBirth': FAKER.date(),
                         'companyName': FAKER.company(),
                         'registeredOffice': FAKER.address(),
+                        'fiscalNumber': exrex.getone('[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]'),
                         'email': FAKER.email()
                     },
                     'pwd': 'test',
