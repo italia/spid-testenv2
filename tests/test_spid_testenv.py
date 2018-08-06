@@ -35,6 +35,9 @@ def generate_certificate(fname, path=DATA_DIR):
     key = crypto.PKey()
     key.generate_key(crypto.TYPE_RSA, 2048)
     cert = crypto.X509()
+    cert.get_subject().C = 'IT'
+    cert.gmtime_adj_notBefore(0)
+    cert.gmtime_adj_notAfter(10 * 365 * 24 * 60 * 60)
     cert.set_pubkey(key)
     cert.sign(key, 'sha256')
     open(os.path.join(path, '{}.crt'.format(fname)), "wb").write(
@@ -44,6 +47,7 @@ def generate_certificate(fname, path=DATA_DIR):
 
 
 def generate_authn_request(data={}, acs_level=0):
+    _id = data.get('id') if data.get('id') else '123456'
     version = data.get('version') if data.get('version') else '2.0'
     issue_instant = data.get('issue_instant') if data.get('issue_instant') else '2018-07-16T09:38:29Z'
     destination = data.get('destination') if data.get('destination') else 'http://spid-testenv:8088/sso-test'
@@ -76,7 +80,7 @@ def generate_authn_request(data={}, acs_level=0):
 
     xmlstr = '''<samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
                     xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
-                    ID="12456"
+                    ID="%s"
                     Version="%s"
                     IssueInstant="%s"
                     Destination="%s"
@@ -89,6 +93,7 @@ def generate_authn_request(data={}, acs_level=0):
         </samlp:RequestedAuthnContext>
         </samlp:AuthnRequest>
     ''' % (
+        _id,
         version,
         issue_instant,
         destination,
@@ -337,6 +342,77 @@ class SpidTestenvTest(unittest.TestCase):
             response_text
         )
 
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request())
+    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    def test_in_response_to(self, unravel, verified):
+        self.assertEqual(len(self.idp_server.ticket), 0)
+        self.assertEqual(len(self.idp_server.responses), 0)
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        response = self.test_client.post(
+            '/login',
+            data={
+                'confirm': 1,
+                'username': 'test',
+                'password': 'test'
+            },
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        response_text = response.get_data(as_text=True)
+        self.assertEqual(len(self.idp_server.ticket), 1)
+        key = list(self.idp_server.ticket.keys())[0]
+        authn_request = self.idp_server.ticket[key]
+        old_in_response_to = authn_request.message.id
+        self.assertIn(
+            u'InResponseTo=&#34;{}&#34;'.format(old_in_response_to),
+            response_text
+        )
+        response = self.test_client.post(
+            '/continue-response',
+            data={
+                'confirm': 1,
+                'request_key': key
+            },
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(self.idp_server.ticket), 0)
+        self.assertEqual(len(self.idp_server.responses), 0)
+        with patch('spid-testenv.SpidServer.unravel', return_value = generate_authn_request({'id': '9999'})) as mocked:
+            response = self.test_client.get(
+                '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+                follow_redirects=True
+            )
+            self.assertEqual(response.status_code, 200)
+            response = self.test_client.post(
+                '/login',
+                data={
+                    'confirm': 1,
+                    'username': 'test',
+                    'password': 'test'
+                },
+                follow_redirects=True
+            )
+            self.assertEqual(response.status_code, 200)
+            response_text = response.get_data(as_text=True)
+            self.assertEqual(len(self.idp_server.ticket), 1)
+            key = list(self.idp_server.ticket.keys())[0]
+            authn_request = self.idp_server.ticket[key]
+            in_response_to = authn_request.message.id
+            self.assertNotEqual(old_in_response_to, in_response_to)
+            self.assertIn(
+                u'InResponseTo=&#34;{}&#34;'.format(in_response_to),
+                response_text
+            )
+            self.assertNotIn(
+                u'InResponseTo=&#34;{}&#34;'.format(old_in_response_to),
+                response_text
+            )
 
 if __name__ == '__main__':
     unittest.main()
