@@ -281,7 +281,6 @@ class SpidTestenvTest(unittest.TestCase):
             response_text
         )
 
-
     @freeze_time("2018-07-16T09:38:29Z")
     @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request(acs_level=2))
     @patch('spid-testenv.verify_redirect_signature', return_value=True)
@@ -414,6 +413,7 @@ class SpidTestenvTest(unittest.TestCase):
                 response_text
             )
 
+    @freeze_time("2018-07-16T09:38:29Z")
     @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request(data={'assertion_consumer_service_index': '12345'}, acs_level=1))
     @patch('spid-testenv.verify_redirect_signature', return_value=True)
     def test_wrong_assertion_consumer_service_index(self, unravel, verified):
@@ -425,6 +425,58 @@ class SpidTestenvTest(unittest.TestCase):
         response_text = response.get_data(as_text=True)
         self.assertIn(
             "12345 non corrisponde a nessuno dei valori contenuti in ['0']",
+            response_text
+        )
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request(data={'assertion_consumer_service_index': '0'}, acs_level=1))
+    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    def test_right_assertion_consumer_service_index(self, unravel, verified):
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        response_text = response.get_data(as_text=True)
+        self.assertNotIn(
+            "non corrisponde a nessuno dei valori contenuti in",
+            response_text
+        )
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request(data={'assertion_consumer_service_index': '0'}, acs_level=1))
+    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    def test_ensure_correct_redirect_url(self, unravel, verified):
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+            follow_redirects=False
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], 'http://localhost/login')
+        response = self.test_client.post(
+            '/login',
+            data={
+                'confirm': 1,
+                'username': 'test',
+                'password': 'test'
+            },
+            follow_redirects=False
+        )
+        response_text = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        key = list(self.idp_server.ticket.keys())[0]
+        response = self.test_client.post(
+            '/continue-response',
+            data={
+                'confirm': 1,
+                'request_key': key
+            },
+            follow_redirects=False
+        )
+        self.assertEqual(response.status_code, 200)
+        response_text = response.get_data(as_text=True)
+        self.assertIn(
+            '<form action="http://127.0.0.1:8000/acs-test" method="post">',
             response_text
         )
 
