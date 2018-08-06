@@ -108,7 +108,7 @@ def generate_authn_request(data={}, acs_level=0):
     return bytes(xmlstr.encode('utf-8'))
 
 
-class SpidTestenvTest(unittest.TestCase): 
+class SpidTestenvTest(unittest.TestCase):
 
     maxDiff = None
 
@@ -143,7 +143,7 @@ class SpidTestenvTest(unittest.TestCase):
             os.remove(os.path.join(DATA_DIR, f))
 
     def setUp(self):
-        pass 
+        pass
 
     def tearDown(self):
         self.idp_server.ticket = {}
@@ -413,6 +413,21 @@ class SpidTestenvTest(unittest.TestCase):
                 u'InResponseTo=&#34;{}&#34;'.format(old_in_response_to),
                 response_text
             )
+
+    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request(data={'assertion_consumer_service_index': '12345'}, acs_level=1))
+    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    def test_wrong_assertion_consumer_service_index(self, unravel, verified):
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        response_text = response.get_data(as_text=True)
+        self.assertIn(
+            "12345 non corrisponde a nessuno dei valori contenuti in ['0']",
+            response_text
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
