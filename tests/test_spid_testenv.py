@@ -1,5 +1,8 @@
 
 # -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
+import base64
 import os
 import os.path
 import shutil
@@ -13,6 +16,8 @@ from freezegun import freeze_time
 from OpenSSL import crypto
 from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 from saml2.saml import NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
+from saml2.sigver import REQ_ORDER, import_rsa_key_from_file
+from saml2.s_utils import deflate_and_base64_encode
 from saml2.xmldsig import SIG_RSA_SHA256, SIG_RSA_SHA1
 
 sys.path.insert(0, '../')
@@ -28,6 +33,9 @@ try:
 except ImportError:
     from urllib.parse import quote  # Python 3+
 
+from six.moves.urllib.parse import urlencode
+
+
 DATA_DIR = 'tests/data/'
 
 
@@ -39,7 +47,7 @@ def generate_certificate(fname, path=DATA_DIR):
     cert.gmtime_adj_notBefore(0)
     cert.gmtime_adj_notAfter(10 * 365 * 24 * 60 * 60)
     cert.set_pubkey(key)
-    cert.sign(key, 'sha256')
+    cert.sign(key, str('sha256'))
     open(os.path.join(path, '{}.crt'.format(fname)), "wb").write(
         crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
     open(os.path.join(path, '{}.key'.format(fname)), "wb").write(
@@ -176,11 +184,11 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertIn(
-            u'2018-07-16 09:38:29 non è compreso tra 2018-07-16 10:36:29 e 2018-07-16 10:40:29',
+            '2018-07-16 09:38:29 non è compreso tra 2018-07-16 10:36:29 e 2018-07-16 10:40:29',
             response_text
         )
         self.assertNotIn(
-            u'la data non è in formato UTC',
+            'la data non è in formato UTC',
             response_text
         )
 
@@ -189,17 +197,17 @@ class SpidTestenvTest(unittest.TestCase):
     @patch('spid-testenv.verify_redirect_signature', return_value=True)
     def test_issue_instant_ok(self, unravel, verified):
         response = self.test_client.get(
-            u'/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
             follow_redirects=True
         )
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertNotIn(
-            u'2018-07-16 09:38:29 non è compreso tra 2018-07-16 09:36:29 e 2018-07-16 09:40:29',
+            '2018-07-16 09:38:29 non è compreso tra 2018-07-16 09:36:29 e 2018-07-16 09:40:29',
             response_text
         )
         self.assertNotIn(
-            u'la data non è in formato UTC',
+            'la data non è in formato UTC',
             response_text
         )
 
@@ -214,11 +222,11 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertNotIn(
-            u'2018-07-16 09:38:29 non è compreso tra 2018-07-16 09:36:29 e 2018-07-16 09:40:29',
+            '2018-07-16 09:38:29 non è compreso tra 2018-07-16 09:36:29 e 2018-07-16 09:40:29',
             response_text
         )
         self.assertNotIn(
-            u'la data non è in formato UTC',
+            'la data non è in formato UTC',
             response_text
         )
 
@@ -233,7 +241,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertIn(
-            u'{} è diverso dal valore di riferimento {}'.format(BINDING_HTTP_REDIRECT, BINDING_HTTP_POST),
+            '{} è diverso dal valore di riferimento {}'.format(BINDING_HTTP_REDIRECT, BINDING_HTTP_POST),
             response_text
         )
 
@@ -248,7 +256,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertNotIn(
-            u'{} è diverso dal valore di riferimento {}'.format(BINDING_HTTP_REDIRECT, BINDING_HTTP_POST),
+            '{} è diverso dal valore di riferimento {}'.format(BINDING_HTTP_REDIRECT, BINDING_HTTP_POST),
             response_text
         )
 
@@ -263,7 +271,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertNotIn(
-            u'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [\'AssertionConsumerServiceIndex\', [\'AssertionConsumerServiceUrl\', \'ProtocolBinding\']]',            response_text
+            'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [\'AssertionConsumerServiceIndex\', [\'AssertionConsumerServiceUrl\', \'ProtocolBinding\']]',            response_text
         )
 
     @freeze_time("2018-07-16T09:38:29Z")
@@ -277,7 +285,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertNotIn(
-            u'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [\'AssertionConsumerServiceIndex\', [\'AssertionConsumerServiceUrl\', \'ProtocolBinding\']]',
+            'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [\'AssertionConsumerServiceIndex\', [\'AssertionConsumerServiceUrl\', \'ProtocolBinding\']]',
             response_text
         )
 
@@ -292,7 +300,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertIn(
-            u'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [\'AssertionConsumerServiceIndex\', [\'AssertionConsumerServiceUrl\', \'ProtocolBinding\']]',
+            'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [\'AssertionConsumerServiceIndex\', [\'AssertionConsumerServiceUrl\', \'ProtocolBinding\']]',
             response_text
         )
 
@@ -307,7 +315,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertIn(
-            u'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [\'AssertionConsumerServiceIndex\', [\'AssertionConsumerServiceUrl\', \'ProtocolBinding\']]',
+            'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [\'AssertionConsumerServiceIndex\', [\'AssertionConsumerServiceUrl\', \'ProtocolBinding\']]',
             response_text
         )
 
@@ -322,7 +330,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertIn(
-            u'{} non è supportato.'.format(SIG_RSA_SHA1),
+            '{} non è supportato.'.format(SIG_RSA_SHA1),
             response_text
         )
 
@@ -337,7 +345,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertNotIn(
-            u'{} non è supportato.'.format(SIG_RSA_SHA256),
+            '{} non è supportato.'.format(SIG_RSA_SHA256),
             response_text
         )
 
@@ -368,7 +376,7 @@ class SpidTestenvTest(unittest.TestCase):
         authn_request = self.idp_server.ticket[key]
         old_in_response_to = authn_request.message.id
         self.assertIn(
-            u'InResponseTo=&#34;{}&#34;'.format(old_in_response_to),
+            'InResponseTo=&#34;{}&#34;'.format(old_in_response_to),
             response_text
         )
         response = self.test_client.post(
@@ -405,11 +413,11 @@ class SpidTestenvTest(unittest.TestCase):
             in_response_to = authn_request.message.id
             self.assertNotEqual(old_in_response_to, in_response_to)
             self.assertIn(
-                u'InResponseTo=&#34;{}&#34;'.format(in_response_to),
+                'InResponseTo=&#34;{}&#34;'.format(in_response_to),
                 response_text
             )
             self.assertNotIn(
-                u'InResponseTo=&#34;{}&#34;'.format(old_in_response_to),
+                'InResponseTo=&#34;{}&#34;'.format(old_in_response_to),
                 response_text
             )
 
@@ -479,6 +487,95 @@ class SpidTestenvTest(unittest.TestCase):
             '<form action="http://127.0.0.1:8000/acs-test" method="post">',
             response_text
         )
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request())
+    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    def test_missing_samlrequest_parameter(self, unravel, verified):
+        self.assertEqual(len(self.idp_server.ticket), 0)
+        self.assertEqual(len(self.idp_server.responses), 0)
+        response = self.test_client.get(
+            '/sso-test?SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+            follow_redirects=False
+        )
+        self.assertEqual(response.status_code, 200)
+        response_text = response.get_data(as_text=True)
+        self.assertIn(
+            'Parametro SAMLRequest assente.',
+            response_text
+        )
+        self.assertEqual(len(self.idp_server.ticket), 0)
+        self.assertEqual(len(self.idp_server.responses), 0)
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    def test_authn_request_http_redirect_bad_signature(self):
+        xml_message = generate_authn_request()
+        encoded_message = deflate_and_base64_encode(xml_message)
+        self.assertEqual(len(self.idp_server.ticket), 0)
+        self.assertEqual(len(self.idp_server.responses), 0)
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest={}&SigAlg={}&Signature=sign'.format(quote(encoded_message), quote(SIG_RSA_SHA256)),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        response_text = response.get_data(as_text=True)
+        self.assertIn(
+            'Verifica della firma del messaggio fallita.',
+            response_text
+        )
+        self.assertEqual(len(self.idp_server.ticket), 0)
+        self.assertEqual(len(self.idp_server.responses), 0)
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    def test_authn_request_http_redirect_missing_signature_parameter(self):
+        xml_message = generate_authn_request()
+        encoded_message = deflate_and_base64_encode(xml_message)
+        self.assertEqual(len(self.idp_server.ticket), 0)
+        self.assertEqual(len(self.idp_server.responses), 0)
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest={}&SigAlg={}'.format(quote(encoded_message), quote(SIG_RSA_SHA256)),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        response_text = response.get_data(as_text=True)
+        self.assertIn(
+            'Messaggio SAML non firmato.',
+            response_text
+        )
+        self.assertEqual(len(self.idp_server.ticket), 0)
+        self.assertEqual(len(self.idp_server.responses), 0)
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    def test_authn_request_http_redirect_right_signature(self):
+        xml_message = generate_authn_request()
+        encoded_message = deflate_and_base64_encode(xml_message)
+        args = {
+            'SAMLRequest': encoded_message,
+            'SigAlg': SIG_RSA_SHA256,
+        }
+        query_string = "&".join([urlencode({k: args[k]})
+                           for k in REQ_ORDER if k in args]).encode('ascii')
+        pkey = import_rsa_key_from_file(os.path.join(DATA_DIR, 'sp.key'))
+        signer = self.idp_server.server.sec.sec_backend.get_signer(SIG_RSA_SHA256, pkey)
+        args["Signature"] = base64.b64encode(signer.sign(query_string))
+        query_string = urlencode(args)
+        self.assertEqual(len(self.idp_server.ticket), 0)
+        self.assertEqual(len(self.idp_server.responses), 0)
+        response = self.test_client.get(
+            '/sso-test?{}'.format(query_string),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        response_text = response.get_data(as_text=True)
+        self.assertIn(
+            '<form class="Form Form--spaced u-margin-bottom-l " name="login" method="post" action="/login">',
+            response_text
+        )
+        self.assertEqual(len(self.idp_server.ticket), 1)
+        self.assertEqual(len(self.idp_server.responses), 0)
+        key = list(self.idp_server.ticket.keys())[0]
+        xmlstr = self.idp_server.ticket[key].xmlstr
+        self.assertEqual(xml_message, xmlstr)
 
 
 if __name__ == '__main__':
