@@ -1,5 +1,5 @@
 -rrequirements.txt
 mock
 freezegun
-nose2
+pytest
 coverage
