@@ -187,7 +187,7 @@ class SpidTestenvTest(unittest.TestCase):
     @freeze_time("2018-07-16T09:38:29Z")
     @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request())
     @patch('spid-testenv.verify_redirect_signature', return_value=True)
-    def test_issue_instant_out_of_range(self, unravel, verified):
+    def test_issue_instant_ok(self, unravel, verified):
         response = self.test_client.get(
             u'/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
             follow_redirects=True
