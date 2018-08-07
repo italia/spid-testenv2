@@ -6,10 +6,8 @@ import os.path
 import random
 import string
 from datetime import datetime
-from exceptions import BadConfiguration
 from hashlib import sha1
 from logging.handlers import RotatingFileHandler
-from parser import SpidParser
 
 from flask import (Response, abort, escape, redirect, render_template,
                    render_template_string, request, session, url_for)
@@ -24,11 +22,13 @@ from saml2.response import IncorrectlySigned
 from saml2.s_utils import UnknownSystemEntity, UnsupportedBinding
 from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, Attribute
 from saml2.sigver import verify_redirect_signature
-from settings import (ALLOWED_SIG_ALGS, AUTH_NO_CONSENT, DIGEST_ALG, SIGN_ALG,
-                      SPID_LEVELS, spid_error_table)
-from users import JsonUserManager
-from utils import (SpidPolicy, SpidServer, ac_factory, get_spid_error,
-                   prettify_xml)
+from testenv.exceptions import BadConfiguration
+from testenv.parser import SpidParser
+from testenv.settings import (ALLOWED_SIG_ALGS, AUTH_NO_CONSENT, DIGEST_ALG,
+                              SIGN_ALG, SPID_LEVELS, spid_error_table)
+from testenv.users import JsonUserManager
+from testenv.utils import (SpidPolicy, SpidServer, ac_factory, get_spid_error,
+                           prettify_xml)
 
 try:
     from saml2.sigver import get_xmlsec_binary

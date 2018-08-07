@@ -4,12 +4,12 @@ from __future__ import unicode_literals
 import argparse
 import os
 import os.path
-from exceptions import BadConfiguration
+from testenv.exceptions import BadConfiguration
 
 from flask import Flask
 
-from server import IdpServer
-from utils import get_config
+from testenv.server import IdpServer
+from testenv.utils import get_config
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

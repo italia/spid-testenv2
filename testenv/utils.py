@@ -11,6 +11,7 @@ from importlib import import_module
 
 import lxml.etree as etree
 import yaml
+
 from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, time_util
 from saml2.assertion import Policy
 from saml2.attribute_converter import AttributeConverter
@@ -20,8 +21,7 @@ from saml2.s_utils import (UnravelError, decode_base64_and_inflate, do_ava,
                            factory)
 from saml2.saml import Attribute
 from saml2.server import Server
-
-from settings import SPID_ERRORS
+from testenv.settings import SPID_ERRORS
 
 
 def get_config(f_name, f_type='yaml'):
