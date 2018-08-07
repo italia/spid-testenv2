@@ -242,7 +242,7 @@ class IdpServer(object):
             self.idp_config,
             'attribute_converters',
             ac_factory(
-                'attributemaps',
+                'testenv/attributemaps',
                 **{'override_types': self._all_attributes}
             )
         )
