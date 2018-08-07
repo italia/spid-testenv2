@@ -4,10 +4,9 @@ from __future__ import unicode_literals
 import argparse
 import os
 import os.path
-from testenv.exceptions import BadConfiguration
 
 from flask import Flask
-
+from testenv.exceptions import BadConfiguration
 from testenv.server import IdpServer
 from testenv.utils import get_config
 
