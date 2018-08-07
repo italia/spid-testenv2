@@ -703,7 +703,7 @@ class IdpServer(object):
                                 ) for el in attrs.get('optional')
                             ]
                             acs = ac_factory(
-                                './attributemaps',
+                                './testenv/attributemaps',
                                 **{'override_types': self._all_attributes}
                             )
                             rava = list_to_local(acs, required)
