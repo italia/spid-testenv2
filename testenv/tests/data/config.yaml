@@ -7,9 +7,9 @@ https: false
 endpoints:
   single_sign_on_service: "/sso-test"
   single_logout_service: "/slo-test"
-key_file: "tests/data/idp.key"
-cert_file: "tests/data/idp.crt"
+key_file: "testenv/tests/data/idp.key"
+cert_file: "testenv/tests/data/idp.crt"
 metadata:
   local:
-  - "tests/data/sp-metadata.xml"
-users_file: "tests/data/users.json"
+  - "testenv/tests/data/sp-metadata.xml"
+users_file: "testenv/tests/data/users.json"

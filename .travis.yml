@@ -5,12 +5,11 @@ python:
 - "3.4"
 - "3.5"
 - "3.6"
-- "3.7"
+
 
 cache:
   directories:
     - $HOME/.cache/pip
-    - $TRAVIS_BUILD_DIR/.tox
 
 install:
   - pip install --upgrade pip wheel setuptools
@@ -23,3 +22,6 @@ script: tox
 
 after_success:
   - coveralls
+
+before_install:
+  - sudo apt-get install -y xmlsec1 libffi6
