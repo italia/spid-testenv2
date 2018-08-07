@@ -271,7 +271,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertNotIn(
-            'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [\'AssertionConsumerServiceIndex\', [\'AssertionConsumerServiceUrl\', \'ProtocolBinding\']]',            response_text
+            'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [AssertionConsumerServiceIndex, [AssertionConsumerServiceUrl, ProtocolBinding]]',            response_text
         )
 
     @freeze_time("2018-07-16T09:38:29Z")
@@ -285,7 +285,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertNotIn(
-            'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [\'AssertionConsumerServiceIndex\', [\'AssertionConsumerServiceUrl\', \'ProtocolBinding\']]',
+            'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [AssertionConsumerServiceIndex, [AssertionConsumerServiceUrl, ProtocolBinding]]',
             response_text
         )
 
@@ -300,7 +300,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertIn(
-            'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [\'AssertionConsumerServiceIndex\', [\'AssertionConsumerServiceUrl\', \'ProtocolBinding\']]',
+            'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [AssertionConsumerServiceIndex, [AssertionConsumerServiceUrl, ProtocolBinding]]',
             response_text
         )
 
@@ -315,7 +315,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertIn(
-            'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [\'AssertionConsumerServiceIndex\', [\'AssertionConsumerServiceUrl\', \'ProtocolBinding\']]',
+            'Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: [AssertionConsumerServiceIndex, [AssertionConsumerServiceUrl, ProtocolBinding]]',
             response_text
         )
 

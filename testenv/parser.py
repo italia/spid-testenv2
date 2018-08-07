@@ -110,7 +110,7 @@ class MultiAttr(object):
 
     @property
     def real_name(self):
-        return [attr.real_name for attr in self._attrs]
+        return '[{}]'.format(', '.join([attr.real_name for attr in self._attrs]))
 
 
 class And(MultiAttr):
@@ -138,9 +138,9 @@ class And(MultiAttr):
         _reduced = reduce((lambda x, y: x or y), _validation_matrix)
         if not all(_validation_matrix) and not _reduced:
             error_msg = 'Tutti gli attributi o gruppi di attributi' \
-            ' devono essere presenti: {}'
+            ' devono essere presenti: [{}]'
             _errors['required_error'] = error_msg.format(
-                [a.real_name for a in self._attrs]
+                ', '.join([a.real_name for a in self._attrs])
             )
         _validations.update(_validations_secondary)
         return _validations, _errors
@@ -170,9 +170,9 @@ class Or(MultiAttr):
                     _validation_matrix.append(False)
         if not reduce((lambda x, y: x ^ y), _validation_matrix):
             error_msg = 'Uno e uno solo uno tra gli attributi o' \
-            ' gruppi di attributi devono essere presenti: {}'
+            ' gruppi di attributi devono essere presenti: [{}]'
             _errors['required_error'] = error_msg.format(
-                [a.real_name for a in self._attrs]
+                ', '.join([a.real_name for a in self._attrs])
             )
         _validations.update(_validations_secondary)
         return _validations, _errors
