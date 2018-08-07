@@ -24,4 +24,4 @@ after_success:
   - coveralls
 
 before_install:
-  - sudo apt-get install -y libxmlsec1 libffi6
+  - sudo apt-get install -y xmlsec1 libffi6
