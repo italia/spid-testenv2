@@ -20,6 +20,8 @@ from saml2.sigver import REQ_ORDER, import_rsa_key_from_file
 from saml2.s_utils import deflate_and_base64_encode
 from saml2.xmldsig import SIG_RSA_SHA256, SIG_RSA_SHA1
 
+from testenv.utils import get_config
+
 sys.path.insert(0, '../')
 spid_testenv = __import__("spid-testenv")
 
@@ -36,7 +38,7 @@ except ImportError:
 from six.moves.urllib.parse import urlencode
 
 
-DATA_DIR = 'tests/data/'
+DATA_DIR = 'testenv/tests/data/'
 
 
 def generate_certificate(fname, path=DATA_DIR):
@@ -139,7 +141,7 @@ class SpidTestenvTest(unittest.TestCase):
                 cert.text = cert_value
         xml.write(tmp_metadata)
         app = flask.Flask(spid_testenv.__name__, static_url_path='/static')
-        _config = spid_testenv._get_config('tests/data/config.yaml')
+        _config = get_config('testenv/tests/data/config.yaml')
         cls.idp_server = spid_testenv.IdpServer(app=app, config=_config)
         cls.idp_server.app.testing = True
         cls.test_client = cls.idp_server.app.test_client()
@@ -178,7 +180,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertIn(b'Parametro SAMLRequest assente.', response.get_data())
 
     @freeze_time("2018-07-16T10:38:29Z")
-    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request())
+    @patch('testenv.utils.SpidServer.unravel', return_value=generate_authn_request())
     def test_issue_instant_out_of_range(self, unravel):
         response = self.test_client.get('/sso-test?SAMLRequest=b64encodedrequest')
         self.assertEqual(response.status_code, 200)
@@ -193,8 +195,8 @@ class SpidTestenvTest(unittest.TestCase):
         )
 
     @freeze_time("2018-07-16T09:38:29Z")
-    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request())
-    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    @patch('testenv.utils.SpidServer.unravel', return_value=generate_authn_request())
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
     def test_issue_instant_ok(self, unravel, verified):
         response = self.test_client.get(
             '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
@@ -212,8 +214,8 @@ class SpidTestenvTest(unittest.TestCase):
         )
 
     @freeze_time("2018-07-11T07:28:29Z")
-    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request({'issue_instant': '2018-07-11T07:28:57.935Z'}))
-    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    @patch('testenv.utils.SpidServer.unravel', return_value=generate_authn_request({'issue_instant': '2018-07-11T07:28:57.935Z'}))
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
     def test_issue_instant_ms(self, unravel, verified):
         response = self.test_client.get(
             '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
@@ -231,8 +233,8 @@ class SpidTestenvTest(unittest.TestCase):
         )
 
     @freeze_time("2018-07-16T09:38:29Z")
-    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request({'protocol_binding': BINDING_HTTP_REDIRECT}))
-    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    @patch('testenv.utils.SpidServer.unravel', return_value=generate_authn_request({'protocol_binding': BINDING_HTTP_REDIRECT}))
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
     def test_wrong_protocol_binding(self, unravel, verified):
         response = self.test_client.get(
             '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
@@ -246,8 +248,8 @@ class SpidTestenvTest(unittest.TestCase):
         )
 
     @freeze_time("2018-07-16T09:38:29Z")
-    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request({'protocol_binding': BINDING_HTTP_POST}))
-    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    @patch('testenv.utils.SpidServer.unravel', return_value=generate_authn_request({'protocol_binding': BINDING_HTTP_POST}))
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
     def test_right_protocol_binding(self, unravel, verified):
         response = self.test_client.get(
             '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
@@ -261,8 +263,8 @@ class SpidTestenvTest(unittest.TestCase):
         )
 
     @freeze_time("2018-07-16T09:38:29Z")
-    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request())
-    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    @patch('testenv.utils.SpidServer.unravel', return_value=generate_authn_request())
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
     def test_no_assertion_consumer_service_index(self, unravel, verified):
         response = self.test_client.get(
             '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
@@ -275,8 +277,8 @@ class SpidTestenvTest(unittest.TestCase):
         )
 
     @freeze_time("2018-07-16T09:38:29Z")
-    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request(acs_level=1))
-    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    @patch('testenv.utils.SpidServer.unravel', return_value=generate_authn_request(acs_level=1))
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
     def test_no_assertion_consumer_service_url_and_protocol_binding(self, unravel, verified):
         response = self.test_client.get(
             '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
@@ -290,8 +292,8 @@ class SpidTestenvTest(unittest.TestCase):
         )
 
     @freeze_time("2018-07-16T09:38:29Z")
-    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request(acs_level=2))
-    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    @patch('testenv.utils.SpidServer.unravel', return_value=generate_authn_request(acs_level=2))
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
     def test_all_assertion_consumer_service_attributes(self, unravel, verified):
         response = self.test_client.get(
             '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
@@ -305,8 +307,8 @@ class SpidTestenvTest(unittest.TestCase):
         )
 
     @freeze_time("2018-07-16T09:38:29Z")
-    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request(acs_level=3))
-    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    @patch('testenv.utils.SpidServer.unravel', return_value=generate_authn_request(acs_level=3))
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
     def test_no_assertion_consumer_service_attributes(self, unravel, verified):
         response = self.test_client.get(
             '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
@@ -320,8 +322,8 @@ class SpidTestenvTest(unittest.TestCase):
         )
 
     @freeze_time("2018-07-16T09:38:29Z")
-    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request())
-    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    @patch('testenv.utils.SpidServer.unravel', return_value=generate_authn_request())
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
     def test_wrong_signature_algorithm(self, unravel, verified):
         response = self.test_client.get(
             '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA1)),
@@ -335,8 +337,8 @@ class SpidTestenvTest(unittest.TestCase):
         )
 
     @freeze_time("2018-07-16T09:38:29Z")
-    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request())
-    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    @patch('testenv.utils.SpidServer.unravel', return_value=generate_authn_request())
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
     def test_right_signature_algorithm(self, unravel, verified):
         response = self.test_client.get(
             '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
@@ -350,8 +352,8 @@ class SpidTestenvTest(unittest.TestCase):
         )
 
     @freeze_time("2018-07-16T09:38:29Z")
-    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request())
-    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    @patch('testenv.utils.SpidServer.unravel', return_value=generate_authn_request())
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
     def test_in_response_to(self, unravel, verified):
         self.assertEqual(len(self.idp_server.ticket), 0)
         self.assertEqual(len(self.idp_server.responses), 0)
@@ -390,7 +392,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(self.idp_server.ticket), 0)
         self.assertEqual(len(self.idp_server.responses), 0)
-        with patch('spid-testenv.SpidServer.unravel', return_value = generate_authn_request({'id': '9999'})) as mocked:
+        with patch('testenv.utils.SpidServer.unravel', return_value = generate_authn_request({'id': '9999'})) as mocked:
             response = self.test_client.get(
                 '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
                 follow_redirects=True
@@ -422,8 +424,8 @@ class SpidTestenvTest(unittest.TestCase):
             )
 
     @freeze_time("2018-07-16T09:38:29Z")
-    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request(data={'assertion_consumer_service_index': '12345'}, acs_level=1))
-    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    @patch('testenv.utils.SpidServer.unravel', return_value=generate_authn_request(data={'assertion_consumer_service_index': '12345'}, acs_level=1))
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
     def test_wrong_assertion_consumer_service_index(self, unravel, verified):
         response = self.test_client.get(
             '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
@@ -437,8 +439,8 @@ class SpidTestenvTest(unittest.TestCase):
         )
 
     @freeze_time("2018-07-16T09:38:29Z")
-    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request(data={'assertion_consumer_service_index': '0'}, acs_level=1))
-    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    @patch('testenv.utils.SpidServer.unravel', return_value=generate_authn_request(data={'assertion_consumer_service_index': '0'}, acs_level=1))
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
     def test_right_assertion_consumer_service_index(self, unravel, verified):
         response = self.test_client.get(
             '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
@@ -452,8 +454,8 @@ class SpidTestenvTest(unittest.TestCase):
         )
 
     @freeze_time("2018-07-16T09:38:29Z")
-    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request(data={'assertion_consumer_service_index': '0'}, acs_level=1))
-    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    @patch('testenv.utils.SpidServer.unravel', return_value=generate_authn_request(data={'assertion_consumer_service_index': '0'}, acs_level=1))
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
     def test_ensure_correct_redirect_url(self, unravel, verified):
         response = self.test_client.get(
             '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
@@ -489,8 +491,8 @@ class SpidTestenvTest(unittest.TestCase):
         )
 
     @freeze_time("2018-07-16T09:38:29Z")
-    @patch('spid-testenv.SpidServer.unravel', return_value=generate_authn_request())
-    @patch('spid-testenv.verify_redirect_signature', return_value=True)
+    @patch('testenv.utils.SpidServer.unravel', return_value=generate_authn_request())
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
     def test_missing_samlrequest_parameter(self, unravel, verified):
         self.assertEqual(len(self.idp_server.ticket), 0)
         self.assertEqual(len(self.idp_server.responses), 0)
