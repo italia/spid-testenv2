@@ -120,13 +120,13 @@ class IdpServer(object):
             if cert_file_path else None
         if not existing_key:
             raise BadConfiguration(
-                'Chiave privata dell\'IdP di test non\
-                 trovata: {} non trovato'.format(key_file_path)
+                'Chiave privata dell\'IdP di test non'\
+                ' trovata: {} non trovato'.format(key_file_path)
             )
         if not existing_cert:
             raise BadConfiguration(
-                'Certificato dell\'IdP di test non\
-                 trovato: {} non trovato'.format(cert_file_path)
+                'Certificato dell\'IdP di test non'\
+                ' trovato: {} non trovato'.format(cert_file_path)
             )
         self.entity_id = self._config.get('hostname')
         if not self.entity_id:
@@ -199,9 +199,9 @@ class IdpServer(object):
                 if _url:
                     if not _url.startswith('/'):
                         raise BadConfiguration(
-                            'Errore nella configurazione delle url,\
-                             i path devono essere relativi ed iniziare\
-                             con "/" (slash) - url {}'.format(_url)
+                            'Errore nella configurazione delle url,'\
+                            ' i path devono essere relativi ed iniziare'\
+                            ' con "/" (slash) - url {}'.format(_url)
                         )
                     for _binding in self._binding_mapping.keys():
                         self.app.add_url_rule(
@@ -304,8 +304,8 @@ class IdpServer(object):
                 key = kwargs.get('key')
                 otp = ''.join(random.choice(string.digits) for _ in range(6))
                 self.challenges[key] = [otp, datetime.now()]
-                extra_challenge = '<span>Otp ({})</span>\
-                <input type="text" name="otp" />'.format(
+                extra_challenge = '<span>Otp ({})</span>'\
+                '<input type="text" name="otp" />'.format(
                     otp
                 )
             else:
@@ -388,8 +388,8 @@ class IdpServer(object):
                 )
             except KeyError:
                 self._raise_error(
-                    'entity ID {} non registrato, impossibile ricavare\
-                     un certificato valido.'.format(issuer_name)
+                    'entity ID {} non registrato, impossibile ricavare'\
+                    ' un certificato valido.'.format(issuer_name)
                 )
             verified_ok = False
             for cert in _certs:
@@ -431,8 +431,8 @@ class IdpServer(object):
             saml_msg = self.unpack_args(request.form)
         else:
             self._raise_error(
-                'I metodi consentiti sono\
-                 GET (Http-Redirect) o POST (Http-Post)'
+                'I metodi consentiti sono'\
+                ' GET (Http-Redirect) o POST (Http-Post)'
             )
         if 'SAMLRequest' not in saml_msg:
             self._raise_error('Parametro SAMLRequest assente.')
@@ -887,8 +887,8 @@ class IdpServer(object):
         _slo = self._sp_single_logout_service(issuer_name)
         if _slo is None:
             self._raise_error(
-                'Impossibile trovare un servizio di\
-                 Single Logout per il service provider {}'.format(
+                'Impossibile trovare un servizio di'\
+                ' Single Logout per il service provider {}'.format(
                     issuer_name
                 )
             )

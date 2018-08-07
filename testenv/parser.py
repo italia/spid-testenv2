@@ -20,8 +20,8 @@ class Attr(object):
     MANDATORY_ERROR = 'L\'attributo è obbligatorio'
     NO_WANT_ERROR = 'L\'attributo non è richiesto'
     DEFAULT_VALUE_ERROR = '{} è diverso dal valore di riferimento {}'
-    DEFAULT_LIST_VALUE_ERROR = '{} non corrisponde a nessuno\
-     dei valori contenuti in {}'
+    DEFAULT_LIST_VALUE_ERROR = '{} non corrisponde a nessuno'\
+    ' dei valori contenuti in {}'
     LIMITS_VALUE_ERROR = '{} non è compreso tra {} e {}'
 
     def __init__(
@@ -137,8 +137,8 @@ class And(MultiAttr):
                     _validation_matrix.append(False)
         _reduced = reduce((lambda x, y: x or y), _validation_matrix)
         if not all(_validation_matrix) and not _reduced:
-            error_msg = 'Tutti gli attributi o gruppi di attributi \
-            devono essere presenti: {}'
+            error_msg = 'Tutti gli attributi o gruppi di attributi' \
+            ' devono essere presenti: {}'
             _errors['required_error'] = error_msg.format(
                 [a.real_name for a in self._attrs]
             )
@@ -169,8 +169,8 @@ class Or(MultiAttr):
                 else:
                     _validation_matrix.append(False)
         if not reduce((lambda x, y: x ^ y), _validation_matrix):
-            error_msg = 'Uno e uno solo uno tra gli attributi o \
-            gruppi di attributi devono essere presenti: {}'
+            error_msg = 'Uno e uno solo uno tra gli attributi o' \
+            ' gruppi di attributi devono essere presenti: {}'
             _errors['required_error'] = error_msg.format(
                 [a.real_name for a in self._attrs]
             )
