@@ -26,9 +26,9 @@ from testenv.exceptions import BadConfiguration
 from testenv.parser import SpidParser
 from testenv.settings import (ALLOWED_SIG_ALGS, AUTH_NO_CONSENT, DIGEST_ALG,
                               SIGN_ALG, SPID_LEVELS, spid_error_table)
+from testenv.spid import SpidPolicy, SpidServer, ac_factory
 from testenv.users import JsonUserManager
-from testenv.utils import (SpidPolicy, SpidServer, ac_factory, get_spid_error,
-                           prettify_xml)
+from testenv.utils import get_spid_error, prettify_xml
 
 try:
     from saml2.sigver import get_xmlsec_binary
