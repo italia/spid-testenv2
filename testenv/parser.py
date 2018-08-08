@@ -356,13 +356,6 @@ class SpidParser(object):
                     Elem(
                         'issuer',
                         tag='saml:Issuer',
-                        example='''
-                            <saml:Issuer
-                                NameQualifier="http://spid.serviceprovider.it"
-                                Format="{}">
-                                spid-sp
-                            </saml:Issuer>
-                        '''.format(NAMEID_FORMAT_ENTITY),
                         attributes=[
                             Attr('format', default=NAMEID_FORMAT_ENTITY),
                             Attr('name_qualifier')
@@ -430,13 +423,6 @@ class SpidParser(object):
                     Elem(
                         'issuer',
                         tag='saml:Issuer',
-                        example='''
-                            <saml:Issuer
-                                NameQualifier="http://spid.serviceprovider.it"
-                                Format="{}">
-                                spid-sp
-                            </saml:Issuer>
-                        '''.format(NAMEID_FORMAT_ENTITY),
                         attributes=[
                             Attr('format', default=NAMEID_FORMAT_ENTITY),
                             Attr('name_qualifier')
