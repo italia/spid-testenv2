@@ -37,6 +37,9 @@ TIMEDELTA = 2
 SIGN_ALG = ds.SIG_RSA_SHA512
 DIGEST_ALG = ds.DIGEST_SHA512
 
+XML_SCHEMAS = {
+    'protocol': 'saml-schema-protocol-2.0.xsd',
+}
 
 spid_error_table = '''
 <html>

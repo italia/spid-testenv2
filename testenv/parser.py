@@ -4,10 +4,12 @@ from __future__ import unicode_literals
 from datetime import datetime, timedelta
 from functools import reduce
 
+import importlib_resources
 from flask import escape
+from lxml import etree
 from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 from saml2.saml import NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
-from testenv.settings import COMPARISONS, SPID_LEVELS, TIMEDELTA
+from testenv.settings import COMPARISONS, SPID_LEVELS, TIMEDELTA, XML_SCHEMAS
 from testenv.spid import Observer
 from testenv.utils import check_url, check_utc_date, str_to_time
 
@@ -460,3 +462,66 @@ class SpidParser(object):
         validated = _schema.validate(obj)
         errors = self.observer.evaluate()
         return validated, errors
+
+
+class XMLSchemaFileLoader(object):
+    """
+    Load XML Schema instances from the filesystem.
+    """
+
+    def load(self, name):
+        with importlib_resources.path('xsd', name) as path:
+            xmlschema_doc = etree.parse(str(path))
+            return etree.XMLSchema(xmlschema_doc)
+
+
+class XMLValidator(object):
+    """
+    Validate XML fragments against XML Schema (XSD).
+    """
+
+    def __init__(self, schema_loader=None, parser=None):
+        self._schema_loader = schema_loader or XMLSchemaFileLoader()
+        self._parser = parser or etree.XMLParser()
+        self._load_schemas()
+
+    def _load_schemas(self):
+        self._schemas = {
+            type_: self._schema_loader.load(name)
+            for type_, name in XML_SCHEMAS.items()
+        }
+
+    def validate_authnrequest(self, xml):
+        return self._run(xml, 'protocol')
+
+    def _run(self, xml, schema_type):
+        xml_doc, parsing_errors = self._parse_xml(xml)
+        if parsing_errors:
+            return parsing_errors
+        return self._validate_xml(xml_doc, schema_type)
+
+    def _parse_xml(self, xml):
+        xml_doc, errors = None, []
+        try:
+            xml_doc = etree.fromstring(xml, parser=self._parser)
+        except SyntaxError:
+            error_log = self._parser.error_log
+            errors = self._handle_errors(error_log)
+        return xml_doc, errors
+
+    def _validate_xml(self, xml_doc, schema_type):
+        schema = self._schemas[schema_type]
+        errors = []
+        try:
+            schema.assertValid(xml_doc)
+        except Exception:
+            error_log = schema.error_log
+            errors = self._handle_errors(error_log)
+        return errors
+
+    @staticmethod
+    def _handle_errors(errors):
+        return [
+            (err.line, err.column, err.domain_name, err.type_name, err.message)
+            for err in errors
+        ]
