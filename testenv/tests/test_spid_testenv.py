@@ -581,6 +581,7 @@ class SpidTestenvTest(unittest.TestCase):
     @patch('testenv.spid.SpidServer.unravel', return_value=generate_authn_request(data={'issuer__url': 'https://something.spid.test'}, acs_level=1))
     @patch('testenv.server.verify_redirect_signature', return_value=True)
     def test_wrong_issuer(self, unravel, verified):
+        # See: https://github.com/italia/spid-testenv2/issues/42
         response = self.test_client.get(
             '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
             follow_redirects=True
