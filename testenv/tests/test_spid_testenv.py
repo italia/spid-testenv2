@@ -577,6 +577,22 @@ class SpidTestenvTest(unittest.TestCase):
         xmlstr = self.idp_server.ticket[key].xmlstr
         self.assertEqual(xml_message, xmlstr)
 
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('testenv.spid.SpidServer.unravel', return_value=generate_authn_request(data={'issuer__url': 'https://something.spid.test'}, acs_level=1))
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
+    def test_wrong_issuer(self, unravel, verified):
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(self.idp_server.ticket), 0)
+        self.assertEqual(len(self.idp_server.responses), 0)
+        response_text = response.get_data(as_text=True)
+        self.assertIn(
+            'entity ID https://something.spid.test non registrato.',
+            response_text
+        )
 
 if __name__ == '__main__':
     unittest.main()

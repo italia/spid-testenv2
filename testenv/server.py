@@ -470,6 +470,8 @@ class IdpServer(object):
             extra = {}
             sp_id = authn_req.issuer.text
             issuer_name = authn_req.issuer.text
+            if issuer_name and issuer_name not in self.server.metadata.service_providers():
+                raise UnknownSystemEntity
             # TODO: refactor a bit fetching this kind of data from pysaml2
             atcss = []
             for k, _md in self.server.metadata.items():
