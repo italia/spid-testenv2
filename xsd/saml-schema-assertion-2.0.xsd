@@ -163,7 +163,7 @@
             </sequence>
             <attribute name="Count" type="nonNegativeInteger" use="optional"/>
         </extension>
-	</complexContent>
+    </complexContent>
     </complexType>
     <element name="Advice" type="saml:AdviceType"/>
     <complexType name="AdviceType">
