@@ -574,6 +574,8 @@ class IdpServer(object):
             username = request.form.get('username')
             password = request.form.get('password')
             sp = request.form.get('service_provider')
+            if not sp:
+                sp = None
             if not username or not password:
                 abort(400)
             extra = {}
