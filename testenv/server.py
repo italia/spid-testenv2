@@ -411,7 +411,10 @@ class IdpServer(object):
                     'Verifica della firma del messaggio fallita.'
                 )
         else:
-            self._raise_error('Messaggio SAML non firmato.')
+            self._raise_error(
+                'I parametri Signature e SigAlg sono entrambi'\
+                ' necessari per le richieste di tipo HTTP-REDIRECT'
+            )
 
     def _parse_message(self, action='login'):
         """

@@ -528,6 +528,7 @@ class SpidTestenvTest(unittest.TestCase):
 
     @freeze_time("2018-07-16T09:38:29Z")
     def test_authn_request_http_redirect_missing_signature_parameter(self):
+        # See: https://github.com/italia/spid-testenv2/issues/36
         xml_message = generate_authn_request()
         encoded_message = deflate_and_base64_encode(xml_message)
         self.assertEqual(len(self.idp_server.ticket), 0)
@@ -539,7 +540,47 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertIn(
-            'Messaggio SAML non firmato.',
+            'I parametri Signature e SigAlg sono entrambi necessari per le richieste di tipo HTTP-REDIRECT',
+            response_text
+        )
+        self.assertEqual(len(self.idp_server.ticket), 0)
+        self.assertEqual(len(self.idp_server.responses), 0)
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    def test_authn_request_http_redirect_missing_sigalg_parameter(self):
+        # See: https://github.com/italia/spid-testenv2/issues/36
+        xml_message = generate_authn_request()
+        encoded_message = deflate_and_base64_encode(xml_message)
+        self.assertEqual(len(self.idp_server.ticket), 0)
+        self.assertEqual(len(self.idp_server.responses), 0)
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest={}&Signature={}'.format(quote(encoded_message), quote(SIG_RSA_SHA256)),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        response_text = response.get_data(as_text=True)
+        self.assertIn(
+            'I parametri Signature e SigAlg sono entrambi necessari per le richieste di tipo HTTP-REDIRECT',
+            response_text
+        )
+        self.assertEqual(len(self.idp_server.ticket), 0)
+        self.assertEqual(len(self.idp_server.responses), 0)
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    def test_authn_request_http_redirect_missing_sigalg_and_signature_parameter(self):
+        # See: https://github.com/italia/spid-testenv2/issues/36
+        xml_message = generate_authn_request()
+        encoded_message = deflate_and_base64_encode(xml_message)
+        self.assertEqual(len(self.idp_server.ticket), 0)
+        self.assertEqual(len(self.idp_server.responses), 0)
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest={}'.format(quote(encoded_message), quote(SIG_RSA_SHA256)),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        response_text = response.get_data(as_text=True)
+        self.assertIn(
+            'I parametri Signature e SigAlg sono entrambi necessari per le richieste di tipo HTTP-REDIRECT',
             response_text
         )
         self.assertEqual(len(self.idp_server.ticket), 0)
