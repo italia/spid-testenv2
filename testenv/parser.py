@@ -306,6 +306,7 @@ class SpidParser(object):
             assertion_consumer_service_indexes = kwargs.get(
                 'assertion_consumer_service_indexes'
             )
+            issuer = kwargs.get('issuer')
             _schema = Elem(
                 name='auth_request',
                 tag='samlp:AuthnRequest',
@@ -358,7 +359,7 @@ class SpidParser(object):
                         tag='saml:Issuer',
                         attributes=[
                             Attr('format', default=NAMEID_FORMAT_ENTITY),
-                            Attr('name_qualifier')
+                            Attr('name_qualifier', default=issuer)
                         ],
                     ),
                     Elem(

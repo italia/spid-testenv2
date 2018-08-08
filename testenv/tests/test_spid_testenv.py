@@ -64,6 +64,7 @@ def generate_authn_request(data={}, acs_level=0):
     acsu = data.get('assertion_consumer_service_url') if data.get('assertion_consumer_service_url') else 'https://spid.test:8000/acs-test'
     issuer__format = data.get('issuer__format') if data.get('issuer__format') else NAMEID_FORMAT_ENTITY
     issuer_url = data.get('issuer__url') if data.get('issuer__url') else 'https://spid.test:8000'
+    issuer__namequalifier = data.get('issuer__namequalifier') if data.get('issuer__namequalifier') else issuer_url
     name_id_policy__format = data.get('name_id_policy__format') if data.get('name_id_policy__format') else NAMEID_FORMAT_TRANSIENT
     requested_authn_context__comparison = data.get('requested_authn_context__comparison') if data.get('requested_authn_context__comparison') else 'exact'
     requested_authn_context__authn_context_class_ref = data.get('requested_authn_context__authn_context_class_ref') if data.get('requested_authn_context__authn_context_class_ref') else 'https://www.spid.gov.it/SpidL1'
@@ -107,7 +108,7 @@ def generate_authn_request(data={}, acs_level=0):
         destination,
         _acs,
         issuer__format,
-        issuer_url,
+        issuer__namequalifier,
         issuer_url,
         name_id_policy__format,
         requested_authn_context__comparison,
@@ -633,6 +634,24 @@ class SpidTestenvTest(unittest.TestCase):
         response_text = response.get_data(as_text=True)
         self.assertIn(
             'entity ID https://something.spid.test non registrato.',
+            response_text
+        )
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('testenv.spid.SpidServer.unravel', return_value=generate_authn_request(data={'issuer__namequalifier': 'https://something.spid.test'}, acs_level=1))
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
+    def test_wrong_issuer_namequalifier(self, unravel, verified):
+        # See: https://github.com/italia/spid-testenv2/issues/42
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(self.idp_server.ticket), 0)
+        self.assertEqual(len(self.idp_server.responses), 0)
+        response_text = response.get_data(as_text=True)
+        self.assertIn(
+            'https://something.spid.test è diverso dal valore di riferimento https://spid.test:8000',
             response_text
         )
 

@@ -493,6 +493,7 @@ class IdpServer(object):
                 ascss = []
             atcss_indexes = [str(el.get('index')) for el in atcss]
             ascss_indexes = [str(el.get('index')) for el in ascss]
+            extra['issuer'] = issuer_name
             extra['attribute_consuming_service_indexes'] = atcss_indexes
             extra['assertion_consumer_service_indexes'] = ascss_indexes
             extra['receivers'] = req_info.receiver_addrs
