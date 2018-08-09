@@ -641,7 +641,7 @@ class SpidTestenvTest(unittest.TestCase):
     @patch('testenv.spid.SpidServer.unravel', return_value=generate_authn_request(data={'issuer__namequalifier': 'https://something.spid.test'}, acs_level=1))
     @patch('testenv.server.verify_redirect_signature', return_value=True)
     def test_wrong_issuer_namequalifier(self, unravel, verified):
-        # See: https://github.com/italia/spid-testenv2/issues/42
+        # See: https://github.com/italia/spid-testenv2/issues/77
         response = self.test_client.get(
             '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
             follow_redirects=True
@@ -654,6 +654,25 @@ class SpidTestenvTest(unittest.TestCase):
             'https://something.spid.test è diverso dal valore di riferimento https://spid.test:8000',
             response_text
         )
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('testenv.spid.SpidServer.unravel', return_value=generate_authn_request(data={'issuer__namequalifier': 'something'}, acs_level=1))
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
+    def test_wrong_issuer_namequalifier_not_an_url(self, unravel, verified):
+        # See: https://github.com/italia/spid-testenv2/issues/77
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(self.idp_server.ticket), 0)
+        self.assertEqual(len(self.idp_server.responses), 0)
+        response_text = response.get_data(as_text=True)
+        self.assertIn(
+            'la url non è in formato corretto',
+            response_text
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -9,7 +9,7 @@ from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 from saml2.saml import NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
 from testenv.settings import COMPARISONS, SPID_LEVELS, TIMEDELTA
 from testenv.spid import Observer
-from testenv.utils import check_utc_date, str_to_time
+from testenv.utils import check_url, check_utc_date, str_to_time
 
 
 class Attr(object):
@@ -359,7 +359,8 @@ class SpidParser(object):
                         tag='saml:Issuer',
                         attributes=[
                             Attr('format', default=NAMEID_FORMAT_ENTITY),
-                            Attr('name_qualifier', default=issuer)
+                            Attr('name_qualifier', default=issuer, func=check_url),
+                            Attr('text', func=check_url)
                         ],
                     ),
                     Elem(
@@ -426,7 +427,8 @@ class SpidParser(object):
                         tag='saml:Issuer',
                         attributes=[
                             Attr('format', default=NAMEID_FORMAT_ENTITY),
-                            Attr('name_qualifier')
+                            Attr('name_qualifier', default=issuer, func=check_url),
+                            Attr('text', func=check_url)
                         ],
                     ),
                     Elem(

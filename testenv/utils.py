@@ -2,10 +2,12 @@
 from __future__ import unicode_literals
 
 import json
+import re
 from datetime import datetime
 
 import lxml.etree as etree
 import yaml
+from six.moves.urllib.parse import urlparse
 
 from saml2 import time_util
 from testenv.settings import SPID_ERRORS
@@ -35,7 +37,14 @@ def check_utc_date(date):
     return True
 
 
+def check_url(url):
+    regex = re.compile(r'^https?://(\w+\.)*\w+\.\w+(:\d+)*$')
+    is_matching = True if re.match(regex, url) else False
+    return is_matching
+
+
 check_utc_date.error_msg = 'la data non è in formato UTC'
+check_url.error_msg = 'la url non è in formato corretto'
 
 
 def str_to_time(val):
