@@ -482,8 +482,11 @@ class XMLSchemaFileLoader(object):
     Load XML Schema instances from the filesystem.
     """
 
+    def __init__(self, import_path=None):
+        self._import_path = import_path or 'testenv.xsd'
+
     def load(self, name):
-        with importlib_resources.path('xsd', name) as path:
+        with importlib_resources.path(self._import_path, name) as path:
             xmlschema_doc = etree.parse(str(path))
             return etree.XMLSchema(xmlschema_doc)
 
