@@ -22,6 +22,7 @@ from saml2.response import IncorrectlySigned
 from saml2.s_utils import UnknownSystemEntity, UnsupportedBinding
 from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, Attribute
 from saml2.sigver import verify_redirect_signature
+
 from testenv.exceptions import BadConfiguration
 from testenv.parser import SpidParser
 from testenv.settings import (ALLOWED_SIG_ALGS, AUTH_NO_CONSENT, DIGEST_ALG,
