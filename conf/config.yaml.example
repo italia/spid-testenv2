@@ -1,9 +1,9 @@
 ---
 # CONFIGURAZIONE IDENTITY PROVIDER
 
-# Hostname da usare per generare l'entityID dell'IdP e gli URL degli endpoint
+# URL da usare per generare l'entityID dell'IdP e gli URL degli endpoint
 # SAML indicati nel metadata dell'IdP
-hostname: "localhost"
+base_url: "https://localhost"
 
 # Chiave e certificato necessari per la firma dei messaggi SAML
 key_file: "idp.key"

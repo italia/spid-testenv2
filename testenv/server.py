@@ -128,13 +128,11 @@ class IdpServer(object):
                 'Certificato dell\'IdP di test non'\
                 ' trovato: {} non trovato'.format(cert_file_path)
             )
-        self.entity_id = self._config.get('hostname')
+        self.entity_id = self._config.get('base_url')
         if not self.entity_id:
-            self.entity_id = self._config.get('host')
-        self.entity_id = '{}://{}'.format(self._mode, self.entity_id)
-        port = self._config.get('port')
-        if port:
-            self.entity_id = '{}:{}'.format(self.entity_id, port)
+            raise BadConfiguration(
+                'base_url non impostato!'
+            )
         idp_conf = {
             'entityid': self.entity_id,
             'description': 'Spid Test IdP',
