@@ -6,8 +6,8 @@
 hostname: "localhost"
 
 # Chiave e certificato necessari per la firma dei messaggi SAML
-key_file: "idp.key"
-cert_file: "idp.crt"
+key_file: "./conf/idp.key"
+cert_file: "./conf/idp.crt"
 
 
 # CONFIGURAZIONE SERVICE PROVIDER
@@ -20,10 +20,10 @@ cert_file: "idp.crt"
 # cfr. https://pysaml2.readthedocs.io/en/latest/howto/config.html#metadata
 metadata:
 #  local:
-#  - "sp_metadata.xml"
+#  - "./conf/sp_metadata.xml"
 #  remote:
 #  - url: "http://spid-sp/metadata
-#    cert: "spid-sp.cert"
+#    cert: "./conf/spid-sp.cert"
 
 
 # CONFIGURAZIONE TESTENV WEB SERVER
