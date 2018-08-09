@@ -48,7 +48,6 @@ class RequestMixin(object):
         self.xmlstr = xmldata[:]
         #logger.debug("xmlstr: %s", self.xmlstr)
         try:
-            print(self.signature_check)
             self.message = self.signature_check(xmldata, origdoc=origdoc,
                                                 must=must,
                                                 only_valid_cert=only_valid_cert)
@@ -65,7 +64,7 @@ class RequestMixin(object):
 
         #logger.info("request: %s", self.message)
         from testenv.parser import XMLValidator
-        errors = XMLValidator().validate_authnrequest(self.xmlstr)
+        errors = XMLValidator().validate_request(self.xmlstr)
         if errors:
             raise SpidValidationError(xml=self.xmlstr, validation_errors=errors)
         return self

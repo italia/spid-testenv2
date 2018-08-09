@@ -494,7 +494,7 @@ class XMLValidator(object):
             for type_, name in XML_SCHEMAS.items()
         }
 
-    def validate_authnrequest(self, xml):
+    def validate_request(self, xml):
         return self._run(xml, 'protocol')
 
     def _run(self, xml, schema_type):
