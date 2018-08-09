@@ -12,7 +12,7 @@ class Libxml2Translator(object):
         'PARSER': {
             'ERR_DOCUMENT_END': {
                 _c(r'Extra content at the end of the document'):
-                'Contenuto extra alla fine del documento',
+                'Contenuto extra alla fine del documento.',
             },
             'ERR_DOCUMENT_EMPTY': {
                 _c(r'Document is empty'):
