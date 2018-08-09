@@ -12,10 +12,12 @@ from saml2.assertion import Policy
 from saml2.attribute_converter import AttributeConverter
 from saml2.entity import UnknownBinding
 from saml2.request import AuthnRequest, LogoutRequest
+from saml2.response import IncorrectlySigned
 from saml2.s_utils import (UnravelError, decode_base64_and_inflate, do_ava,
                            factory)
 from saml2.saml import Attribute
 from saml2.server import Server
+from testenv.exceptions import SpidValidationError
 
 
 class Observer(object):
@@ -36,13 +38,46 @@ class Observer(object):
         return _errors
 
 
-class SpidAuthnRequest(AuthnRequest):
+class RequestMixin(object):
+    def _loads(self, xmldata, binding=None, origdoc=None, must=None,
+            only_valid_cert=False):
+        if binding == BINDING_HTTP_REDIRECT:
+            pass
+
+        # own copy
+        self.xmlstr = xmldata[:]
+        #logger.debug("xmlstr: %s", self.xmlstr)
+        try:
+            print(self.signature_check)
+            self.message = self.signature_check(xmldata, origdoc=origdoc,
+                                                must=must,
+                                                only_valid_cert=only_valid_cert)
+        except TypeError as e:
+            raise
+        except Exception as excp:
+            pass
+            # logger.info("EXCEPTION: %s", excp)
+
+        if not self.message:
+            # logger.error("Response was not correctly signed")
+            # logger.info("Response: %s", xmldata)
+            raise IncorrectlySigned()
+
+        #logger.info("request: %s", self.message)
+        from testenv.parser import XMLValidator
+        errors = XMLValidator().validate_authnrequest(self.xmlstr)
+        if errors:
+            raise SpidValidationError(xml=self.xmlstr, validation_errors=errors)
+        return self
+
+
+class SpidAuthnRequest(RequestMixin, AuthnRequest):
     def verify(self):
         # TODO: move here a bit of parsing flow
         return self
 
 
-class SpidLogoutRequest(LogoutRequest):
+class SpidLogoutRequest(RequestMixin, LogoutRequest):
     def verify(self):
         # TODO: move here a bit of parsing flow
         return self

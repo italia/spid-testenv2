@@ -55,7 +55,7 @@ def generate_certificate(fname, path=DATA_DIR):
 
 
 def generate_authn_request(data={}, acs_level=0):
-    _id = data.get('id') if data.get('id') else '123456'
+    _id = data.get('id') if data.get('id') else 'test_123456'
     version = data.get('version') if data.get('version') else '2.0'
     issue_instant = data.get('issue_instant') if data.get('issue_instant') else '2018-07-16T09:38:29Z'
     destination = data.get('destination') if data.get('destination') else 'http://spid-testenv:8088/sso-test'
@@ -72,7 +72,7 @@ def generate_authn_request(data={}, acs_level=0):
     if acs_level == 0:
         _acs = '''
             ProtocolBinding="%s"
-            AssertionConsumerServiceURL="%s">
+            AssertionConsumerServiceURL="%s"
         ''' % (protocol_binding, acsu)
     elif acs_level == 1:
         _acs = '''
@@ -391,7 +391,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(self.idp_server.ticket), 0)
         self.assertEqual(len(self.idp_server.responses), 0)
-        with patch('testenv.spid.SpidServer.unravel', return_value = generate_authn_request({'id': '9999'})) as mocked:
+        with patch('testenv.spid.SpidServer.unravel', return_value = generate_authn_request({'id': 'test_9999'})) as mocked:
             response = self.test_client.get(
                 '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
                 follow_redirects=True

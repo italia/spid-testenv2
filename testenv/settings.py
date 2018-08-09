@@ -82,6 +82,14 @@ spid_error_table = '''
                     </td>
                 </tr>
             {% endfor %}
+            {% for err in validation_errors %}
+                <tr>
+                    <td class="spid-error__elem" id="{{err.path}}">{{err.path}}</td>
+                    <td>
+                        {{err.message}}
+                    </td>
+                </tr>
+            {% endfor %}
         </tbody>
     </table>
 
