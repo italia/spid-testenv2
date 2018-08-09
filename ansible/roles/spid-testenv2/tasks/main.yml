@@ -71,11 +71,11 @@
     regexp: "^host:"
     line: "host: 127.0.0.1"
 
-- name: configure testenv2 so that it knows about its hostname
+- name: configure the testenv2 base url
   lineinfile:
     path: "{{ spid_testenv2_dir }}/conf/config.yaml"
-    regexp: "^hostname:"
-    line: "hostname: {{ spid_testenv2_hostname }}"
+    regexp: "^base_url:"
+    line: "base_url: https://{{ spid_testenv2_hostname }}"
 
 - name: start testenv2 service
   command: systemctl start testenv2
