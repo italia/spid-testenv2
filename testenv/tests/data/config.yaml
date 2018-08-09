@@ -2,7 +2,7 @@
 debug: true
 host: 0.0.0.0
 port: 8088
-hostname: spid-testenv
+base_url: "http://spid-testenv:8088"
 https: false
 endpoints:
   single_sign_on_service: "/sso-test"
