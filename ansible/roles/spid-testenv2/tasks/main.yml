@@ -23,13 +23,13 @@
     dest: "{{ spid_testenv2_dir }}"
 
 - name: generate the IDP certificate
-  command: openssl req -x509 -nodes -sha256 -days 365 -newkey rsa:2048 -subj "/C=IT/ST=Italy/L=Rome/O=testenv2/CN=${ansible_fqdn}" -keyout {{ spid_testenv2_dir }}/idp.key -out {{ spid_testenv2_dir }}/idp.crt
+  command: openssl req -x509 -nodes -sha256 -days 365 -newkey rsa:2048 -subj "/C=IT/ST=Italy/L=Rome/O=testenv2/CN=${ansible_fqdn}" -keyout {{ spid_testenv2_dir }}/conf/idp.key -out {{ spid_testenv2_dir }}/conf/idp.crt
   args:
     creates: /etc/nginx/ssl/server.crt
 
 - name: make sure the non-privileged user can read the key
   file:
-    path: "{{ spid_testenv2_dir }}/idp.key"
+    path: "{{ spid_testenv2_dir }}/conf/idp.key"
     state: file
     owner: "{{ spid_testenv2_user }}"
 
