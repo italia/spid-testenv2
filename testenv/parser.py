@@ -11,7 +11,8 @@ from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 from saml2.saml import NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
 from testenv.settings import COMPARISONS, SPID_LEVELS, TIMEDELTA, XML_SCHEMAS
 from testenv.spid import Observer
-from testenv.utils import check_url, check_utc_date, str_to_time
+from testenv.translation import Libxml2Translator
+from testenv.utils import XMLError, check_url, check_utc_date, str_to_time
 
 
 class Attr(object):
@@ -480,9 +481,10 @@ class XMLValidator(object):
     Validate XML fragments against XML Schema (XSD).
     """
 
-    def __init__(self, schema_loader=None, parser=None):
+    def __init__(self, schema_loader=None, parser=None, translator=None):
         self._schema_loader = schema_loader or XMLSchemaFileLoader()
         self._parser = parser or etree.XMLParser()
+        self._translator = translator or Libxml2Translator()
         self._load_schemas()
 
     def _load_schemas(self):
@@ -519,9 +521,10 @@ class XMLValidator(object):
             errors = self._handle_errors(error_log)
         return errors
 
-    @staticmethod
-    def _handle_errors(errors):
-        return [
-            (err.line, err.column, err.domain_name, err.type_name, err.message)
+    def _handle_errors(self, errors):
+        original_errors = [
+            XMLError(err.line, err.column, err.domain_name,
+                     err.type_name, err.message, err.path)
             for err in errors
         ]
+        return self._translator.translate_many(original_errors)
