@@ -17,7 +17,6 @@ from saml2.s_utils import (UnravelError, decode_base64_and_inflate, do_ava,
                            factory)
 from saml2.saml import Attribute
 from saml2.server import Server
-from testenv.exceptions import SpidValidationError
 
 
 class Observer(object):
@@ -39,14 +38,15 @@ class Observer(object):
 
 
 class RequestMixin(object):
+
+    # TODO: refactor a bit this flow, maybe writing from scratch custom components using pysaml2
+    #       atomic components...
+
     def _loads(self, xmldata, binding=None, origdoc=None, must=None,
             only_valid_cert=False):
-        if binding == BINDING_HTTP_REDIRECT:
-            pass
-
-        # own copy
+        # See https://github.com/IdentityPython/pysaml2/blob/master/src/saml2/request.py#L39
         self.xmlstr = xmldata[:]
-        #logger.debug("xmlstr: %s", self.xmlstr)
+
         try:
             self.message = self.signature_check(xmldata, origdoc=origdoc,
                                                 must=must,
@@ -55,31 +55,24 @@ class RequestMixin(object):
             raise
         except Exception as excp:
             pass
-            # logger.info("EXCEPTION: %s", excp)
 
         if not self.message:
-            # logger.error("Response was not correctly signed")
-            # logger.info("Response: %s", xmldata)
             raise IncorrectlySigned()
 
-        #logger.info("request: %s", self.message)
-        from testenv.parser import XMLValidator
-        errors = XMLValidator().validate_request(self.xmlstr)
-        if errors:
-            raise SpidValidationError(xml=self.xmlstr, validation_errors=errors)
+        return self
+    
+    def verify(self):
+        # https://github.com/IdentityPython/pysaml2/blob/master/src/saml2/request.py#L98
+        # TODO: move here a bit of parsing flow
         return self
 
 
 class SpidAuthnRequest(RequestMixin, AuthnRequest):
-    def verify(self):
-        # TODO: move here a bit of parsing flow
-        return self
+    pass
 
 
 class SpidLogoutRequest(RequestMixin, LogoutRequest):
-    def verify(self):
-        # TODO: move here a bit of parsing flow
-        return self
+    pass
 
 
 class SpidServer(Server):
@@ -90,6 +83,8 @@ class SpidServer(Server):
         :param binding: Which binding that was used to transport the message
             to this entity.
         :return: A request instance
+        
+        See: https://github.com/IdentityPython/pysaml2/blob/master/src/saml2/server.py#L221
         """
 
         return self._parse_request(enc_request, SpidAuthnRequest,
@@ -103,6 +98,8 @@ class SpidServer(Server):
         :return: None if the reply doesn't contain a valid SAML LogoutResponse,
             otherwise the reponse if the logout was successful and None if it
             was not.
+        
+        See: https://github.com/IdentityPython/pysaml2/blob/master/src/saml2/entity.py#L1183
         """
 
         return self._parse_request(xmlstr, SpidLogoutRequest,
@@ -117,6 +114,8 @@ class SpidServer(Server):
         :param binding:
         :param msgtype:
         :return:
+
+        See: https://github.com/IdentityPython/pysaml2/blob/master/src/saml2/entity.py#L368
         """
         if binding not in [
             BINDING_HTTP_REDIRECT, BINDING_HTTP_POST, None
@@ -138,6 +137,7 @@ class SpidServer(Server):
 class SpidPolicy(Policy):
 
     def __init__(self, restrictions=None, index=None):
+        # See: https://github.com/IdentityPython/pysaml2/blob/master/src/saml2/assertion.py#L325
         super(SpidPolicy, self).__init__(restrictions=restrictions)
         self.index = index
 
@@ -148,6 +148,8 @@ class SpidPolicy(Policy):
         :return: A filtered ava according to the IdPs/AAs rules and
             the list of required/optional attributes according to the SP.
             If the requirements can't be met an exception is raised.
+
+        See: https://github.com/IdentityPython/pysaml2/blob/master/src/saml2/assertion.py#L539
         """
         if metadata:
             spec = metadata.attribute_requirement(
@@ -166,6 +168,8 @@ def ac_factory(path="", **kwargs):
     :param path: The path to a directory where the attribute maps are expected
         to reside.
     :return: A AttributeConverter instance
+
+    See: https://github.com/IdentityPython/pysaml2/blob/master/src/saml2/attribute_converter.py#L52
     """
     acs = []
 
@@ -209,6 +213,7 @@ def ac_factory(path="", **kwargs):
 class SpidAttributeConverter(AttributeConverter):
 
     def __init__(self, name_format="", special_cases={}):
+        # See: https://github.com/IdentityPython/pysaml2/blob/master/src/saml2/attribute_converter.py#L274
         super(SpidAttributeConverter, self).__init__(name_format)
         self._special_cases = special_cases
 
@@ -217,6 +222,8 @@ class SpidAttributeConverter(AttributeConverter):
 
         :param attrvals: A dictionary of attributes and values
         :return: A list of Attribute instances
+
+        See: https://github.com/IdentityPython/pysaml2/blob/master/src/saml2/attribute_converter.py#L486
         """
         attributes = []
         for key, value in attrvals.items():

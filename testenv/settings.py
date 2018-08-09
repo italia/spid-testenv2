@@ -60,7 +60,7 @@ spid_error_table = '''
             </tr>
         </thead>
         <tbody>
-            {% for err in errors %}
+            {% for err in spid_errors %}
                 <tr>
                     <td class="spid-error__elem" id="{{err.1}}">{{err.1}}</td>
                     <td>

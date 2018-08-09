@@ -22,7 +22,7 @@ from saml2.response import IncorrectlySigned
 from saml2.s_utils import UnknownSystemEntity, UnsupportedBinding
 from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, Attribute
 from saml2.sigver import verify_redirect_signature
-from testenv.exceptions import BadConfiguration, SpidValidationError
+from testenv.exceptions import BadConfiguration
 from testenv.parser import SpidParser
 from testenv.settings import (ALLOWED_SIG_ALGS, AUTH_NO_CONSENT, DIGEST_ALG,
                               SIGN_ALG, SPID_LEVELS, spid_error_table)
@@ -335,7 +335,7 @@ class IdpServer(object):
 
     def _check_spid_restrictions(self, msg, action, binding, **kwargs):
         parsed_msg, errors = self.spid_parser.parse(
-            msg.message, action, binding, **kwargs
+            msg, action, binding, **kwargs
         )
         self.app.logger.debug('parsed authn_request: {}'.format(parsed_msg))
         return parsed_msg, errors
@@ -352,14 +352,14 @@ class IdpServer(object):
         self.ticket[key] = authnreq
         return key
 
-    def _handle_errors(self, xmlstr, errors=[], validation_errors=[]):
+    def _handle_errors(self, xmlstr, errors={}):
         _escaped_xml = escape(prettify_xml(xmlstr.decode()))
         rendered_error_response = render_template_string(
             spid_error_table,
             **{
                 'lines': _escaped_xml.splitlines(),
-                'errors': errors,
-                'validation_errors': validation_errors
+                'spid_errors': errors.get('spid_errors', []),
+                'validation_errors': errors.get('validation_errors', [])
                 }
             )
         return rendered_error_response
@@ -518,9 +518,6 @@ class IdpServer(object):
                     issuer_name
                 )
             )
-        except SpidValidationError as err:
-            self.app.logger.debug('validation errors: {}'.format(err.validation_errors))
-            return self._handle_errors(err.xml, validation_errors=err.validation_errors)
 
         if errors:
             return self._handle_errors(req_info.xmlstr, errors=errors)
@@ -889,7 +886,7 @@ class IdpServer(object):
             )
 
         if errors:
-            return self._handle_errors(errors, req_info.xmlstr)
+            return self._handle_errors(req_info.xmlstr, errors=errors)
 
         # Check if it is signed
         if _binding == BINDING_HTTP_REDIRECT:

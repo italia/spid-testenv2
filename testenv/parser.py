@@ -290,6 +290,8 @@ class SpidParser(object):
     """
 
     def __init__(self, *args, **kwargs):
+        from testenv.parser import XMLValidator
+        self.xml_validator = XMLValidator()
         self.schema = None
 
     def get_schema(self, action, binding, **kwargs):
@@ -457,12 +459,21 @@ class SpidParser(object):
         :param binding:
         :param schema: custom schema (None by default)
         """
+
+        errors = {}
+        # Validate xml against its XSD schema
+        validation_errors = self.xml_validator.validate_request(obj.xmlstr)
+        if validation_errors:
+            errors['validation_errors'] = validation_error
+        # Validate xml against SPID rules
         _schema = self.get_schema(action, binding, **kwargs)\
             if schema is None else schema
         self.observer = Observer()
         self.observer.attach(_schema)
-        validated = _schema.validate(obj)
-        errors = self.observer.evaluate()
+        validated = _schema.validate(obj.message)
+        spid_errors = self.observer.evaluate()
+        if spid_errors:
+            errors['spid_errors'] = spid_errors
         return validated, errors
 
 
