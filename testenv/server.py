@@ -9,8 +9,8 @@ from datetime import datetime
 from hashlib import sha1
 from logging.handlers import RotatingFileHandler
 
-from flask import (Response, abort, escape, redirect, render_template,
-                   request, session, url_for)
+from flask import (Response, abort, escape, redirect, render_template, request,
+                   session, url_for)
 from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 from saml2.assertion import filter_on_demands
 from saml2.attribute_converter import list_to_local
