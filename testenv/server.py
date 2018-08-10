@@ -10,7 +10,7 @@ from hashlib import sha1
 from logging.handlers import RotatingFileHandler
 
 from flask import (Response, abort, escape, redirect, render_template,
-                   render_template_string, request, session, url_for)
+                   request, session, url_for)
 from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 from saml2.assertion import filter_on_demands
 from saml2.attribute_converter import list_to_local
@@ -26,7 +26,7 @@ from saml2.sigver import verify_redirect_signature
 from testenv.exceptions import BadConfiguration
 from testenv.parser import SpidParser
 from testenv.settings import (ALLOWED_SIG_ALGS, AUTH_NO_CONSENT, DIGEST_ALG,
-                              SIGN_ALG, SPID_LEVELS, spid_error_table)
+                              SIGN_ALG, SPID_LEVELS)
 from testenv.spid import SpidPolicy, SpidServer, ac_factory
 from testenv.users import JsonUserManager
 from testenv.utils import get_spid_error, prettify_xml
@@ -355,8 +355,8 @@ class IdpServer(object):
 
     def _handle_errors(self, xmlstr, errors={}):
         _escaped_xml = escape(prettify_xml(xmlstr.decode()))
-        rendered_error_response = render_template_string(
-            spid_error_table,
+        rendered_error_response = render_template(
+            'spid_error.html',
             **{
                 'lines': _escaped_xml.splitlines(),
                 'spid_errors': errors.get('spid_errors', []),

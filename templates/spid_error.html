@@ -1,39 +1,74 @@
 {% extends 'main_page.html' %}
 {% block content %}
+<button name="show_response" class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-quaternary">Mostra Request</button>
 <div id="message">
     {% for line in lines %}
         <pre class="xml-line">{{line}}</pre>
     {% endfor %}
 </div>
-<table border=1>
-    <thead>
-        <tr>
-            <th>Elemento</th>
-            <th>Dettagli errore</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for err in errors %}
+<h2>Validazione tramite XSD</h2>
+{% if validation_errors %}
+    <table class="spid-error" border=1>
+        <thead>
             <tr>
-                <td class="spid-error__elem" id="{{err.1}}">{{err.1}}</td>
+                <th>Elemento</th>
+                <th>Dettagli errore</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for err in validation_errors %}
+            <tr>
+                <td class="spid-error__elem" id="{{err.path}}">{{err.path}}</td>
                 <td>
-                <ul>
-                    {% for name, msgs in err.2.items() %}
-                        <li>{{name}}
-                            <ul>
-                                {% for type, msg in msgs.items() %}
-                                    <li>{{msg|safe}}</li>
-                                {% endfor %}
-                            </ul>
-                        </li>
-                    {% endfor %}
-                </ul>
+                    {{err.message}}
                 </td>
             </tr>
         {% endfor %}
-    </tbody>
-</table>
+        </tbody>
+    </table>
+{% else %}
+<img src="{{ url_for('static', filename='img/icons/form-icon-ok.svg') }}"/>
+{% endif %}
+
+<h2>Validazione Regole spid</h2>
+{% if spid_errors %}
+    <table class="spid-error" border=1>
+        <thead>
+            <tr>
+                <th>Elemento</th>
+                <th>Dettagli errore</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for err in spid_errors %}
+                <tr>
+                    <td class="spid-error__elem" id="{{err.1}}">{{err.1}}</td>
+                    <td>
+                    <ul>
+                        {% for name, msgs in err.2.items() %}
+                            <li>{{name}}
+                                <ul>
+                                {% if msgs is mapping %}
+                                    {% for type, msg in msgs.items() %}
+                                        <li>{{msg|safe}}</li>
+                                    {% endfor %}
+                                {% else %}
+                                    <li>{{msgs}}</li>
+                                {% endif %}
+                                </ul>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+<img src="{{ url_for('static', filename='img/icons/form-icon-ok.svg') }}"/>
+{% endif %}
 {% endblock %}
+
 {% block js %}
 <script type="text/javascript">
     $(document).ready(function(){
