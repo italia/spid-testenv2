@@ -303,6 +303,7 @@ class SpidParser(object):
         """
         _schema = None
         receivers = kwargs.get('receivers')
+        issuer = kwargs.get('issuer')
         if action == 'login':
             required_signature = False
             if binding == BINDING_HTTP_POST:
@@ -315,7 +316,6 @@ class SpidParser(object):
             assertion_consumer_service_indexes = kwargs.get(
                 'assertion_consumer_service_indexes'
             )
-            issuer = kwargs.get('issuer')
             _schema = Elem(
                 name='auth_request',
                 tag='samlp:AuthnRequest',
