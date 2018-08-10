@@ -464,7 +464,7 @@ class SpidParser(object):
         # Validate xml against its XSD schema
         validation_errors = self.xml_validator.validate_request(obj.xmlstr)
         if validation_errors:
-            errors['validation_errors'] = validation_error
+            errors['validation_errors'] = validation_errors
         # Validate xml against SPID rules
         _schema = self.get_schema(action, binding, **kwargs)\
             if schema is None else schema
