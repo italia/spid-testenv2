@@ -40,6 +40,7 @@ class AuthnRequestValidationTestCase(unittest.TestCase):
         )
 
     def test_invalid_attribute_format(self):
+        # See: https://github.com/italia/spid-testenv2/issues/63
         validator = XMLValidator(translator=FakeTranslator())
         errors = validator.validate_request(sample_requests.invalid_id_attr)
         self.assertEqual(len(errors), 1)
