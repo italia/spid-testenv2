@@ -243,10 +243,13 @@ class Elem(object):
             if self._required and data is None:
                 # check if the element is required, if not provide and example
                 _error_msg = self.MANDATORY_ERROR
-                _example = '<br>Esempio:<br>'
-                lines = self._example.splitlines()
-                for line in lines:
-                    _example = '{}<pre>{}</pre>'.format(_example, escape(line))
+                if self._example:
+                    _example = '<br>Esempio:<br>'
+                    lines = self._example.splitlines()
+                    for line in lines:
+                        _example = '{}<pre>{}</pre>'.format(_example, escape(line))
+                else:
+                    _example = ''
                 _error_msg = '{} {}'.format(_error_msg, _example)
                 res['errors']['required_error'] = _error_msg
                 self._errors.update(res['errors'])
