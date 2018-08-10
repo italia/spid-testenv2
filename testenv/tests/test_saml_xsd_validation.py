@@ -90,3 +90,19 @@ class AuthnRequestValidationTestCase(unittest.TestCase):
             "Conditions, {urn:oasis:names:tc:SAML:2.0:protocol}RequestedAuthnContext, {urn:oasis:names:tc:SAML:2.0:protocol}Scoping ).",
             errors[0].message
         )
+
+    def test_invalid_comparison_attribute(self):
+        # https://github.com/italia/spid-testenv2/issues/97
+        validator = XMLValidator(translator=FakeTranslator())
+        errors = validator.validate_request(
+            sample_requests.invalid_comparison_attr)
+        self.assertEqual(len(errors), 2)
+        self.assertIn(
+            "The value 'invalid' is not an element of the set "
+            "{'exact', 'minimum', 'maximum', 'better'}",
+            errors[0].message
+        )
+        self.assertIn(
+            "'invalid' is not a valid value of the atomic type",
+            errors[1].message
+        )
