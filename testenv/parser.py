@@ -4,12 +4,16 @@ from __future__ import unicode_literals
 from datetime import datetime, timedelta
 from functools import reduce
 
+from lxml import etree
+
+import importlib_resources
 from flask import escape
 from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 from saml2.saml import NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
-from testenv.settings import COMPARISONS, SPID_LEVELS, TIMEDELTA
+from testenv.settings import COMPARISONS, SPID_LEVELS, TIMEDELTA, XML_SCHEMAS
 from testenv.spid import Observer
-from testenv.utils import check_url, check_utc_date, str_to_time
+from testenv.translation import Libxml2Translator
+from testenv.utils import XMLError, check_url, check_utc_date, str_to_time
 
 
 class Attr(object):
@@ -286,6 +290,8 @@ class SpidParser(object):
     """
 
     def __init__(self, *args, **kwargs):
+        from testenv.parser import XMLValidator
+        self.xml_validator = XMLValidator()
         self.schema = None
 
     def get_schema(self, action, binding, **kwargs):
@@ -453,10 +459,87 @@ class SpidParser(object):
         :param binding:
         :param schema: custom schema (None by default)
         """
+
+        errors = {}
+        # Validate xml against its XSD schema
+        validation_errors = self.xml_validator.validate_request(obj.xmlstr)
+        if validation_errors:
+            errors['validation_errors'] = validation_error
+        # Validate xml against SPID rules
         _schema = self.get_schema(action, binding, **kwargs)\
             if schema is None else schema
         self.observer = Observer()
         self.observer.attach(_schema)
-        validated = _schema.validate(obj)
-        errors = self.observer.evaluate()
+        validated = _schema.validate(obj.message)
+        spid_errors = self.observer.evaluate()
+        if spid_errors:
+            errors['spid_errors'] = spid_errors
         return validated, errors
+
+
+class XMLSchemaFileLoader(object):
+    """
+    Load XML Schema instances from the filesystem.
+    """
+
+    def __init__(self, import_path=None):
+        self._import_path = import_path or 'testenv.xsd'
+
+    def load(self, name):
+        with importlib_resources.path(self._import_path, name) as path:
+            xmlschema_doc = etree.parse(str(path))
+            return etree.XMLSchema(xmlschema_doc)
+
+
+class XMLValidator(object):
+    """
+    Validate XML fragments against XML Schema (XSD).
+    """
+
+    def __init__(self, schema_loader=None, parser=None, translator=None):
+        self._schema_loader = schema_loader or XMLSchemaFileLoader()
+        self._parser = parser or etree.XMLParser()
+        self._translator = translator or Libxml2Translator()
+        self._load_schemas()
+
+    def _load_schemas(self):
+        self._schemas = {
+            type_: self._schema_loader.load(name)
+            for type_, name in XML_SCHEMAS.items()
+        }
+
+    def validate_request(self, xml):
+        return self._run(xml, 'protocol')
+
+    def _run(self, xml, schema_type):
+        xml_doc, parsing_errors = self._parse_xml(xml)
+        if parsing_errors:
+            return parsing_errors
+        return self._validate_xml(xml_doc, schema_type)
+
+    def _parse_xml(self, xml):
+        xml_doc, errors = None, []
+        try:
+            xml_doc = etree.fromstring(xml, parser=self._parser)
+        except SyntaxError:
+            error_log = self._parser.error_log
+            errors = self._handle_errors(error_log)
+        return xml_doc, errors
+
+    def _validate_xml(self, xml_doc, schema_type):
+        schema = self._schemas[schema_type]
+        errors = []
+        try:
+            schema.assertValid(xml_doc)
+        except Exception:
+            error_log = schema.error_log
+            errors = self._handle_errors(error_log)
+        return errors
+
+    def _handle_errors(self, errors):
+        original_errors = [
+            XMLError(err.line, err.column, err.domain_name,
+                     err.type_name, err.message, err.path)
+            for err in errors
+        ]
+        return self._translator.translate_many(original_errors)

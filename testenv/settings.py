@@ -37,6 +37,9 @@ TIMEDELTA = 2
 SIGN_ALG = ds.SIG_RSA_SHA512
 DIGEST_ALG = ds.DIGEST_SHA512
 
+XML_SCHEMAS = {
+    'protocol': 'saml-schema-protocol-2.0.xsd',
+}
 
 spid_error_table = '''
 <html>
@@ -57,7 +60,7 @@ spid_error_table = '''
             </tr>
         </thead>
         <tbody>
-            {% for err in errors %}
+            {% for err in spid_errors %}
                 <tr>
                     <td class="spid-error__elem" id="{{err.1}}">{{err.1}}</td>
                     <td>
@@ -76,6 +79,14 @@ spid_error_table = '''
                             </li>
                         {% endfor %}
                     </ul>
+                    </td>
+                </tr>
+            {% endfor %}
+            {% for err in validation_errors %}
+                <tr>
+                    <td class="spid-error__elem" id="{{err.path}}">{{err.path}}</td>
+                    <td>
+                        {{err.message}}
                     </td>
                 </tr>
             {% endfor %}

@@ -3,11 +3,11 @@ from __future__ import unicode_literals
 
 import json
 import re
+from collections import namedtuple
 from datetime import datetime
 
 import lxml.etree as etree
 import yaml
-from six.moves.urllib.parse import urlparse
 
 from saml2 import time_util
 from testenv.settings import SPID_ERRORS
@@ -64,3 +64,9 @@ def prettify_xml(msg):
         encoding='utf-8'
     )
     return msg.decode('utf-8')
+
+
+XMLError = namedtuple(
+    'XMLError',
+    ['line', 'column', 'domain_name', 'type_name', 'message', 'path']
+)

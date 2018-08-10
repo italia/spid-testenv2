@@ -335,7 +335,7 @@ class IdpServer(object):
 
     def _check_spid_restrictions(self, msg, action, binding, **kwargs):
         parsed_msg, errors = self.spid_parser.parse(
-            msg.message, action, binding, **kwargs
+            msg, action, binding, **kwargs
         )
         self.app.logger.debug('parsed authn_request: {}'.format(parsed_msg))
         return parsed_msg, errors
@@ -352,13 +352,14 @@ class IdpServer(object):
         self.ticket[key] = authnreq
         return key
 
-    def _handle_errors(self, errors, xmlstr):
+    def _handle_errors(self, xmlstr, errors={}):
         _escaped_xml = escape(prettify_xml(xmlstr.decode()))
         rendered_error_response = render_template_string(
             spid_error_table,
             **{
                 'lines': _escaped_xml.splitlines(),
-                'errors': errors
+                'spid_errors': errors.get('spid_errors', []),
+                'validation_errors': errors.get('validation_errors', [])
                 }
             )
         return rendered_error_response
@@ -519,7 +520,7 @@ class IdpServer(object):
             )
 
         if errors:
-            return self._handle_errors(errors, req_info.xmlstr)
+            return self._handle_errors(req_info.xmlstr, errors=errors)
 
         if not req_info:
             self._raise_error('Processo di parsing del messaggio fallito.')
@@ -885,7 +886,7 @@ class IdpServer(object):
             )
 
         if errors:
-            return self._handle_errors(errors, req_info.xmlstr)
+            return self._handle_errors(req_info.xmlstr, errors=errors)
 
         # Check if it is signed
         if _binding == BINDING_HTTP_REDIRECT:
