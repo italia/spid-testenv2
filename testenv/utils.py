@@ -8,8 +8,8 @@ from datetime import datetime
 
 import lxml.etree as etree
 import yaml
-
 from saml2 import time_util
+
 from testenv.settings import SPID_ERRORS
 
 

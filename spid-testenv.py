@@ -6,6 +6,7 @@ import os
 import os.path
 
 from flask import Flask
+
 from testenv.exceptions import BadConfiguration
 from testenv.server import IdpServer
 from testenv.utils import get_config

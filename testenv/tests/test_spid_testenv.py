@@ -10,16 +10,16 @@ import sys
 import unittest
 import xml.etree.ElementTree as ET
 
-from OpenSSL import crypto
-
 import flask
 from freezegun import freeze_time
+from OpenSSL import crypto
 from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 from saml2.s_utils import deflate_and_base64_encode
 from saml2.saml import NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
 from saml2.sigver import REQ_ORDER, import_rsa_key_from_file
 from saml2.xmldsig import SIG_RSA_SHA1, SIG_RSA_SHA256
 from six.moves.urllib.parse import urlencode
+
 from testenv.utils import get_config
 
 sys.path.insert(0, '../')

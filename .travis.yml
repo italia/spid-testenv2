@@ -25,3 +25,10 @@ after_success:
 
 before_install:
   - sudo apt-get install -y xmlsec1 libffi6
+
+matrix:
+  include:
+    - python: 3.6
+      env: TOXENV=flake8
+    - python: 3.6
+      env: TOXENV=isort
