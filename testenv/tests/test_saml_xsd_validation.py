@@ -77,3 +77,15 @@ class AuthnRequestValidationTestCase(unittest.TestCase):
             "The attribute 'Version' is required but missing.",
             errors[1].message
         )
+
+    def test_unexpected_element(self):
+        # See: https://github.com/italia/spid-testenv2/issues/79
+        validator = XMLValidator(translator=FakeTranslator())
+        errors = validator.validate_request(sample_requests.unexpected_element)
+        self.assertEqual(len(errors), 1)
+        self.assertIn(
+            "Element '{urn:oasis:names:tc:SAML:2.0:assertion}AuthnContextClassRef': "
+            "This element is not expected. Expected is one of ( {urn:oasis:names:tc:SAML:2.0:assertion}"
+            "Conditions, {urn:oasis:names:tc:SAML:2.0:protocol}RequestedAuthnContext, {urn:oasis:names:tc:SAML:2.0:protocol}Scoping ).",
+            errors[0].message
+        )
