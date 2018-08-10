@@ -28,6 +28,10 @@ class Libxml2Translator(object):
             'SCHEMAV_CVC_DATATYPE_VALID_1_2_1': {
                 _c(r"Element '(?P<element>.*)', attribute '(?P<attribute>.*)': '(?P<value>.*)' is not a valid value of the atomic type '(?P<type>.*)'."):
                 "Elemento '{element}', attributo '{attribute}': '{value}' non è un valore valido di tipo atomico '{type}'."
+            },
+            'SCHEMAV_CVC_ENUMERATION_VALID': {
+                _c(r"Element '(?P<element>.*)', attribute '(?P<attribute>.*)': \[facet '(?P<facet>.*)'\] The value '(?P<value>.*)' is not an element of the set (?P<set>.*)."):
+                "Elemento '{element}', attributo '{attribute}': [facet '{facet}'] Il valore '{value}' non è un elemento dell'insieme {set}."
             }
         }
     }

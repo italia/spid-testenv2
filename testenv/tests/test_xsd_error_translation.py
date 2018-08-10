@@ -27,6 +27,14 @@ class Libxml2ItalianTranslationTestCase(unittest.TestCase):
         "Elemento '{urn:oasis:names:tc:SAML:2.0:protocol}AuthnRequest', "
         "attributo 'ID': '123456' non è un valore valido di tipo atomico "
         "'xs:ID'.",
+
+        ('SCHEMASV', 'SCHEMAV_CVC_ENUMERATION_VALID',
+         "Element '{urn:oasis:names:tc:SAML:2.0:protocol}RequestedAuthnContext', "
+         "attribute 'Comparison': [facet 'enumeration'] The value 'invalid' is "
+         "not an element of the set {'exact', 'minimum', 'maximum', 'better'}."):
+        "Elemento '{urn:oasis:names:tc:SAML:2.0:protocol}RequestedAuthnContext', "
+        "attributo 'Comparison': [facet 'enumeration'] Il valore 'invalid' non è "
+        "un elemento dell'insieme {'exact', 'minimum', 'maximum', 'better'}.",
     }
 
     def test_translations(self):
