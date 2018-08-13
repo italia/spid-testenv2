@@ -712,7 +712,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(len(self.idp_server.responses), 0)
         response_text = response.get_data(as_text=True)
         self.assertIn(
-            'la url non è in formato corretto',
+            'something è diverso dal valore di riferimento https://spid.test:8000',
             response_text
         )
 

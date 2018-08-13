@@ -368,8 +368,8 @@ class SpidParser(object):
                         tag='saml:Issuer',
                         attributes=[
                             Attr('format', default=NAMEID_FORMAT_ENTITY),
-                            Attr('name_qualifier', default=issuer, func=check_url),
-                            Attr('text', func=check_url)
+                            Attr('name_qualifier', default=issuer),
+                            Attr('text', default=issuer)
                         ],
                     ),
                     Elem(
@@ -436,8 +436,8 @@ class SpidParser(object):
                         tag='saml:Issuer',
                         attributes=[
                             Attr('format', default=NAMEID_FORMAT_ENTITY),
-                            Attr('name_qualifier', default=issuer, func=check_url),
-                            Attr('text', func=check_url)
+                            Attr('name_qualifier', default=issuer),
+                            Attr('text', default=issuer)
                         ],
                     ),
                     Elem(
