@@ -28,6 +28,9 @@
 
         <md:SingleLogoutService 
             Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+            Location="http://127.0.0.1:8000/slo-test" />
+        <md:SingleLogoutService 
+            Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
             Location="http://127.0.0.1:8000/slo-test" /> 
 
         <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:transient</md:NameIDFormat> 

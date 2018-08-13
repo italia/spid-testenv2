@@ -8,18 +8,20 @@ import os.path
 import shutil
 import sys
 import unittest
-import xml.etree.ElementTree as ET
 
 import flask
+from bs4 import BeautifulSoup as BS
 from freezegun import freeze_time
+from lxml import etree as ET
 from OpenSSL import crypto
 from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
-from saml2.s_utils import deflate_and_base64_encode
+from saml2.s_utils import decode_base64_and_inflate, deflate_and_base64_encode
 from saml2.saml import NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
 from saml2.sigver import REQ_ORDER, import_rsa_key_from_file
 from saml2.xmldsig import SIG_RSA_SHA1, SIG_RSA_SHA256
-from six.moves.urllib.parse import urlencode
+from six.moves.urllib.parse import parse_qs, quote, urlencode, urlparse
 
+from testenv.spid import SpidServer
 from testenv.utils import get_config
 
 sys.path.insert(0, '../')
@@ -30,13 +32,15 @@ try:
 except ImportError:
     from mock import patch
 
-try:
-    from urllib import quote  # Python 2.X
-except ImportError:
-    from urllib.parse import quote  # Python 3+
-
 
 DATA_DIR = 'testenv/tests/data/'
+
+
+def _sp_single_logout_service(server, issuer_name, binding):
+    _slo = server.metadata.single_logout_service(
+        issuer_name, binding=binding, typ='spsso'
+    )
+    return _slo
 
 
 def generate_certificate(fname, path=DATA_DIR):
@@ -113,6 +117,45 @@ def generate_authn_request(data={}, acs_level=0):
         name_id_policy__format,
         requested_authn_context__comparison,
         requested_authn_context__authn_context_class_ref
+    )
+    return bytes(xmlstr.encode('utf-8'))
+
+
+def generate_logout_request(data={}):
+    _id = data.get('id') if data.get('id') else 'test_123456'
+    version = data.get('version') if data.get('version') else '2.0'
+    issue_instant = data.get('issue_instant') if data.get('issue_instant') else '2018-07-16T09:38:29Z'
+    destination = data.get('destination') if data.get('destination') else 'http://spid-testenv:8088/slo-test'
+    issuer__format = data.get('issuer__format') if data.get('issuer__format') else NAMEID_FORMAT_ENTITY
+    issuer_url = data.get('issuer__url') if data.get('issuer__url') else 'https://spid.test:8000'
+    issuer__namequalifier = data.get('issuer__namequalifier') if data.get('issuer__namequalifier') else issuer_url
+    name_id__format = data.get('name_id__format') if data.get('name_id__format') else NAMEID_FORMAT_TRANSIENT
+    name_id__namequalifier = data.get('name_id__namequalifier') if data.get('name_id__namequalifier') else 'https://spid.test:8000'
+    name_id__value = data.get('name_id__value') if data.get('name_id__value') else 'name_id'
+    session_index__value = data.get('session_index__value') if data.get('session_index__value') else 'session_idx_123'
+
+    xmlstr= '''<samlp:LogoutRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+                xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
+                ID="%s"
+                Version="%s"
+                IssueInstant="%s"
+                Destination="%s">
+        <saml:Issuer Format="%s" NameQualifier="%s">%s</saml:Issuer>
+        <saml:NameID Format="%s" NameQualifier="%s">%s</saml:NameID>
+        <samlp:SessionIndex>%s</samlp:SessionIndex>
+        </samlp:LogoutRequest>
+    ''' % (
+        _id,
+        version,
+        issue_instant,
+        destination,
+        issuer__format,
+        issuer__namequalifier,
+        issuer_url,
+        name_id__format,
+        name_id__namequalifier,
+        name_id__value,
+        session_index__value
     )
     return bytes(xmlstr.encode('utf-8'))
 
@@ -672,6 +715,53 @@ class SpidTestenvTest(unittest.TestCase):
             'la url non è in formato corretto',
             response_text
         )
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('testenv.spid.SpidServer.unravel', return_value=generate_logout_request())
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
+    def test_logout_response_http_redirect(self, unravel, verified):
+        # See: https://github.com/italia/spid-testenv2/issues/88
+        with patch('testenv.server.IdpServer._sp_single_logout_service', return_value=_sp_single_logout_service(self.idp_server.server, 'https://spid.test:8000', BINDING_HTTP_REDIRECT)) as mocked:
+            response = self.test_client.get(
+                '/slo-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+                follow_redirects=False
+            )
+            self.assertEqual(response.status_code, 302)
+            response_location = response.headers.get('Location')
+            url = urlparse(response_location)
+            query = parse_qs(url.query)
+            self.assertIn(
+                'Signature',
+                query
+            )
+            saml_response = query.get('SAMLResponse')[0]
+            response = decode_base64_and_inflate(saml_response)
+            xml = ET.fromstring(response)
+            signatures = xml.findall('.//{http://www.w3.org/2000/09/xmldsig#}Signature')
+            self.assertEqual(0, len(signatures))
+            self.assertEqual(len(self.idp_server.ticket), 0)
+            self.assertEqual(len(self.idp_server.responses), 0)
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('testenv.spid.SpidServer.unravel', return_value=generate_logout_request())
+    @patch('testenv.server.verify_redirect_signature', return_value=True)
+    def test_logout_response_http_post(self, unravel, verified):
+        # See: https://github.com/italia/spid-testenv2/issues/88
+        with patch('testenv.server.IdpServer._sp_single_logout_service', return_value=_sp_single_logout_service(self.idp_server.server, 'https://spid.test:8000', BINDING_HTTP_POST)) as mocked:
+            response = self.test_client.get(
+                '/slo-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+                follow_redirects=False
+            )
+            self.assertEqual(response.status_code, 200)
+            response_text = response.get_data(as_text=True)
+            soup = BS(response_text)
+            saml_response = soup.find('input', {'name': 'SAMLResponse'}).get('value')
+            response = base64.b64decode(saml_response)
+            xml = ET.fromstring(response)
+            signatures = xml.findall('.//{http://www.w3.org/2000/09/xmldsig#}Signature')
+            self.assertEqual(1, len(signatures))
+            self.assertEqual(len(self.idp_server.ticket), 0)
+            self.assertEqual(len(self.idp_server.responses), 0)
 
 
 if __name__ == '__main__':
