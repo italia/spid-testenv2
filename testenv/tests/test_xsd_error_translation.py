@@ -25,8 +25,8 @@ class Libxml2ItalianTranslationTestCase(unittest.TestCase):
          "attribute 'ID': '123456' is not a valid value of the atomic type "
          "'xs:ID'."):
         "Elemento '{urn:oasis:names:tc:SAML:2.0:protocol}AuthnRequest', "
-        "attributo 'ID': '123456' non è un valore valido di tipo atomico "
-        "'xs:ID'.",
+        "attributo 'ID': Il valore dell'attributo 'ID' può iniziare solo con "
+        "una lettera o con un underscore.",
 
         ('SCHEMASV', 'SCHEMAV_CVC_ENUMERATION_VALID',
          "Element '{urn:oasis:names:tc:SAML:2.0:protocol}RequestedAuthnContext', "
