@@ -53,10 +53,10 @@ Alternativamente alla procedura di installazione manuale riportata sopra, è pos
 
 Alternativamente alla procedura di installazione manuale è possible installare ed eseguire l'Identity Provider di test usando l'immagine presente su [Docker Hub](https://hub.docker.com/).
 
-Per ottenere la persistenza della configurazione è necessario creare nell'host una directory. Tale directory sarà mappata in `conf/` all'interno del container.
+Per ottenere la persistenza della configurazione è necessario creare nell'host una directory, da collocarsi in un percorso a piacere (di seguito un suggerimento). Tale directory sarà mappata in `conf/` all'interno del container.
 
 ```
-mkdir /path/to/testenv/conf
+mkdir /etc/spid-testenv2
 ```
 
 Creare nella directory il file config.yaml e la coppia chiave/certificato per l'IdP, nonché eventuali metadata SP, come indicato nel paragrafo successivo.
@@ -65,7 +65,7 @@ Creare il container con il seguente comando:
 
 ```
 docker create --name spid-testenv2 -p 8088:8088 \
-   --mount src="/path/to/testenv/conf",target="/app/conf",type=bind \
+   --mount src="/etc/spid-testenv2",target="/app/conf",type=bind \
    italia/spid-testenv2
 ```
 
@@ -75,21 +75,19 @@ Avviare il container:
 docker start spid-testenv2
 ```
 
+Il log si può visualizzare con il comando:
+
+```
+docker logs -f spid-testenv2
+```
+
 ## Configurazione
 
 Generare una chiave privata ed un certificato.
 
-### Versione Docker
 ```
 openssl req -x509 -nodes -sha256 -subj '/C=IT' -newkey rsa:2048 -keyout conf/idp.key -out conf/idp.crt
 ```
-
-### Versione manuale
-```
-openssl req -x509 -nodes -sha256 -subj '/C=IT -newkey rsa:2048 -keyout idp.key -out idp.crt
-```
-
-
 
 Creare e configurare il file config.yaml.
 
@@ -111,7 +109,7 @@ python spid-testenv.py
 
 ## Home page
 
-Nella home page è presente una lista di Service Providers registrati sull'IdP di test.
+Nella home page è presente la lista dei Service Providers registrati sull'IdP di test.
 
 ## Metadata IdP
 
