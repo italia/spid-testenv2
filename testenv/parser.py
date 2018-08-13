@@ -391,7 +391,7 @@ class SpidParser(object):
                     ),
                     Elem(
                         'requested_authn_context',
-                        tag='saml:AuthnContext',
+                        tag='saml:RequestedAuthnContext',
                         attributes=[
                             Attr('comparison', default=COMPARISONS),
                         ],
