@@ -64,7 +64,7 @@ Creare nella directory il file config.yaml e la coppia chiave/certificato per l'
 Creare il container con il seguente comando:
 
 ```
-docker create --name spid-testenv2 -p 8088:8088 \
+docker create --name spid-testenv2 -p 8088:8088 --restart=always \
    --mount src="/etc/spid-testenv2",target="/app/conf",type=bind \
    italia/spid-testenv2
 ```
@@ -82,6 +82,8 @@ docker logs -f spid-testenv2
 ```
 
 ## Configurazione
+
+(In caso di installazione via Docker, sostituire `conf/` nei seguenti comandi con il percorso alla directory di configurazione creata nell'host.)
 
 Generare una chiave privata ed un certificato.
 
