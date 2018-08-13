@@ -46,6 +46,7 @@ class RequestMixin(object):
             only_valid_cert=False):
         # See https://github.com/IdentityPython/pysaml2/blob/master/src/saml2/request.py#L39
         self.xmlstr = xmldata[:]
+        must = True if binding == BINDING_HTTP_POST else False
         try:
             self.message = self.signature_check(xmldata, origdoc=origdoc,
                                                 must=must,
@@ -57,7 +58,6 @@ class RequestMixin(object):
 
         if not self.message:
             raise IncorrectlySigned()
-
         return self
     
     def verify(self):
