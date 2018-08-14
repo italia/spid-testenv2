@@ -830,7 +830,7 @@ class HTTPRedirectRequestParser(object):
         try:
             return self._convert_saml_request(saml_request)
         except Exception:  # FIXME detail exceptions
-            self._fail("Impossibile decodificare l'elemento 'SAML Request'")
+            self._fail("Impossibile decodificare l'elemento 'SAMLRequest'")
 
     @staticmethod
     def _convert_saml_request(saml_request):
@@ -887,7 +887,7 @@ class HTTPPostRequestParser(object):
         try:
             return self._convert_saml_request(saml_request)
         except Exception:  # FIXME detail exceptions
-            self._fail("Impossibile decodificare l'elemento 'SAML Request'")
+            self._fail("Impossibile decodificare l'elemento 'SAMLRequest'")
 
     @staticmethod
     def _convert_saml_request(saml_request):
