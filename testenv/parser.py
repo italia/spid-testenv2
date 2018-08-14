@@ -820,15 +820,17 @@ class HTTPRedirectRequestParser(object):
         try:
             return self._querystring[key]
         except KeyError as e:
-            raise RequestParserError(
-                "Dato mancante nella request: '{}'".format(e.args[0]))
+            self._fail("Dato mancante nella request: '{}'".format(e.args[0]))
+
+    @staticmethod
+    def _fail(message):
+        raise RequestParserError(message)
 
     def _decode_saml_request(self, saml_request):
         try:
             return self._convert_saml_request(saml_request)
         except Exception:  # FIXME detail exceptions
-            raise RequestParserError(
-                "Impossibile decodificare l'elemento 'SAML Request'")
+            self._fail("Impossibile decodificare l'elemento 'SAML Request'")
 
     @staticmethod
     def _convert_saml_request(saml_request):
@@ -843,13 +845,11 @@ class HTTPRedirectRequestParser(object):
         signature = self._extract('Signature')
         return self._decode_signature(signature)
 
-    @staticmethod
-    def _decode_signature(signature):
+    def _decode_signature(self, signature):
         try:
             return b64decode(signature)
         except Exception:
-            raise RequestParserError(
-                "Impossibile decodificare l'elemento 'Signature'")
+            self._fail("Impossibile decodificare l'elemento 'Signature'")
 
     def _build_request(self):
         return self._request_class(
@@ -877,15 +877,17 @@ class HTTPPostRequestParser(object):
         try:
             return self._form[key]
         except KeyError as e:
-            raise RequestParserError(
-                "Dato mancante nella request: '{}'".format(e.args[0]))
+            self._fail("Dato mancante nella request: '{}'".format(e.args[0]))
+
+    @staticmethod
+    def _fail(message):
+        raise RequestParserError(message)
 
     def _decode_saml_request(self, saml_request):
         try:
             return self._convert_saml_request(saml_request)
         except Exception:  # FIXME detail exceptions
-            raise RequestParserError(
-                "Impossibile decodificare l'elemento 'SAML Request'")
+            self._fail("Impossibile decodificare l'elemento 'SAML Request'")
 
     @staticmethod
     def _convert_saml_request(saml_request):
