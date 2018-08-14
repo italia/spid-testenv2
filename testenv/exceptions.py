@@ -2,5 +2,13 @@
 from __future__ import unicode_literals
 
 
-class BadConfiguration(Exception):
+class TestenvError(Exception):
+    """Base exception class"""
+
+
+class BadConfiguration(TestenvError):
+    pass
+
+
+class RequestParserError(TestenvError):
     pass

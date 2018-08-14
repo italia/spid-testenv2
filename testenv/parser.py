@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import zlib
+from base64 import b64decode
+from collections import namedtuple
 from datetime import datetime, timedelta
 from functools import reduce
 
@@ -10,6 +13,7 @@ from lxml import etree
 from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 from saml2.saml import NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
 
+from testenv.exceptions import RequestParserError
 from testenv.settings import COMPARISONS, SPID_LEVELS, TIMEDELTA, XML_SCHEMAS
 from testenv.spid import Observer
 from testenv.translation import Libxml2Translator
@@ -546,3 +550,110 @@ class XMLValidator(object):
             for err in errors
         ]
         return self._translator.translate_many(original_errors)
+
+
+HTTPRedirectRequest = namedtuple(
+    'HTTPRedirectRequest',
+    ['saml_request', 'sig_alg', 'signature'],
+)
+
+
+HTTPPostRequest = namedtuple('HTTPPostRequest', ['saml_request'])
+
+
+class HTTPRedirectRequestParser(object):
+    def __init__(self, querystring, request_class=None):
+        self._querystring = querystring
+        self._request_class = request_class or HTTPRedirectRequest
+        self._saml_request = None
+        self._sig_alg = None
+        self._signature = None
+
+    def parse(self):
+        self._saml_request = self._parse_saml_request()
+        self._sig_alg = self._parse_sig_alg()
+        self._signature = self._parse_signature()
+        return self._build_request()
+
+    def _parse_saml_request(self):
+        saml_request = self._extract('SAMLRequest')
+        return self._decode_saml_request(saml_request)
+
+    def _extract(self, key):
+        try:
+            return self._querystring[key]
+        except KeyError as e:
+            raise RequestParserError(
+                "Dato mancante nella request: '{}'".format(e.args[0]))
+
+    def _decode_saml_request(self, saml_request):
+        try:
+            return self._convert_saml_request(saml_request)
+        except Exception:  # FIXME detail exceptions
+            raise RequestParserError(
+                "Impossibile decodificare l'elemento 'SAML Request'")
+
+    @staticmethod
+    def _convert_saml_request(saml_request):
+        saml_request = b64decode(saml_request)
+        saml_request = zlib.decompress(saml_request, -15)
+        return saml_request.decode()
+
+    def _parse_sig_alg(self):
+        return self._extract('SigAlg')
+
+    def _parse_signature(self):
+        signature = self._extract('Signature')
+        return self._decode_signature(signature)
+
+    @staticmethod
+    def _decode_signature(signature):
+        try:
+            return b64decode(signature)
+        except Exception:
+            raise RequestParserError(
+                "Impossibile decodificare l'elemento 'Signature'")
+
+    def _build_request(self):
+        return self._request_class(
+            self._saml_request,
+            self._sig_alg,
+            self._signature,
+        )
+
+
+class HTTPPostRequestParser(object):
+    def __init__(self, form, request_class=None):
+        self._form = form
+        self._request_class = request_class or HTTPPostRequest
+        self._saml_request = None
+
+    def parse(self):
+        self._saml_request = self._parse_saml_request()
+        return self._build_request()
+
+    def _parse_saml_request(self):
+        saml_request = self._extract('SAMLRequest')
+        return self._decode_saml_request(saml_request)
+
+    def _extract(self, key):
+        try:
+            return self._form[key]
+        except KeyError as e:
+            raise RequestParserError(
+                "Dato mancante nella request: '{}'".format(e.args[0]))
+
+    def _decode_saml_request(self, saml_request):
+        try:
+            return self._convert_saml_request(saml_request)
+        except Exception:  # FIXME detail exceptions
+            raise RequestParserError(
+                "Impossibile decodificare l'elemento 'SAML Request'")
+
+    @staticmethod
+    def _convert_saml_request(saml_request):
+        saml_request = b64decode(saml_request)
+        return saml_request.decode()
+
+    def _build_request(self):
+        return self._request_class(self._saml_request)
