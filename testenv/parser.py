@@ -9,11 +9,14 @@ from functools import reduce
 
 import importlib_resources
 from flask import escape
-from lxml import etree
+from lxml import etree, objectify
 from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 from saml2.saml import NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
 
-from testenv.exceptions import RequestParserError
+from testenv.exceptions import (DeserializationError, RequestParserError,
+                                SignatureValidationError, SPIDValidationError,
+                                StopValidation, XMLFormatValidationError,
+                                XMLSchemaValidationError)
 from testenv.settings import COMPARISONS, SPID_LEVELS, TIMEDELTA, XML_SCHEMAS
 from testenv.spid import Observer
 from testenv.translation import Libxml2Translator
@@ -32,7 +35,7 @@ def validate_request(xmlstr, action, binding, **kwargs):
     PROTOCOL = '{urn:oasis:names:tc:SAML:2.0:protocol}'
     SIGNATURE = 'http://www.w3.org/2000/09/xmldsig#'
 
-    from voluptuous import Schema, In, MultipleInvalid, ALLOW_EXTRA,
+    from voluptuous import Schema, In, MultipleInvalid, ALLOW_EXTRA
     from voluptuous import Optional, All, Invalid
     from voluptuous.validators import Equal
     from saml2 import time_util
@@ -896,3 +899,77 @@ class HTTPPostRequestParser(object):
 
     def _build_request(self):
         return self._request_class(self._saml_request)
+
+
+class HTTPRequestDeserializer(object):
+    _validators = []
+
+    def __init__(self, request, saml_class=None):
+        self._request = request
+        self._saml_class = saml_class or SAMLTree
+        self._errors = []
+
+    def deserialize(self):
+        self._validate()
+        if self._errors:
+            raise DeserializationError(self._errors)
+        return self._deserialize()
+
+    def _validate(self):
+        try:
+            self._run_validators()
+        except StopValidation:
+            pass
+
+    def _run_validators(self):
+        for validator in self._validators:
+            self._run_validator(validator)
+
+    def _run_validator(self, validator):
+        try:
+            validator.validate(self._request)
+        except XMLFormatValidationError as e:
+            self._collect_errors(e.errors)
+            self._stop_validation()  # If input is not valid XML, we just stop.
+        except (
+            SPIDValidationError,
+            XMLSchemaValidationError,
+            SignatureValidationError,
+        ) as e:
+            self._collect_errors(e.errors)
+
+    def _collect_errors(self, errors):
+        self._errors += errors
+
+    @staticmethod
+    def _stop_validation():
+        raise StopValidation
+
+    def _deserialize(self):
+        xml_doc = objectify.fromstring(self._request.saml_request)
+        return self._saml_class(xml_doc)
+
+
+class SAMLTree(object):
+    def __init__(self, xml_doc):
+        self._xml_doc = xml_doc
+        self._bind_tag()
+        self._bind_attributes()
+        self._bind_text()
+        self._bind_subtrees()
+
+    def _bind_tag(self):
+        self.tag = etree.QName(self._xml_doc).localname
+
+    def _bind_attributes(self):
+        for attr_name, attr_val in self._xml_doc.attrib.items():
+            setattr(self, attr_name.lower(), attr_val)
+
+    def _bind_text(self):
+        self.text = self._xml_doc.text
+
+    def _bind_subtrees(self):
+        for child in self._xml_doc.iterchildren():
+            child_name = etree.QName(child).localname.lower()
+            subtree = SAMLTree(child)
+            setattr(self, child_name, subtree)
