@@ -8,6 +8,7 @@ from datetime import datetime
 
 import lxml.etree as etree
 import yaml
+from lxml import objectify
 from saml2 import time_util
 
 from testenv.settings import SPID_ERRORS
@@ -70,3 +71,24 @@ XMLError = namedtuple(
     'XMLError',
     ['line', 'column', 'domain_name', 'type_name', 'message', 'path']
 )
+
+SPIDError = namedtuple(
+    'SpidError',
+    ['value', 'msg', 'path']
+)
+
+
+def saml_to_dict(xmlstr):
+    root = objectify.fromstring(xmlstr)
+    def _obj(elem):
+        return {
+            'attrs': dict(elem.attrib),
+            'children': {
+                k.tag: _obj(k)
+            for k in elem.iterchildren()
+            },
+            'text': elem.text
+        }
+    return {
+        root.tag: _obj(root)
+    }
