@@ -7,7 +7,6 @@ from collections import namedtuple
 from datetime import datetime, timedelta
 from functools import reduce
 
-import importlib_resources
 from flask import escape
 from lxml import etree, objectify
 from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
@@ -17,11 +16,9 @@ from testenv.exceptions import (DeserializationError, RequestParserError,
                                 SignatureValidationError, SPIDValidationError,
                                 StopValidation, XMLFormatValidationError,
                                 XMLSchemaValidationError)
-from testenv.settings import COMPARISONS, SPID_LEVELS, TIMEDELTA, XML_SCHEMAS
+from testenv.settings import COMPARISONS, SPID_LEVELS, TIMEDELTA
 from testenv.spid import Observer
-from testenv.translation import Libxml2Translator
-from testenv.utils import (SPIDError, XMLError, check_url, check_utc_date,
-                           saml_to_dict, str_to_time)
+from testenv.utils import SPIDError, check_utc_date, saml_to_dict, str_to_time
 
 
 def validate_request(xmlstr, action, binding, **kwargs):
@@ -722,74 +719,6 @@ class SpidParser(object):
         if spid_errors:
             errors['spid_errors'] = spid_errors
         return validated, errors
-
-
-class XMLSchemaFileLoader(object):
-    """
-    Load XML Schema instances from the filesystem.
-    """
-
-    def __init__(self, import_path=None):
-        self._import_path = import_path or 'testenv.xsd'
-
-    def load(self, name):
-        with importlib_resources.path(self._import_path, name) as path:
-            xmlschema_doc = etree.parse(str(path))
-            return etree.XMLSchema(xmlschema_doc)
-
-
-class XMLValidator(object):
-    """
-    Validate XML fragments against XML Schema (XSD).
-    """
-
-    def __init__(self, schema_loader=None, parser=None, translator=None):
-        self._schema_loader = schema_loader or XMLSchemaFileLoader()
-        self._parser = parser or etree.XMLParser()
-        self._translator = translator or Libxml2Translator()
-        self._load_schemas()
-
-    def _load_schemas(self):
-        self._schemas = {
-            type_: self._schema_loader.load(name)
-            for type_, name in XML_SCHEMAS.items()
-        }
-
-    def validate_request(self, xml):
-        return self._run(xml, 'protocol')
-
-    def _run(self, xml, schema_type):
-        xml_doc, parsing_errors = self._parse_xml(xml)
-        if parsing_errors:
-            return parsing_errors
-        return self._validate_xml(xml_doc, schema_type)
-
-    def _parse_xml(self, xml):
-        xml_doc, errors = None, []
-        try:
-            xml_doc = etree.fromstring(xml, parser=self._parser)
-        except SyntaxError:
-            error_log = self._parser.error_log
-            errors = self._handle_errors(error_log)
-        return xml_doc, errors
-
-    def _validate_xml(self, xml_doc, schema_type):
-        schema = self._schemas[schema_type]
-        errors = []
-        try:
-            schema.assertValid(xml_doc)
-        except Exception:
-            error_log = schema.error_log
-            errors = self._handle_errors(error_log)
-        return errors
-
-    def _handle_errors(self, errors):
-        original_errors = [
-            XMLError(err.line, err.column, err.domain_name,
-                     err.type_name, err.message, err.path)
-            for err in errors
-        ]
-        return self._translator.translate_many(original_errors)
 
 
 HTTPRedirectRequest = namedtuple(
