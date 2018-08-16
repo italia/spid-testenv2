@@ -24,7 +24,6 @@ from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, Attribute
 from saml2.sigver import verify_redirect_signature
 
 from testenv.exceptions import BadConfiguration
-from testenv.parser import SpidParser
 from testenv.settings import (ALLOWED_SIG_ALGS, AUTH_NO_CONSENT, DIGEST_ALG,
                               SIGN_ALG, SPID_LEVELS)
 from testenv.spid import SpidPolicy, SpidServer, ac_factory
@@ -98,7 +97,6 @@ class IdpServer(object):
         )
         self.app.logger.addHandler(handler)
         self._prepare_server()
-        self.spid_parser = SpidParser()
 
     @property
     def _mode(self):
@@ -334,13 +332,6 @@ class IdpServer(object):
             )
         )
 
-    def _check_spid_restrictions(self, msg, action, binding, **kwargs):
-        parsed_msg, errors = self.spid_parser.parse(
-            msg, action, binding, **kwargs
-        )
-        self.app.logger.debug('parsed authn_request: {}'.format(parsed_msg))
-        return parsed_msg, errors
-
     def _store_request(self, authnreq):
         """
         Store authnrequest in a dictionary
@@ -497,9 +488,6 @@ class IdpServer(object):
             extra['attribute_consuming_service_indexes'] = atcss_indexes
             extra['assertion_consumer_service_indexes'] = ascss_indexes
             extra['receivers'] = req_info.receiver_addrs
-            _, errors = self._check_spid_restrictions(
-                req_info, 'login', binding, **extra
-            )
         except UnknownBinding as err:
             self.app.logger.debug(str(err))
             self._raise_error(
@@ -520,8 +508,8 @@ class IdpServer(object):
                 )
             )
 
-        if errors:
-            return self._handle_errors(req_info.xmlstr, errors=errors)
+        # if errors:
+        #     return self._handle_errors(req_info.xmlstr, errors=errors)
 
         if not req_info:
             self._raise_error('Processo di parsing del messaggio fallito.')
@@ -865,9 +853,6 @@ class IdpServer(object):
             issuer_name = req_info.issuer.text
             extra = {}
             extra['receivers'] = req_info.receiver_addrs
-            _, errors = self._check_spid_restrictions(
-                req_info, 'logout', _binding, **extra
-            )
         except UnknownBinding as err:
             self.app.logger.debug(str(err))
             self._raise_error(
@@ -886,8 +871,8 @@ class IdpServer(object):
                 'Messaggio corrotto o non firmato correttamente.'
             )
 
-        if errors:
-            return self._handle_errors(req_info.xmlstr, errors=errors)
+        # if errors:
+        #     return self._handle_errors(req_info.xmlstr, errors=errors)
 
         # Check if it is signed
         if _binding == BINDING_HTTP_REDIRECT:

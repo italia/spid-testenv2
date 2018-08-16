@@ -19,24 +19,6 @@ from saml2.saml import Attribute
 from saml2.server import Server
 
 
-class Observer(object):
-
-    def __init__(self, *args, **kwargs):
-        self._pool = collections.OrderedDict()
-
-    def attach(self, obj):
-        self._pool[obj._name] = obj
-        for _child in obj._children:
-            self.attach(_child)
-
-    def evaluate(self):
-        _errors = []
-        for elem, obj in self._pool.items():
-            if obj._errors:
-                _errors.append([elem, obj._tag, obj._errors])
-        return _errors
-
-
 class RequestMixin(object):
 
     # TODO: refactor a bit this flow, maybe writing from scratch custom components using pysaml2
