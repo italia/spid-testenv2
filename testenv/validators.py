@@ -5,9 +5,7 @@ from lxml import etree
 
 from testenv.exceptions import (XMLFormatValidationError,
                                 XMLSchemaValidationError)
-from testenv.settings import XML_SCHEMAS
 from testenv.translation import Libxml2Translator
-from testenv.utils import XMLError
 
 Invalid = namedtuple(
     'Invalid',
@@ -52,13 +50,26 @@ class XMLSchemaFileLoader(object):
     Load XML Schema instances from the filesystem.
     """
 
+    _schema_files = {
+        'protocol': 'saml-schema-protocol-2.0.xsd',
+    }
+
     def __init__(self, import_path=None):
         self._import_path = import_path or 'testenv.xsd'
 
-    def load(self, name):
-        with importlib_resources.path(self._import_path, name) as path:
-            xmlschema_doc = etree.parse(str(path))
-            return etree.XMLSchema(xmlschema_doc)
+    def load(self, schema_type):
+        path = self._build_path(schema_type)
+        return self._parse(path)
+
+    def _build_path(self, schema_type):
+        filename = self._schema_files[schema_type]
+        with importlib_resources.path(self._import_path, filename) as path:
+            return path
+
+    @staticmethod
+    def _parse(path):
+        xmlschema_doc = etree.parse(str(path))
+        return etree.XMLSchema(xmlschema_doc)
 
 
 class BaseXMLSchemaValidator(object):
@@ -107,5 +118,5 @@ class BaseXMLSchemaValidator(object):
 class AuthnRequestXMLSchemaValidator(BaseXMLSchemaValidator):
     def validate(self, request):
         xml = request.saml_request
-        schema_type = 'protocol'  # FIXME
+        schema_type = 'protocol'
         return self._run(xml, schema_type)
