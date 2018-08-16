@@ -15,17 +15,17 @@ class RequestParserError(TestenvError):
 
 
 class DeserializationError(TestenvError):
-    def __init__(self, errors):
+    def __init__(self, details):
         super(DeserializationError, self).__init__()
-        self.errors = errors
+        self.details = details
 
 
 class ValidationError(TestenvError):
     """Base validation error class"""
 
-    def __init__(self, errors):
+    def __init__(self, details):
         super(ValidationError, self).__init__()
-        self.errors = errors
+        self.details = details
 
 
 class XMLFormatValidationError(ValidationError):

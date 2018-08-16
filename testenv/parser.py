@@ -13,9 +13,8 @@ from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 from saml2.saml import NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
 
 from testenv.exceptions import (DeserializationError, RequestParserError,
-                                SignatureValidationError, SPIDValidationError,
-                                StopValidation, XMLFormatValidationError,
-                                XMLSchemaValidationError)
+                                StopValidation, ValidationError,
+                                XMLFormatValidationError)
 from testenv.settings import COMPARISONS, SPID_LEVELS, TIMEDELTA
 from testenv.spid import Observer
 from testenv.utils import SPIDError, check_utc_date, saml_to_dict, str_to_time
@@ -836,12 +835,12 @@ class HTTPRequestDeserializer(object):
     def __init__(self, request, saml_class=None):
         self._request = request
         self._saml_class = saml_class or SAMLTree
-        self._errors = []
+        self._validation_errors = []
 
     def deserialize(self):
         self._validate()
-        if self._errors:
-            raise DeserializationError(self._errors)
+        if self._validation_errors:
+            raise DeserializationError(self._validation_errors)
         return self._deserialize()
 
     def _validate(self):
@@ -858,21 +857,16 @@ class HTTPRequestDeserializer(object):
         try:
             validator.validate(self._request)
         except XMLFormatValidationError as e:
-            self._collect_errors(e.errors)
-            self._stop_validation()  # If input is not valid XML, we just stop.
-        except (
-            SPIDValidationError,
-            XMLSchemaValidationError,
-            SignatureValidationError,
-        ) as e:
-            self._collect_errors(e.errors)
+            self._handle_blocking_error(e)
+        except ValidationError as e:
+            self._handle_nonblocking_error(e)
 
-    def _collect_errors(self, errors):
-        self._errors += errors
-
-    @staticmethod
-    def _stop_validation():
+    def _handle_blocking_error(self, error):
+        self._handle_nonblocking_error(error)
         raise StopValidation
+
+    def _handle_nonblocking_error(self, error):
+        self._validation_errors += error.details
 
     def _deserialize(self):
         xml_doc = objectify.fromstring(self._request.saml_request)
