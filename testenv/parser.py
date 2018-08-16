@@ -9,7 +9,7 @@ from functools import reduce
 
 from flask import escape
 from lxml import etree, objectify
-from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
+from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, time_util
 from saml2.saml import NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
 
 from testenv.exceptions import (DeserializationError, RequestParserError,
@@ -17,34 +17,40 @@ from testenv.exceptions import (DeserializationError, RequestParserError,
                                 XMLFormatValidationError)
 from testenv.settings import COMPARISONS, SPID_LEVELS, TIMEDELTA
 from testenv.spid import Observer
-from testenv.utils import SPIDError, check_utc_date, saml_to_dict, str_to_time
+from testenv.utils import check_utc_date, saml_to_dict, str_to_time
 
 
-def validate_request(xmlstr, action, binding, **kwargs):
+MANDATORY_ERROR = 'L\'attributo è obbligatorio'
+NO_WANT_ERROR = 'L\'attributo non è richiesto'
+DEFAULT_VALUE_ERROR = 'è diverso dal valore di riferimento {}'
+DEFAULT_LIST_VALUE_ERROR = 'non corrisponde a nessuno'\
+' dei valori contenuti in {}'
+ASSERTION = '{urn:oasis:names:tc:SAML:2.0:assertion}'
+PROTOCOL = '{urn:oasis:names:tc:SAML:2.0:protocol}'
+SIGNATURE = 'http://www.w3.org/2000/09/xmldsig#'
 
-    MANDATORY_ERROR = 'L\'attributo è obbligatorio'
-    NO_WANT_ERROR = 'L\'attributo non è richiesto'
-    DEFAULT_VALUE_ERROR = 'è diverso dal valore di riferimento {}'
-    DEFAULT_LIST_VALUE_ERROR = 'non corrisponde a nessuno'\
-    ' dei valori contenuti in {}'
-    ASSERTION = '{urn:oasis:names:tc:SAML:2.0:assertion}'
-    PROTOCOL = '{urn:oasis:names:tc:SAML:2.0:protocol}'
-    SIGNATURE = 'http://www.w3.org/2000/09/xmldsig#'
+from voluptuous import Schema, In, MultipleInvalid, ALLOW_EXTRA
+from voluptuous import Optional, All, Invalid
+from voluptuous.validators import Equal
 
-    from voluptuous import Schema, In, MultipleInvalid, ALLOW_EXTRA
-    from voluptuous import Optional, All, Invalid
-    from voluptuous.validators import Equal
-    from saml2 import time_util
 
-    def _check_utc_date(date):
+
+
+class SpidValidator(object):
+
+    def __init__(self, action, binding, **kwargs):
+        self._action = action
+        self._binding = binding
+        self._extra = kwargs.copy()
+
+    def _check_utc_date(self, date):
         try:
             time_util.str_to_time(date)
-        except Exception as e:
-            print(e)
+        except Exception:
             raise Invalid('la data non è in formato UTC')
         return date
 
-    def _check_date_in_range(date):
+    def _check_date_in_range(self, date):
         date = str_to_time(date)
         now = datetime.utcnow()
         lower = now - timedelta(minutes=TIMEDELTA)
@@ -57,203 +63,204 @@ def validate_request(xmlstr, action, binding, **kwargs):
             )
         return date
 
-    attribute_consuming_service_indexes = kwargs.get(
-        'attribute_consuming_service_indexes'
-    )
-    assertion_consumer_service_indexes = kwargs.get(
-        'assertion_consumer_service_indexes'
-    )
-    receivers = kwargs.get('receivers')
-    issuer = kwargs.get('issuer')
+    def validate(self, xmlstr):
+        from testenv.validators import Invalid as InvalidError
+        attribute_consuming_service_indexes = self._extra.get(
+            'attribute_consuming_service_indexes'
+        )
+        assertion_consumer_service_indexes = self._extra.get(
+            'assertion_consumer_service_indexes'
+        )
+        receivers = self._extra.get('receivers')
+        issuer = self._extra.get('issuer')
 
-    issuer = Schema(
-        {
-        'attrs': {
-            'Format': Equal(
-                NAMEID_FORMAT_ENTITY, msg=DEFAULT_VALUE_ERROR.format(NAMEID_FORMAT_ENTITY)
-            ),
-            'NameQualifier': issuer
-        },
-        'children': {},
-        'text': issuer
-        }
-    )
-
-    name_id = Schema(
-        {
+        issuer = Schema(
+            {
             'attrs': {
-                'NameQualifier': str,
+                'Format': Equal(
+                    NAMEID_FORMAT_ENTITY, msg=DEFAULT_VALUE_ERROR.format(NAMEID_FORMAT_ENTITY)
+                ),
+                'NameQualifier': issuer
+            },
+            'children': {},
+            'text': issuer
+            }
+        )
+
+        name_id = Schema(
+            {
+                'attrs': {
+                    'NameQualifier': str,
+                    'Format': Equal(
+                        NAMEID_FORMAT_TRANSIENT, msg=DEFAULT_VALUE_ERROR.format(NAMEID_FORMAT_TRANSIENT)
+                    ),
+                },
+                'children': {},
+                'text': str
+            }
+        )
+
+        name_id_policy = Schema(
+            {
+            'attrs': {
                 'Format': Equal(
                     NAMEID_FORMAT_TRANSIENT, msg=DEFAULT_VALUE_ERROR.format(NAMEID_FORMAT_TRANSIENT)
                 ),
             },
             'children': {},
-            'text': str
-        }
-    )
-
-    name_id_policy = Schema(
-        {
-        'attrs': {
-            'Format': Equal(
-                NAMEID_FORMAT_TRANSIENT, msg=DEFAULT_VALUE_ERROR.format(NAMEID_FORMAT_TRANSIENT)
-            ),
-            Optional('AllowCreate'): Equal('true', msg=DEFAULT_VALUE_ERROR.format('true'))
-        },
-        'children': {},
-        'text': None,
-        },
-    )
-
-
-    conditions = Schema(
-        {
-        'attrs': {
-            'NotBefore': All(str, _check_utc_date),
-            'NotOnOrAfter': All(str, _check_utc_date),
-        },
-        'children': {},
-        'text': None,
-        },
-    )
-
-    authn_context_class_ref = Schema(
-        {
-            'attrs': {},
-            'children': {},
-            'text': All(str, In(SPID_LEVELS, msg=DEFAULT_LIST_VALUE_ERROR.format(SPID_LEVELS)))
-        }
-    )
-
-    requested_authn_context = Schema(
-        {
-            'attrs': {
-                'Comparison': str
+            'text': None,
             },
-            'children': {
-                '{}AuthnContextClassRef'.format(ASSERTION): authn_context_class_ref
-            },
-            'text': None
-        }
-    )
+        )
 
-    scoping = Schema(
-        {
+
+        conditions = Schema(
+            {
             'attrs': {
-                'ProxyCount': Equal('0', msg=DEFAULT_VALUE_ERROR.format('0'))
+                'NotBefore': All(str, self._check_utc_date),
+                'NotOnOrAfter': All(str, self._check_utc_date),
             },
             'children': {},
-            'text': None
-        }
-    )
-
-    signature = Schema(
-        {
-            'attrs': dict,
-            'children': dict,
-            'text': None
-        }
-    )
-
-    subject = Schema(
-        {
-            'attrs': {
-                'Format': Equal(
-                    NAMEID_FORMAT_ENTITY, msg=DEFAULT_VALUE_ERROR.format(NAMEID_FORMAT_ENTITY)
-                ),
-                'NameQualifier': str
+            'text': None,
             },
-            'children': {},
-            'text': None
-        }
-    )
+        )
 
-    # LOGIN
+        authn_context_class_ref = Schema(
+            {
+                'attrs': {},
+                'children': {},
+                'text': All(str, In(SPID_LEVELS, msg=DEFAULT_LIST_VALUE_ERROR.format(SPID_LEVELS)))
+            }
+        )
 
-    authnrequest_schema = {
-        '{}AuthnRequest'.format(PROTOCOL): {
-            'attrs': {
-                'Version': Equal('2.0', msg=DEFAULT_VALUE_ERROR.format('2.0')),
-                'IssueInstant': All(str, _check_utc_date, _check_date_in_range),
-                'Destination': In(receivers, msg=DEFAULT_LIST_VALUE_ERROR.format(receivers)),
-                Optional('ForceAuthn'): str,
-                Optional('AttributeConsumingServiceIndex'): In(
-                    attribute_consuming_service_indexes,
-                    msg=DEFAULT_LIST_VALUE_ERROR.format(attribute_consuming_service_indexes)
-                ),
-                Optional('AssertionConsumerServiceIndex'): In(
-                    assertion_consumer_service_indexes,
-                    msg=DEFAULT_LIST_VALUE_ERROR.format(assertion_consumer_service_indexes)
-                ),
-                Optional('AssertionConsumerServiceURL'): str,
-                Optional('ProtocolBinding'): Equal(
-                    BINDING_HTTP_POST,
-                    msg=DEFAULT_VALUE_ERROR.format( BINDING_HTTP_POST)
-                )
-            },
-            'children': Schema(
-                {
-                    Optional('{}Subject'.format(ASSERTION)): subject,
-                    '{}Issuer'.format(ASSERTION): issuer,
-                    '{}NameIDPolicy'.format(PROTOCOL): name_id_policy,
-                    Optional('{}Conditions'.format(ASSERTION)): conditions,
-                    '{}RequestedAuthnContext'.format(PROTOCOL): requested_authn_context,
-                    Optional('{}Scoping'.format(PROTOCOL)): scoping,
-                }
-            ),
-            'text': None
-        }
-    }
-
-    if binding == BINDING_HTTP_POST:
-        authnrequest_schema['children']['{}Signature'.format(SIGNATURE)]
-
-    authn_request = Schema(
-        authnrequest_schema,
-        extra=ALLOW_EXTRA
-    )
-
-    # LOGOUT
-
-    logout_request= Schema(
-        {
-            '{}LogoutRequest'.format(PROTOCOL): {
+        requested_authn_context = Schema(
+            {
                 'attrs': {
-                'Version': Equal('2.0', msg=DEFAULT_VALUE_ERROR.format('2.0')),
-                'IssueInstant': All(str, _check_utc_date, _check_date_in_range),
-                'Destination': In(receivers, msg=DEFAULT_LIST_VALUE_ERROR.format(receivers)),
+                    'Comparison': str
                 },
                 'children': {
-                    '{}Issuer'.format(ASSERTION): issuer,
-                    '{}NameID'.format(ASSERTION): str
+                    '{}AuthnContextClassRef'.format(ASSERTION): authn_context_class_ref
                 },
                 'text': None
             }
-        },
-        extra=ALLOW_EXTRA
-    )
+        )
+
+        scoping = Schema(
+            {
+                'attrs': {
+                    'ProxyCount': Equal('0', msg=DEFAULT_VALUE_ERROR.format('0'))
+                },
+                'children': {},
+                'text': None
+            }
+        )
+
+        signature = Schema(
+            {
+                'attrs': dict,
+                'children': dict,
+                'text': None
+            }
+        )
+
+        subject = Schema(
+            {
+                'attrs': {
+                    'Format': Equal(
+                        NAMEID_FORMAT_ENTITY, msg=DEFAULT_VALUE_ERROR.format(NAMEID_FORMAT_ENTITY)
+                    ),
+                    'NameQualifier': str
+                },
+                'children': {},
+                'text': None
+            }
+        )
+
+        # LOGIN
+
+        authnrequest_schema = {
+            '{}AuthnRequest'.format(PROTOCOL): {
+                'attrs': {
+                    'Version': Equal('2.0', msg=DEFAULT_VALUE_ERROR.format('2.0')),
+                    'IssueInstant': All(str, self._check_utc_date, self._check_date_in_range),
+                    'Destination': In(receivers, msg=DEFAULT_LIST_VALUE_ERROR.format(receivers)),
+                    Optional('ForceAuthn'): str,
+                    Optional('AttributeConsumingServiceIndex'): In(
+                        attribute_consuming_service_indexes,
+                        msg=DEFAULT_LIST_VALUE_ERROR.format(attribute_consuming_service_indexes)
+                    ),
+                    Optional('AssertionConsumerServiceIndex'): In(
+                        assertion_consumer_service_indexes,
+                        msg=DEFAULT_LIST_VALUE_ERROR.format(assertion_consumer_service_indexes)
+                    ),
+                    Optional('AssertionConsumerServiceURL'): str,
+                    Optional('ProtocolBinding'): Equal(
+                        BINDING_HTTP_POST,
+                        msg=DEFAULT_VALUE_ERROR.format( BINDING_HTTP_POST)
+                    )
+                },
+                'children': Schema(
+                    {
+                        Optional('{}Subject'.format(ASSERTION)): subject,
+                        '{}Issuer'.format(ASSERTION): issuer,
+                        '{}NameIDPolicy'.format(PROTOCOL): name_id_policy,
+                        Optional('{}Conditions'.format(ASSERTION)): conditions,
+                        '{}RequestedAuthnContext'.format(PROTOCOL): requested_authn_context,
+                        Optional('{}Scoping'.format(PROTOCOL)): scoping,
+                    }
+                ),
+                'text': None
+            }
+        }
+
+        if self._binding == BINDING_HTTP_POST:
+            authnrequest_schema['children']['{}Signature'.format(SIGNATURE)]
+
+        authn_request = Schema(
+            authnrequest_schema,
+            extra=ALLOW_EXTRA
+        )
+
+        # LOGOUT
+
+        logout_request= Schema(
+            {
+                '{}LogoutRequest'.format(PROTOCOL): {
+                    'attrs': {
+                    'Version': Equal('2.0', msg=DEFAULT_VALUE_ERROR.format('2.0')),
+                    'IssueInstant': All(str, self._check_utc_date, self._check_date_in_range),
+                    'Destination': In(receivers, msg=DEFAULT_LIST_VALUE_ERROR.format(receivers)),
+                    },
+                    'children': {
+                        '{}Issuer'.format(ASSERTION): issuer,
+                        '{}NameID'.format(ASSERTION): str
+                    },
+                    'text': None
+                }
+            },
+            extra=ALLOW_EXTRA
+        )
 
 
-    saml_schema = None
-    if action == 'login':
-        saml_schema = authn_request
-    elif action == 'logout':
-        saml_schema = logout_request
-    data = saml_to_dict(xmlstr)
-    errors = []
-    try:
-        saml_schema(data)
-    except MultipleInvalid as e:
-        for err in e.errors:
-            _val = data
-            for _ in err.path:
-                _val = _val.get(_)
-            errors.append(
-                SPIDError(
-                    _val, err.msg, err.path
+        saml_schema = None
+        if self._action == 'login':
+            saml_schema = authn_request
+        elif self._action == 'logout':
+            saml_schema = logout_request
+        data = saml_to_dict(xmlstr)
+        errors = []
+        try:
+            saml_schema(data)
+        except MultipleInvalid as e:
+            for err in e.errors:
+                _val = data
+                for _ in err.path:
+                    _val = _val.get(_)
+                errors.append(
+                    InvalidError(
+                        _val, None, None, None, None, err.msg, err.path
+                    )
                 )
-            )
-    return errors
+            raise SPIDValidationError(errors=errors)
 
 
 class Attr(object):
@@ -533,8 +540,8 @@ class SpidParser(object):
     """
 
     def __init__(self, *args, **kwargs):
-        from testenv.parser import XMLValidator
-        self.xml_validator = XMLValidator()
+        from testenv.validators import BaseXMLSchemaValidator
+        self.xml_validator = BaseXMLSchemaValidator()
         self.schema = None
 
     def get_schema(self, action, binding, **kwargs):
