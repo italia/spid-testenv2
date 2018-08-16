@@ -24,6 +24,7 @@ from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, Attribute
 from saml2.sigver import verify_redirect_signature
 
 from testenv.exceptions import BadConfiguration
+from testenv.parser import HTTPPostRequestParser, HTTPRedirectRequestParser, HTTPRequestDeserializer
 from testenv.settings import (ALLOWED_SIG_ALGS, AUTH_NO_CONSENT, DIGEST_ALG,
                               SIGN_ALG, SPID_LEVELS)
 from testenv.spid import SpidPolicy, SpidServer, ac_factory
@@ -339,7 +340,8 @@ class IdpServer(object):
         :param authnreq: authentication request string
         """
         self.app.logger.debug('store_request: {}'.format(authnreq))
-        key = sha1(authnreq.xmlstr).hexdigest()
+        from lxml.etree import tostring
+        key = sha1(tostring(authnreq._xml_doc)).hexdigest()
         # store the AuthnRequest
         self.ticket[key] = authnreq
         return key
@@ -431,15 +433,15 @@ class IdpServer(object):
         if 'SAMLRequest' not in saml_msg:
             self._raise_error('Parametro SAMLRequest assente.')
         if action == 'login':
-            _func = 'parse_authn_request'
+            if _binding == BINDING_HTTP_POST:
+                parser = HTTPPostRequestParser
+            elif _binding == BINDING_HTTP_REDIRECT:
+                parser = HTTPRedirectRequestParser
         elif action == 'logout':
-            _func = 'parse_logout_request'
+            pass
         try:
-            req_info = getattr(
-                self.server, _func
-                )(
-                    saml_msg['SAMLRequest'], _binding
-                )
+            req_info = parser(saml_msg).parse()
+            req_info = HTTPRequestDeserializer(req_info).deserialize()
         except IncorrectlySigned as err:
             self.app.logger.debug(str(err))
             self._raise_error(
@@ -457,10 +459,11 @@ class IdpServer(object):
         saml_msg = self.unpack_args(request.args)
         try:
             req_info, binding = self._parse_message(action='login')
-            authn_req = req_info.message
-            self.app.logger.debug(
-                'AuthnRequest: \n{}'.format(prettify_xml(str(authn_req)))
-            )
+            authn_req = req_info
+            print(authn_req)
+            # self.app.logger.debug(
+            #     'AuthnRequest: \n{}'.format(prettify_xml(str(authn_req._xml_doc)))
+            # )
             extra = {}
             sp_id = authn_req.issuer.text
             issuer_name = authn_req.issuer.text
@@ -487,7 +490,7 @@ class IdpServer(object):
             extra['issuer'] = issuer_name
             extra['attribute_consuming_service_indexes'] = atcss_indexes
             extra['assertion_consumer_service_indexes'] = ascss_indexes
-            extra['receivers'] = req_info.receiver_addrs
+            extra['receivers'] = req_info.destination
         except UnknownBinding as err:
             self.app.logger.debug(str(err))
             self._raise_error(
@@ -597,10 +600,10 @@ class IdpServer(object):
 
     def get_destination(self, req, sp_id):
         destination = None
-        acs_index = req.message.assertion_consumer_service_index
+        acs_index = getattr(req, 'assertionconsumerserviceindex', None)
         if acs_index is not None:
             acss = self.server.metadata.assertion_consumer_service(
-                sp_id, req.message.protocol_binding
+                sp_id, req.protocol_binding
             )
             for acs in acss:
                 if acs.get('index') == acs_index:
@@ -612,7 +615,7 @@ class IdpServer(object):
                 )
             )
         if destination is None:
-            destination = req.message.assertion_consumer_service_url
+            destination = req.assertionconsumerserviceurl
             self.app.logger.debug(
                 'AssertionConsumerServiceURL: {}'.format(
                     destination
@@ -631,11 +634,11 @@ class IdpServer(object):
         self.app.logger.debug('Request key: {}'.format(key))
         if key and key in self.ticket:
             authn_request = self.ticket[key]
-            message = authn_request.message
+            message = authn_request
             sp_id = message.issuer.text
             destination = self.get_destination(authn_request, sp_id)
-            authn_context = message.requested_authn_context
-            spid_level = authn_context.authn_context_class_ref[0].text
+            authn_context = message.requestedauthncontext
+            spid_level = authn_context.authncontextclassref.text
             authn_info = self.authn_broker.pick(authn_context)
             callback, reference = authn_info[0]
             if request.method == 'GET':
