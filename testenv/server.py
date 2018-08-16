@@ -14,13 +14,13 @@ from flask import (Response, abort, escape, redirect, render_template, request,
 from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 from saml2.assertion import filter_on_demands
 from saml2.attribute_converter import list_to_local
-from saml2.authn_context import AuthnBroker, authn_context_class_ref
 from saml2.config import Config as Saml2Config
 from saml2.entity import UnknownBinding
 from saml2.metadata import create_metadata_string
 from saml2.response import IncorrectlySigned
 from saml2.s_utils import UnknownSystemEntity, UnsupportedBinding
-from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, Attribute
+from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, Attribute, Issuer
+from saml2.samlp import LogoutRequest
 from saml2.sigver import verify_redirect_signature
 
 from testenv.exceptions import BadConfiguration
@@ -246,35 +246,16 @@ class IdpServer(object):
         )
         self.server = SpidServer(config=self.idp_config)
         self._setup_app_routes()
-        # setup custom methods in order to
-        # prepare the login form and verify the challenge (optional)
-        # for every spid level (1-2-3)
-        self.authn_broker = AuthnBroker()
-        for index, _level in enumerate(self._spid_levels):
-            self.authn_broker.add(
-                authn_context_class_ref(_level),
-                getattr(self, '_verify_spid_{}'.format(index + 1))
-            )
 
-    def _verify_spid_1(self, verify=False, **kwargs):
-        self.app.logger.debug('spid level 1 - verifica ({})'.format(verify))
-        return self._verify_spid(1, verify, **kwargs)
-
-    def _verify_spid_2(self, verify=False, **kwargs):
-        self.app.logger.debug('spid level 2 - verifica ({})'.format(verify))
-        return self._verify_spid(2, verify, **kwargs)
-
-    def _verify_spid_3(self, verify=False, **kwargs):
-        self.app.logger.debug('spid level 3 - verifica ({})'.format(verify))
-        return self._verify_spid(3, verify, **kwargs)
-
-    def _verify_spid(self, level=1, verify=False, **kwargs):
+    def _verify_spid(self, level, verify=False, **kwargs):
         """
         :param level: integer, SPID level
         :param verify: boolean, if True verify
             spid extra challenge (otp etc.), if False prepare the challenge
         :param kwargs: dictionary, extra arguments
         """
+        level = self._spid_levels.index(level)
+        self.app.logger.debug('spid level {} - verifica ({})'.format(level, verify))
         if verify:
             # Verify the challenge
             if level == 2:
@@ -340,6 +321,7 @@ class IdpServer(object):
         :param authnreq: authentication request string
         """
         self.app.logger.debug('store_request: {}'.format(authnreq))
+        # FIXME: improve this
         from lxml.etree import tostring
         key = sha1(tostring(authnreq._xml_doc)).hexdigest()
         # store the AuthnRequest
@@ -358,60 +340,61 @@ class IdpServer(object):
             )
         return rendered_error_response
 
-    def _verify_redirect(self, saml_msg, issuer_name):
-        """
-        Verify Http-Redirect signature
+    # TODO: remove this when the parsing logic is complete
+    # def _verify_redirect(self, saml_msg, issuer_name):
+    #     """
+    #     Verify Http-Redirect signature
 
-        :param saml_msg: request parameters
-        :param issuer_name: issuer name (Service Provider)
-        """
-        if "SigAlg" in saml_msg and "Signature" in saml_msg:
-            # Signed request
-            self.app.logger.debug('Messaggio SAML firmato.')
-            _sig_alg = saml_msg['SigAlg']
-            if _sig_alg not in ALLOWED_SIG_ALGS:
-                self._raise_error(
-                    'L\'Algoritmo {} non è supportato.'.format(_sig_alg)
-                )
-            try:
-                _certs = self.server.metadata.certs(
-                    issuer_name,
-                    "any",
-                    "signing"
-                )
-            except KeyError:
-                self._raise_error(
-                    'entity ID {} non registrato, impossibile ricavare'\
-                    ' un certificato valido.'.format(issuer_name)
-                )
-            verified_ok = False
-            for cert in _certs:
-                self.app.logger.debug(
-                    'security backend: {}'.format(
-                        self.server.sec.sec_backend.__class__.__name__
-                    )
-                )
-                # Check signature
-                if verify_redirect_signature(
-                    saml_msg,
-                    self.server.sec.sec_backend,
-                    cert
-                ):
-                    verified_ok = True
-                    break
-            if not verified_ok:
-                self._raise_error(
-                    'Verifica della firma del messaggio fallita.'
-                )
-        else:
-            self._raise_error(
-                'I parametri Signature e SigAlg sono entrambi'\
-                ' necessari per le richieste di tipo HTTP-REDIRECT'
-            )
+    #     :param saml_msg: request parameters
+    #     :param issuer_name: issuer name (Service Provider)
+    #     """
+    #     if "SigAlg" in saml_msg and "Signature" in saml_msg:
+    #         # Signed request
+    #         self.app.logger.debug('Messaggio SAML firmato.')
+    #         _sig_alg = saml_msg['SigAlg']
+    #         if _sig_alg not in ALLOWED_SIG_ALGS:
+    #             self._raise_error(
+    #                 'L\'Algoritmo {} non è supportato.'.format(_sig_alg)
+    #             )
+    #         try:
+    #             _certs = self.server.metadata.certs(
+    #                 issuer_name,
+    #                 "any",
+    #                 "signing"
+    #             )
+    #         except KeyError:
+    #             self._raise_error(
+    #                 'entity ID {} non registrato, impossibile ricavare'\
+    #                 ' un certificato valido.'.format(issuer_name)
+    #             )
+    #         verified_ok = False
+    #         for cert in _certs:
+    #             self.app.logger.debug(
+    #                 'security backend: {}'.format(
+    #                     self.server.sec.sec_backend.__class__.__name__
+    #                 )
+    #             )
+    #             # Check signature
+    #             if verify_redirect_signature(
+    #                 saml_msg,
+    #                 self.server.sec.sec_backend,
+    #                 cert
+    #             ):
+    #                 verified_ok = True
+    #                 break
+    #         if not verified_ok:
+    #             self._raise_error(
+    #                 'Verifica della firma del messaggio fallita.'
+    #             )
+    #     else:
+    #         self._raise_error(
+    #             'I parametri Signature e SigAlg sono entrambi'\
+    #             ' necessari per le richieste di tipo HTTP-REDIRECT'
+    #         )
 
-    def _parse_message(self, action='login'):
+    def _parse_message(self):
         """
-        Parse an AuthnRequest or a LogoutRequest using pysaml2 API
+        Parse an AuthnRequest or a LogoutRequest
 
         :param saml_msg: request parameters
         :param method: request method
@@ -430,23 +413,12 @@ class IdpServer(object):
                 'I metodi consentiti sono'\
                 ' GET (Http-Redirect) o POST (Http-Post)'
             )
-        if 'SAMLRequest' not in saml_msg:
-            self._raise_error('Parametro SAMLRequest assente.')
-        if action == 'login':
-            if _binding == BINDING_HTTP_POST:
-                parser = HTTPPostRequestParser
-            elif _binding == BINDING_HTTP_REDIRECT:
-                parser = HTTPRedirectRequestParser
-        elif action == 'logout':
-            pass
-        try:
-            req_info = parser(saml_msg).parse()
-            req_info = HTTPRequestDeserializer(req_info).deserialize()
-        except IncorrectlySigned as err:
-            self.app.logger.debug(str(err))
-            self._raise_error(
-                'Messaggio corrotto o non firmato correttamente.'
-            )
+        if _binding == BINDING_HTTP_POST:
+            parser = HTTPPostRequestParser
+        elif _binding == BINDING_HTTP_REDIRECT:
+            parser = HTTPRedirectRequestParser
+        req_info = parser(saml_msg).parse()
+        req_info = HTTPRequestDeserializer(req_info).deserialize()
         return req_info, _binding
 
     def single_sign_on_service(self):
@@ -458,12 +430,11 @@ class IdpServer(object):
         # Unpack parameters
         saml_msg = self.unpack_args(request.args)
         try:
-            req_info, binding = self._parse_message(action='login')
+            req_info, binding = self._parse_message()
             authn_req = req_info
-            print(authn_req)
-            # self.app.logger.debug(
-            #     'AuthnRequest: \n{}'.format(prettify_xml(str(authn_req._xml_doc)))
-            # )
+            self.app.logger.debug(
+                'AuthnRequest: \n{}'.format(prettify_xml(authn_req._xml_doc))
+            )
             extra = {}
             sp_id = authn_req.issuer.text
             issuer_name = authn_req.issuer.text
@@ -511,15 +482,15 @@ class IdpServer(object):
                 )
             )
 
-        # if errors:
+        # if errors: # TODO: handle this with the new logic
         #     return self._handle_errors(req_info.xmlstr, errors=errors)
 
         if not req_info:
             self._raise_error('Processo di parsing del messaggio fallito.')
 
-        # Check if it is signed
-        if binding == BINDING_HTTP_REDIRECT:
-            self._verify_redirect(saml_msg, issuer_name)
+        # Check if it is signed TODO: this check it'll be integrated on the parsing phase!
+        # if binding == BINDING_HTTP_REDIRECT:
+        #     self._verify_redirect(saml_msg, issuer_name)
         # Perform login
         key = self._store_request(req_info)
         relay_state = saml_msg.get('RelayState', '')
@@ -634,16 +605,13 @@ class IdpServer(object):
         self.app.logger.debug('Request key: {}'.format(key))
         if key and key in self.ticket:
             authn_request = self.ticket[key]
-            message = authn_request
-            sp_id = message.issuer.text
+            sp_id = authn_request.issuer.text
             destination = self.get_destination(authn_request, sp_id)
-            authn_context = message.requestedauthncontext
+            authn_context = authn_request.requestedauthncontext
             spid_level = authn_context.authncontextclassref.text
-            authn_info = self.authn_broker.pick(authn_context)
-            callback, reference = authn_info[0]
             if request.method == 'GET':
                 # inject extra data in form login based on spid level
-                extra_challenge = callback(**{'key': key})
+                extra_challenge = self._verify_spid(level=spid_level, **{'key': key})
                 rendered_form = render_template(
                     'login.html',
                     **{
@@ -657,7 +625,8 @@ class IdpServer(object):
 
             if 'confirm' in request.form:
                 # verify optional challenge based on spid level
-                verified = callback(
+                verified = self._verify_spid(
+                    level=spid_level,
                     verify=True, **{
                         'key': key, 'data': request.form
                     }
@@ -679,9 +648,9 @@ class IdpServer(object):
                         self.app.logger.debug(
                             'Unfiltered data: {}'.format(identity)
                         )
-                        atcs_idx = message.attribute_consuming_service_index
+                        atcs_idx = authn_request.attributeconsumingserviceindex
                         self.app.logger.debug(
-                            'attribute_consuming_service_index: {}'.format(
+                            'AttributeConsumingServiceIndex: {}'.format(
                                 atcs_idx
                             )
                         )
@@ -724,7 +693,7 @@ class IdpServer(object):
                         )
                         _data = dict(
                             identity=identity, userid=user_id,
-                            in_response_to=message.id,
+                            in_response_to=authn_request.id,
                             destination=destination,
                             sp_entity_id=sp_id,
                             authn=AUTHN, issuer=self.server.config.entityid,
@@ -761,7 +730,7 @@ class IdpServer(object):
                             **{
                                 'destination_service': sp_id,
                                 'lines':  escape(
-                                    prettify_xml(response)
+                                    response
                                 ).splitlines(),
                                 'attrs': identity.keys(),
                                 'action': '/continue-response',
@@ -771,7 +740,7 @@ class IdpServer(object):
                         return rendered_response, 200
             elif 'delete' in request.form:
                 error_response = self.server.create_error_response(
-                    in_response_to=authn_request.message.id,
+                    in_response_to=authn_request.id,
                     destination=destination,
                     info=get_spid_error(
                         AUTH_NO_CONSENT
@@ -803,10 +772,10 @@ class IdpServer(object):
                 return _response, 200
             elif 'delete' in request.form:
                 destination = self.get_destination(
-                    auth_req, auth_req.message.issuer.text
+                    auth_req, auth_req.issuer.text
                 )
                 error_response = self.server.create_error_response(
-                    in_response_to=auth_req.message.id,
+                    in_response_to=auth_req.id,
                     destination=destination,
                     info=get_spid_error(
                         AUTH_NO_CONSENT
@@ -846,16 +815,15 @@ class IdpServer(object):
         self.app.logger.debug("req: '%s'", request)
         saml_msg = self.unpack_args(request.args)
         try:
-            req_info, _binding = self._parse_message(action='logout')
-            msg = req_info.message
+            req_info, _binding = self._parse_message()
             self.app.logger.debug(
                 'LogoutRequest: \n{}'.format(
-                    prettify_xml(str(msg))
+                    prettify_xml(req_info._xml_doc)
                 )
             )
             issuer_name = req_info.issuer.text
             extra = {}
-            extra['receivers'] = req_info.receiver_addrs
+            extra['receivers'] = req_info.destination
         except UnknownBinding as err:
             self.app.logger.debug(str(err))
             self._raise_error(
@@ -878,8 +846,9 @@ class IdpServer(object):
         #     return self._handle_errors(req_info.xmlstr, errors=errors)
 
         # Check if it is signed
-        if _binding == BINDING_HTTP_REDIRECT:
-            self._verify_redirect(saml_msg, issuer_name)
+        # TODO: remove this when the parsing logic is complete
+        # if _binding == BINDING_HTTP_REDIRECT:
+        #     self._verify_redirect(saml_msg, issuer_name)
         _slo = self._sp_single_logout_service(issuer_name)
         if _slo is None:
             self._raise_error(
@@ -901,7 +870,7 @@ class IdpServer(object):
             )
         )
         response = self.server.create_logout_response(
-            msg, [response_binding],
+            req_info, [response_binding],
             sign_alg=SIGN_ALG,
             digest_alg=DIGEST_ALG,
             sign=_signing
