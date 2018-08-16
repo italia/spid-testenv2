@@ -14,7 +14,7 @@ from testenv.translation import Libxml2Translator
 from testenv.settings import COMPARISONS, SPID_LEVELS, TIMEDELTA
 from testenv.utils import saml_to_dict, check_utc_date, saml_to_dict, str_to_time
 
-Invalid = namedtuple(
+ValidationDetail = namedtuple(
     'Invalid',
     ['value', 'line', 'column', 'domain_name', 'type_name', 'message', 'path']
 )
@@ -53,7 +53,7 @@ class XMLFormatValidator(object):
     def _build_errors(self):
         errors = self._parser.error_log
         return [
-            Invalid(None, err.line, err.column, err.domain_name,
+            ValidationDetail(None, err.line, err.column, err.domain_name,
                     err.type_name, err.message, err.path)
             for err in errors
         ]
@@ -123,7 +123,7 @@ class BaseXMLSchemaValidator(object):
 
     def _build_errors(self, error_log):
         return [
-            Invalid(None, err.line, err.column, err.domain_name,
+            ValidationDetail(None, err.line, err.column, err.domain_name,
                     err.type_name, err.message, err.path)
             for err in error_log
         ]
