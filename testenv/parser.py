@@ -10,6 +10,8 @@ from lxml import etree, objectify
 from testenv.exceptions import (DeserializationError, RequestParserError,
                                 StopValidation, ValidationError,
                                 XMLFormatValidationError)
+from testenv.validators import (AuthnRequestXMLSchemaValidator, SpidValidator,
+                                XMLFormatValidator)
 
 try:
     from urllib import urlencode
@@ -27,6 +29,23 @@ HTTPRedirectRequest = namedtuple(
 
 
 HTTPPostRequest = namedtuple('HTTPPostRequest', ['saml_request'])
+
+
+def _get_deserializer(request):
+    validators = [
+        XMLFormatValidator(),
+        AuthnRequestXMLSchemaValidator(),
+        SpidValidator(),
+    ]
+    return HTTPRequestDeserializer(request, validators)
+
+
+def get_http_redirect_request_deserializer(request):
+    return _get_deserializer(request)
+
+
+def get_http_post_request_deserializer(request):
+    return _get_deserializer(request)
 
 
 class HTTPRedirectRequestParser(object):
@@ -141,10 +160,9 @@ class HTTPPostRequestParser(object):
 
 
 class HTTPRequestDeserializer(object):
-    _validators = []
-
-    def __init__(self, request, saml_class=None):
+    def __init__(self, request, validators, saml_class=None):
         self._request = request
+        self._validators = validators
         self._saml_class = saml_class or SAMLTree
         self._validation_errors = []
 
