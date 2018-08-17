@@ -18,6 +18,7 @@ try:
 except ImportError:
     from urllib.parse import urlencode
 
+from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 
 SIGNED_PARAMS = ['SAMLRequest', 'RelayState', 'SigAlg']
 
@@ -31,21 +32,21 @@ HTTPRedirectRequest = namedtuple(
 HTTPPostRequest = namedtuple('HTTPPostRequest', ['saml_request'])
 
 
-def _get_deserializer(request):
+def _get_deserializer(request, action, binding):
     validators = [
         XMLFormatValidator(),
         AuthnRequestXMLSchemaValidator(),
-        SpidValidator(),
+        #SpidValidator(action, binding),
     ]
     return HTTPRequestDeserializer(request, validators)
 
 
-def get_http_redirect_request_deserializer(request):
-    return _get_deserializer(request)
+def get_http_redirect_request_deserializer(request, action):
+    return _get_deserializer(request, action, BINDING_HTTP_REDIRECT)
 
 
-def get_http_post_request_deserializer(request):
-    return _get_deserializer(request)
+def get_http_post_request_deserializer(request, action):
+    return _get_deserializer(request, action, BINDING_HTTP_POST)
 
 
 class HTTPRedirectRequestParser(object):

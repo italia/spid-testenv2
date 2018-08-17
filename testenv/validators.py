@@ -368,4 +368,4 @@ class SpidValidator(object):
                         _val, None, None, None, None, err.msg, err.path
                     )
                 )
-            raise SPIDValidationError(errors=errors)
+            raise SPIDValidationError(details=errors)

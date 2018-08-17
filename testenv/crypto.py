@@ -1,13 +1,18 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import base64
+import zlib
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.x509 import load_pem_x509_certificate
 from lxml import objectify
-from signxml import XMLVerifier
+from lxml.etree import fromstring, tostring
+from signxml import XMLVerifier, XMLSigner
 
 from testenv.exceptions import SignatureVerificationError
 
@@ -26,6 +31,19 @@ KEY_INFO = '{}KeyInfo'.format(SIG_NS)
 X509_DATA = '{}X509Data'.format(SIG_NS)
 X509_CERTIFICATE = '{}X509Certificate'.format(SIG_NS)
 
+SIGNED_PARAMS = ['SAMLRequest', 'RelayState', 'SigAlg']
+
+try:
+    from urllib import urlencode
+except ImportError:
+    from urllib.parse import urlencode
+
+
+def deflate_and_base64_encode(msg):
+    if not isinstance(msg, bytes):
+        msg = msg.encode('utf-8')
+    return base64.b64encode(zlib.compress(msg)[2:-4])
+
 
 def pem_format(cert):
     return '\n'.join([
@@ -43,6 +61,18 @@ def normalize_x509(cert):
             '-----END CERTIFICATE-----', ''
         ).strip().split()
     )
+
+
+class RSASigner(object):
+    def __init__(self, digest, key=None, padding=None):
+        self._key = key
+        self._digest = digest
+        self._padding = padding or PKCS1v15()
+
+    def sign(self, unsigned_data, key=None):
+        if key is None:
+            key = self._key
+        return key.sign(unsigned_data, self._padding, self._digest)
 
 
 class RSAVerifier(object):
@@ -65,6 +95,45 @@ RSA_VERIFIERS = {
     SIG_RSA_SHA384: RSAVerifier(hashes.SHA384()),
     SIG_RSA_SHA512: RSAVerifier(hashes.SHA512()),
 }
+
+
+RSA_SIGNERS = {
+    SIG_RSA_SHA224: RSASigner(hashes.SHA224()),
+    SIG_RSA_SHA256: RSASigner(hashes.SHA256()),
+    SIG_RSA_SHA384: RSASigner(hashes.SHA384()),
+    SIG_RSA_SHA512: RSASigner(hashes.SHA512()),
+}
+
+
+def sign_http_post(xmlstr, key, cert):
+    # TODO: handle message and assertion signing (both)
+    signer = XMLSigner(
+        signature_algorithm='rsa-sha256',
+        digest_algorithm='sha256',
+    )
+    root = fromstring(xmlstr)
+    signed_root = signer.sign(root, key=key, cert=cert)
+    return tostring(signed_root)
+
+
+def sign_http_redirect(xmlstr, key, relay_state=None):
+    encoded_message = deflate_and_base64_encode(xmlstr)
+    args = {
+        'SAMLRequest': encoded_message,
+        'SigAlg': SIG_RSA_SHA256,
+    }
+    if relay_state is not None:
+        args['RelayState'] = relay_state
+    query_string = '&'.join(
+        [urlencode({k: args[k]})
+            for k in SIGNED_PARAMS
+            if k in args],
+    ).encode('ascii')
+    signer = RSA_SIGNERS[SIG_RSA_SHA256]
+    key = load_pem_private_key(key, None, default_backend())
+    print(key)
+    args["Signature"] = base64.b64encode(signer.sign(query_string, key))
+    return urlencode(args)
 
 
 class HTTPRedirectSignatureVerifier(object):

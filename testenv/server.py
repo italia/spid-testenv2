@@ -23,8 +23,12 @@ from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, Attribute, Is
 from saml2.samlp import LogoutRequest
 from saml2.sigver import verify_redirect_signature
 
+from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier
 from testenv.exceptions import BadConfiguration
-from testenv.parser import HTTPPostRequestParser, HTTPRedirectRequestParser, HTTPRequestDeserializer
+from testenv.parser import (
+    HTTPPostRequestParser, HTTPRedirectRequestParser,
+    get_http_post_request_deserializer, get_http_redirect_request_deserializer
+)
 from testenv.settings import (ALLOWED_SIG_ALGS, AUTH_NO_CONSENT, DIGEST_ALG,
                               SIGN_ALG, SPID_LEVELS)
 from testenv.spid import SpidPolicy, SpidServer, ac_factory
@@ -392,7 +396,7 @@ class IdpServer(object):
     #             ' necessari per le richieste di tipo HTTP-REDIRECT'
     #         )
 
-    def _parse_message(self):
+    def _parse_message(self, action):
         """
         Parse an AuthnRequest or a LogoutRequest
 
@@ -414,11 +418,16 @@ class IdpServer(object):
                 ' GET (Http-Redirect) o POST (Http-Post)'
             )
         if _binding == BINDING_HTTP_POST:
-            parser = HTTPPostRequestParser
+            request_parser = HTTPPostRequestParser
+            signature_parser = HTTPPostSignatureVerifier
+            deserializer = get_http_post_request_deserializer
         elif _binding == BINDING_HTTP_REDIRECT:
-            parser = HTTPRedirectRequestParser
-        req_info = parser(saml_msg).parse()
-        req_info = HTTPRequestDeserializer(req_info).deserialize()
+            request_parser = HTTPRedirectRequestParser
+            signature_parser = HTTPRedirectSignatureVerifier
+            deserializer = get_http_redirect_request_deserializer
+
+        req_info = request_parser(saml_msg).parse()
+        req_info = deserializer(req_info, action).deserialize()
         return req_info, _binding
 
     def single_sign_on_service(self):
@@ -430,7 +439,7 @@ class IdpServer(object):
         # Unpack parameters
         saml_msg = self.unpack_args(request.args)
         try:
-            req_info, binding = self._parse_message()
+            req_info, binding = self._parse_message(action='login')
             authn_req = req_info
             self.app.logger.debug(
                 'AuthnRequest: \n{}'.format(prettify_xml(authn_req._xml_doc))
@@ -815,7 +824,7 @@ class IdpServer(object):
         self.app.logger.debug("req: '%s'", request)
         saml_msg = self.unpack_args(request.args)
         try:
-            req_info, _binding = self._parse_message()
+            req_info, _binding = self._parse_message(action='logout')
             self.app.logger.debug(
                 'LogoutRequest: \n{}'.format(
                     prettify_xml(req_info._xml_doc)
@@ -871,8 +880,10 @@ class IdpServer(object):
         )
         STATUS_SUCCESS = 'urn:oasis:names:tc:SAML:2.0:status:Success'
         from testenv.saml import create_logout_response
+        from testenv.crypto import sign_http_post, sign_http_redirect, deflate_and_base64_encode
+        import base64
         destination = _slo[0].get('location')
-        r = create_logout_response(
+        response = create_logout_response(
             {
                 'logout_response': {
                     'attrs': {
@@ -890,44 +901,28 @@ class IdpServer(object):
             {
                 'status_code': STATUS_SUCCESS
             }
-        )
-        # print(r.to_xml())
-        # print(_slo)
-        # response = self.server.create_logout_response(
-        #     req_info, [response_binding],
-        #     sign_alg=SIGN_ALG,
-        #     digest_alg=DIGEST_ALG,
-        #     sign=_signing
-        # )
-        # self.app.logger.debug('Response: \n{}'.format(response))
-        # binding, destination = self.server.pick_binding(
-        #     "single_logout_service",
-        #     [response_binding], "spsso",
-        #     req_info
-        # )
-        # self.app.logger.debug('Destination {}'.format(destination))
-        if response_binding == BINDING_HTTP_POST:
-            _sign = False
-            extra = {}
-        else:
-            _sign = True
-            extra = {'sigalg': SIGN_ALG}
-
+        ).to_xml()
+        key_file = self.server.config.key_file
+        cert_file = self.server.config.cert_file
+        key = open(key_file, 'rb').read()
+        cert = open(cert_file, 'rb').read()
         relay_state = saml_msg.get('RelayState', '')
-        # TODO: substitute the following method with a custom one
-        http_args = self.server.apply_binding(
-            response_binding,
-            "%s" % r.to_xml(), destination, response=True,
-            sign=_sign, relay_state=relay_state, **extra
-        )
         if response_binding == BINDING_HTTP_POST:
-            self.app.logger.debug('Form post {}'.format(http_args['data']))
-            return http_args['data'], 200
+            response = sign_http_post(response, key, cert)
+            saml_response = base64.b64encode(response)
+            rendered_template = render_template(
+                'form_http_post.html',
+                **{
+                    'action': destination,
+                    'relay_state': relay_state,
+                    'message': saml_response,
+                    'message_type': 'SAMLResponse'
+                }
+            )
+            return rendered_template, 200
         elif response_binding == BINDING_HTTP_REDIRECT:
-            headers = dict(http_args['headers'])
-            self.app.logger.debug('Headers {}'.format(headers))
-            location = headers.get('Location')
-            self.app.logger.debug('Location {}'.format(location))
+            query_string = sign_http_redirect(response, key, relay_state)
+            location = '{}?{}'.format(destination, query_string)
             if location:
                 return redirect(location)
         abort(400)
