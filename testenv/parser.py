@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import re
+
 import zlib
 from base64 import b64decode
 from collections import namedtuple
@@ -212,18 +214,25 @@ class SAMLTree(object):
         self._bind_subtrees()
 
     def _bind_tag(self):
-        self.tag = etree.QName(self._xml_doc).localname
+        tag = etree.QName(self._xml_doc).localname
+        self.tag = self._to_snake_case(tag)
+
+    @staticmethod
+    def _to_snake_case(child_name):
+        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', child_name)
+        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
     def _bind_attributes(self):
         for attr_name, attr_val in self._xml_doc.attrib.items():
-            setattr(self, attr_name.lower(), attr_val)
+            attr_name = self._to_snake_case(attr_name)
+            setattr(self, attr_name, attr_val)
 
     def _bind_text(self):
         self.text = self._xml_doc.text
 
     def _bind_subtrees(self):
         for child in self._xml_doc.iterchildren():
-            child_name = etree.QName(child).localname.lower()
+            child_name = self._to_snake_case(etree.QName(child).localname)
             subtree = SAMLTree(child)
             if getattr(self, child_name, None):
                 self._handle_as_list(child_name, subtree)
