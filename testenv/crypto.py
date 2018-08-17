@@ -36,7 +36,13 @@ def pem_format(cert):
 
 
 def normalize_x509(cert):
-    return ''.join(cert.strip().split())
+    return ''.join(
+        cert.replace(
+            '-----BEGIN CERTIFICATE-----', ''
+        ).replace(
+            '-----END CERTIFICATE-----', ''
+        ).strip().split()
+    )
 
 
 class RSAVerifier(object):
