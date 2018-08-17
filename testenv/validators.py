@@ -6,8 +6,6 @@ from datetime import datetime, timedelta
 
 import importlib_resources
 from lxml import etree
-from saml2 import BINDING_HTTP_POST, time_util
-from saml2.saml import NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
 from voluptuous import (ALLOW_EXTRA, All, In, Invalid, MultipleInvalid,
                         Optional, Schema)
 from voluptuous.validators import Equal
@@ -16,16 +14,20 @@ from testenv.exceptions import (SPIDValidationError, XMLFormatValidationError,
                                 XMLSchemaValidationError)
 from testenv.settings import SPID_LEVELS, TIMEDELTA
 from testenv.translation import Libxml2Translator
-from testenv.utils import saml_to_dict, str_to_time
+from testenv.utils import saml_to_dict, str_to_struct_time, str_to_datetime
 
 MANDATORY_ERROR = 'L\'attributo è obbligatorio'
 NO_WANT_ERROR = 'L\'attributo non è richiesto'
 DEFAULT_VALUE_ERROR = 'è diverso dal valore di riferimento {}'
-DEFAULT_LIST_VALUE_ERROR = 'non corrisponde a nessuno'\
-                           ' dei valori contenuti in {}'
+DEFAULT_LIST_VALUE_ERROR = 'non corrisponde a nessuno '\
+                           'dei valori contenuti in {}'
 ASSERTION = '{urn:oasis:names:tc:SAML:2.0:assertion}'
 PROTOCOL = '{urn:oasis:names:tc:SAML:2.0:protocol}'
 SIGNATURE = 'http://www.w3.org/2000/09/xmldsig#'
+
+NAMEID_FORMAT_ENTITY = 'urn:oasis:names:tc:SAML:2.0:nameid-format:entity'
+NAMEID_FORMAT_TRANSIENT = 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient'
+BINDING_HTTP_POST = 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST'
 
 ValidationDetail = namedtuple(
     'ValidationDetail',
@@ -151,13 +153,13 @@ class SpidValidator(object):
 
     def _check_utc_date(self, date):
         try:
-            time_util.str_to_time(date)
+            str_to_struct_time(date)
         except Exception:
             raise Invalid('la data non è in formato UTC')
         return date
 
     def _check_date_in_range(self, date):
-        date = str_to_time(date)
+        date = str_to_datetime(date)
         now = datetime.utcnow()
         lower = now - timedelta(minutes=TIMEDELTA)
         upper = now + timedelta(minutes=TIMEDELTA)
