@@ -208,9 +208,9 @@ class HTTPRequestDeserializer(object):
 class SAMLTree(object):
     def __init__(self, xml_doc):
         self._xml_doc = xml_doc
+        self.text = self._xml_doc.text
         self._bind_tag()
         self._bind_attributes()
-        self._bind_text()
         self._bind_subtrees()
 
     def _bind_tag(self):
@@ -226,9 +226,6 @@ class SAMLTree(object):
         for attr_name, attr_val in self._xml_doc.attrib.items():
             attr_name = self._to_snake_case(attr_name)
             setattr(self, attr_name, attr_val)
-
-    def _bind_text(self):
-        self.text = self._xml_doc.text
 
     def _bind_subtrees(self):
         for child in self._xml_doc.iterchildren():
