@@ -1,33 +1,36 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
 from collections import namedtuple
+from datetime import datetime, timedelta
 
 import importlib_resources
 from lxml import etree
-from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, time_util
+from saml2 import BINDING_HTTP_POST, time_util
 from saml2.saml import NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
-from voluptuous import Schema, In, MultipleInvalid, ALLOW_EXTRA
-from voluptuous import Optional, All, Invalid
+from voluptuous import (ALLOW_EXTRA, All, In, Invalid, MultipleInvalid,
+                        Optional, Schema)
 from voluptuous.validators import Equal
 
-from testenv.exceptions import (XMLFormatValidationError,
+from testenv.exceptions import (SPIDValidationError, XMLFormatValidationError,
                                 XMLSchemaValidationError)
+from testenv.settings import SPID_LEVELS, TIMEDELTA
 from testenv.translation import Libxml2Translator
-from testenv.settings import COMPARISONS, SPID_LEVELS, TIMEDELTA
-from testenv.utils import saml_to_dict, check_utc_date, saml_to_dict, str_to_time
-
-ValidationDetail = namedtuple(
-    'Invalid',
-    ['value', 'line', 'column', 'domain_name', 'type_name', 'message', 'path']
-)
-
+from testenv.utils import saml_to_dict, str_to_time
 
 MANDATORY_ERROR = 'L\'attributo è obbligatorio'
 NO_WANT_ERROR = 'L\'attributo non è richiesto'
 DEFAULT_VALUE_ERROR = 'è diverso dal valore di riferimento {}'
 DEFAULT_LIST_VALUE_ERROR = 'non corrisponde a nessuno'\
-' dei valori contenuti in {}'
+                           ' dei valori contenuti in {}'
 ASSERTION = '{urn:oasis:names:tc:SAML:2.0:assertion}'
 PROTOCOL = '{urn:oasis:names:tc:SAML:2.0:protocol}'
 SIGNATURE = 'http://www.w3.org/2000/09/xmldsig#'
+
+ValidationDetail = namedtuple(
+    'ValidationDetail',
+    ['value', 'line', 'column', 'domain_name', 'type_name', 'message', 'path']
+)
 
 
 class XMLFormatValidator(object):
@@ -54,7 +57,7 @@ class XMLFormatValidator(object):
         errors = self._parser.error_log
         return [
             ValidationDetail(None, err.line, err.column, err.domain_name,
-                    err.type_name, err.message, err.path)
+                             err.type_name, err.message, err.path)
             for err in errors
         ]
 
@@ -124,7 +127,7 @@ class BaseXMLSchemaValidator(object):
     def _build_errors(self, error_log):
         return [
             ValidationDetail(None, err.line, err.column, err.domain_name,
-                    err.type_name, err.message, err.path)
+                             err.type_name, err.message, err.path)
             for err in error_log
         ]
 
@@ -167,7 +170,6 @@ class SpidValidator(object):
         return date
 
     def validate(self, request):
-        from testenv.validators import Invalid as InvalidError
         xmlstr = request.saml_request
         attribute_consuming_service_indexes = self._extra.get(
             'attribute_consuming_service_indexes'
@@ -360,7 +362,7 @@ class SpidValidator(object):
                 for _ in err.path:
                     _val = _val.get(_)
                 errors.append(
-                    InvalidError(
+                    ValidationDetail(
                         _val, None, None, None, None, err.msg, err.path
                     )
                 )
