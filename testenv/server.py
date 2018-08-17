@@ -869,19 +869,43 @@ class IdpServer(object):
                 _signing
             )
         )
-        response = self.server.create_logout_response(
-            req_info, [response_binding],
-            sign_alg=SIGN_ALG,
-            digest_alg=DIGEST_ALG,
-            sign=_signing
+        STATUS_SUCCESS = 'urn:oasis:names:tc:SAML:2.0:status:Success'
+        from testenv.saml import create_logout_response
+        destination = _slo[0].get('location')
+        r = create_logout_response(
+            {
+                'logout_response': {
+                    'attrs': {
+                        'in_response_to': req_info.id,
+                        'destination': destination
+                    }
+                },
+                'issuer': {
+                    'attrs': {
+                        'name_qualifier': 'something',
+                    },
+                    'text': self.server.config.entityid
+                }
+            },
+            {
+                'status_code': STATUS_SUCCESS
+            }
         )
-        self.app.logger.debug('Response: \n{}'.format(response))
-        binding, destination = self.server.pick_binding(
-            "single_logout_service",
-            [response_binding], "spsso",
-            req_info
-        )
-        self.app.logger.debug('Destination {}'.format(destination))
+        # print(r.to_xml())
+        # print(_slo)
+        # response = self.server.create_logout_response(
+        #     req_info, [response_binding],
+        #     sign_alg=SIGN_ALG,
+        #     digest_alg=DIGEST_ALG,
+        #     sign=_signing
+        # )
+        # self.app.logger.debug('Response: \n{}'.format(response))
+        # binding, destination = self.server.pick_binding(
+        #     "single_logout_service",
+        #     [response_binding], "spsso",
+        #     req_info
+        # )
+        # self.app.logger.debug('Destination {}'.format(destination))
         if response_binding == BINDING_HTTP_POST:
             _sign = False
             extra = {}
@@ -890,9 +914,10 @@ class IdpServer(object):
             extra = {'sigalg': SIGN_ALG}
 
         relay_state = saml_msg.get('RelayState', '')
+        # TODO: substitute the following method with a custom one
         http_args = self.server.apply_binding(
-            binding,
-            "%s" % response, destination, response=True,
+            response_binding,
+            "%s" % r.to_xml(), destination, response=True,
             sign=_sign, relay_state=relay_state, **extra
         )
         if response_binding == BINDING_HTTP_POST:
