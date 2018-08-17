@@ -657,7 +657,7 @@ class IdpServer(object):
                         self.app.logger.debug(
                             'Unfiltered data: {}'.format(identity)
                         )
-                        atcs_idx = authn_request.attributeconsumingserviceindex
+                        atcs_idx = getattr(authn_request, 'attributeconsumingserviceindex', None)
                         self.app.logger.debug(
                             'AttributeConsumingServiceIndex: {}'.format(
                                 atcs_idx
