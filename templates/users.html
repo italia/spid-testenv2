@@ -14,7 +14,7 @@
             <tr>
                 <td>{{user}}</td>
                 <td>{{info.pwd}}</td>
-                <td>{{info.sp}}</td>
+                <td>{{info.sp if info.sp != None else 'tutti'}}</td>
                 <td>
                         {% for attr, value in info.attrs.items() %}
                             {{attr}}: <b>{{value}}</b></br>
