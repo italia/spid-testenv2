@@ -592,7 +592,7 @@ class IdpServer(object):
                 if spid_value:
                     extra[spid_field] = spid_value
             self.user_manager.add(username, password, sp, extra)
-        return 'Added a new user', 200
+        return redirect(url_for('users'))
 
     def index(self):
         rendered_form = render_template(
