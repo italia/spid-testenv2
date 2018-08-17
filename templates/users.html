@@ -23,18 +23,8 @@
             </tr>
             {% endfor %}
         </table>
-        
-        <ul class="u-margin-bottom-xl u-margin-top-xl">
-                {% for user, info in users.items() %}
-                 <li class="u-color-grey-60 u-textWeight-600 u-lineHeight-xl u-margin-bottom-xs">{{user}}
-                        {% for attr, value in info.items() %}
-                        {{attr}} - {{value}}<br>
-                        {% endfor %}
-                 </li>
-                {% endfor %}
-            </ul>
-
     </article>
+    
     <article class="main-bodytext u-padding-all-xl">
             <h1 class="mt-2 mb-5 text-center">Crea nuovo utente</h1>
             <form class="Form Form--spaced u-margin-bottom-l" name="add_user" method="post" action="{{action}}">
