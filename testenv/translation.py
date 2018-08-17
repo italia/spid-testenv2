@@ -45,7 +45,7 @@ class Libxml2Translator(object):
         message = self._get_replacement_message(error)
         from testenv.validators import ValidationDetail
         return ValidationDetail(
-            error.line, error.column, error.domain_name,
+            None, error.line, error.column, error.domain_name,
             error.type_name, message, error.path,
         )
 
