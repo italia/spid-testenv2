@@ -4,19 +4,25 @@ from __future__ import unicode_literals
 import zlib
 from base64 import b64decode
 from collections import namedtuple
-from datetime import datetime, timedelta
 
-from flask import escape
 from lxml import etree, objectify
 
 from testenv.exceptions import (DeserializationError, RequestParserError,
                                 StopValidation, ValidationError,
                                 XMLFormatValidationError)
 
+try:
+    from urllib import urlencode
+except ImportError:
+    from urllib.parse import urlencode
+
+
+SIGNED_PARAMS = ['SAMLRequest', 'RelayState', 'SigAlg']
+
 
 HTTPRedirectRequest = namedtuple(
     'HTTPRedirectRequest',
-    ['saml_request', 'sig_alg', 'signature'],
+    ['saml_request', 'sig_alg', 'signature', 'signed_data'],
 )
 
 
@@ -30,11 +36,13 @@ class HTTPRedirectRequestParser(object):
         self._saml_request = None
         self._sig_alg = None
         self._signature = None
+        self._signed_data = None
 
     def parse(self):
         self._saml_request = self._parse_saml_request()
         self._sig_alg = self._parse_sig_alg()
         self._signature = self._parse_signature()
+        self._signed_data = self._build_signed_data()
         return self._build_request()
 
     def _parse_saml_request(self):
@@ -76,11 +84,20 @@ class HTTPRedirectRequestParser(object):
         except Exception:
             self._fail("Impossibile decodificare l'elemento 'Signature'")
 
+    def _build_signed_data(self):
+        signed_data = '&'.join(
+            [urlencode({k: self._querystring[k]})
+             for k in SIGNED_PARAMS
+             if k in self._querystring],
+        )
+        return signed_data.encode('ascii')
+
     def _build_request(self):
         return self._request_class(
             self._saml_request,
             self._sig_alg,
             self._signature,
+            self._signed_data,
         )
 
 

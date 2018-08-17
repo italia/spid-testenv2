@@ -40,9 +40,9 @@ class XMLSchemaValidationError(ValidationError):
     pass
 
 
-class SignatureValidationError(ValidationError):
+class StopValidation(TestenvError):
     pass
 
 
-class StopValidation(TestenvError):
+class SignatureVerificationError(TestenvError):
     pass
