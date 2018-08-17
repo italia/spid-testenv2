@@ -225,4 +225,14 @@ class SAMLTree(object):
         for child in self._xml_doc.iterchildren():
             child_name = etree.QName(child).localname.lower()
             subtree = SAMLTree(child)
-            setattr(self, child_name, subtree)
+            if getattr(self, child_name, None):
+                self._handle_as_list(child_name, subtree)
+            else:
+                setattr(self, child_name, subtree)
+
+    def _handle_as_list(self, child_name, subtree):
+        existing = getattr(self, child_name)
+        if isinstance(existing, list):
+            existing.append(subtree)
+        else:
+            setattr(self, child_name, [existing, subtree])
