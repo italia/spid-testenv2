@@ -407,28 +407,32 @@ class IdpServer(object):
         method = request.method
 
         if method == 'GET':
-            _binding = BINDING_HTTP_REDIRECT
-            saml_msg = self.unpack_args(request.args)
+            return self._handle_http_redirect(action)
         elif method == 'POST':
-            _binding = BINDING_HTTP_POST
-            saml_msg = self.unpack_args(request.form)
+            return self._handle_http_post(action)
         else:
             self._raise_error(
-                'I metodi consentiti sono'\
+                'I metodi consentiti sono'
                 ' GET (Http-Redirect) o POST (Http-Post)'
             )
-        if _binding == BINDING_HTTP_POST:
-            request_parser = HTTPPostRequestParser
-            signature_parser = HTTPPostSignatureVerifier
-            deserializer = get_http_post_request_deserializer
-        elif _binding == BINDING_HTTP_REDIRECT:
-            request_parser = HTTPRedirectRequestParser
-            signature_parser = HTTPRedirectSignatureVerifier
-            deserializer = get_http_redirect_request_deserializer
 
-        req_info = request_parser(saml_msg).parse()
-        req_info = deserializer(req_info, action).deserialize()
-        return req_info, _binding
+    def _handle_http_redirect(self, action):
+        saml_msg = self.unpack_args(request.args)
+        request_data = HTTPRedirectRequestParser(saml_msg).parse()
+        deserializer = get_http_redirect_request_deserializer(
+            request_data, action)
+        samltree = deserializer.deserialize()
+        # HTTPRedirectSignatureVerifier(cert, request_data).verify()
+        return samltree, BINDING_HTTP_REDIRECT
+
+    def _handle_http_post(self, action):
+        saml_msg = self.unpack_args(request.form)
+        request_data = HTTPPostRequestParser(saml_msg).parse()
+        deserializer = get_http_post_request_deserializer(
+            request_data, action)
+        samltree = deserializer.deserialize()
+        # HTTPPostSignatureVerifier(cert, request_data).verify()
+        return samltree, BINDING_HTTP_POST
 
     def single_sign_on_service(self):
         """
