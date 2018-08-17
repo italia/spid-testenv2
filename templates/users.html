@@ -1,8 +1,29 @@
 {% extends 'admin_area_base.html' %}
 {% block content %}
     <article class="main-bodytext u-padding-all-xl">
-        <h1 class="mt-2 mb-5 text-center">Lista utenti</h1>
+        <h1 class="mt-2 mb-5 text-center">Utenti SPID</h1>
 
+        <table class="table table-striped">
+            <tr>
+                <th>Username</th>
+                <th>Password</th>
+                <th>SP</th>
+                <th>Attributes</th>
+            </tr>
+            {% for user, info in users.items() %}
+            <tr>
+                <td>{{user}}</td>
+                <td>{{info.pwd}}</td>
+                <td>{{info.sp}}</td>
+                <td>
+                        {% for attr, value in info.attrs.items() %}
+                            {{attr}}: <b>{{value}}</b></br>
+                        {% endfor %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+        
         <ul class="u-margin-bottom-xl u-margin-top-xl">
                 {% for user, info in users.items() %}
                  <li class="u-color-grey-60 u-textWeight-600 u-lineHeight-xl u-margin-bottom-xs">{{user}}
@@ -41,7 +62,7 @@
                         {% endfor %}
                     </select>
                     <label for="service_provider">
-                        Service provider id
+                        Service Provider
                     </label>
                 </div>
                 <h3 class="u-text-r-xs u-lineHeight-l u-color-grey-40 u-textWeight-800">Attributi Primari</h3>
