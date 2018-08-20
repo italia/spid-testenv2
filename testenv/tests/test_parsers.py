@@ -9,12 +9,9 @@ from copy import copy
 import pytest
 
 from testenv.exceptions import (
-    DeserializationError, RequestParserError, SPIDValidationError,
-    XMLFormatValidationError, XMLSchemaValidationError,
+    DeserializationError, RequestParserError, SPIDValidationError, XMLFormatValidationError, XMLSchemaValidationError,
 )
-from testenv.parser import (
-    HTTPRequestDeserializer, HTTPPostRequestParser, HTTPRedirectRequestParser,
-)
+from testenv.parser import HTTPPostRequestParser, HTTPRedirectRequestParser, HTTPRequestDeserializer
 from testenv.tests.utils import FakeRequest
 
 try:

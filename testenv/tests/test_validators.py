@@ -6,9 +6,9 @@ import unittest
 import pytest
 
 from testenv.exceptions import XMLFormatValidationError, XMLSchemaValidationError
-from testenv.validators import AuthnRequestXMLSchemaValidator, XMLFormatValidator
 from testenv.tests.data import sample_saml_requests as sample_requests
 from testenv.tests.utils import FakeRequest
+from testenv.validators import AuthnRequestXMLSchemaValidator, XMLFormatValidator
 
 
 class FakeTranslator(object):

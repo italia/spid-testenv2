@@ -2,25 +2,23 @@
 from __future__ import unicode_literals
 
 import re
-
 import zlib
 from base64 import b64decode
 from collections import namedtuple
 
 from lxml import etree, objectify
+from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 
-from testenv.exceptions import (DeserializationError, RequestParserError,
-                                StopValidation, ValidationError,
-                                XMLFormatValidationError)
-from testenv.validators import (AuthnRequestXMLSchemaValidator, SpidValidator,
-                                XMLFormatValidator)
+from testenv.exceptions import (
+    DeserializationError, RequestParserError, StopValidation, ValidationError, XMLFormatValidationError,
+)
+from testenv.validators import AuthnRequestXMLSchemaValidator, SpidValidator, XMLFormatValidator
 
 try:
     from urllib import urlencode
 except ImportError:
     from urllib.parse import urlencode
 
-from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 
 SIGNED_PARAMS = ['SAMLRequest', 'RelayState', 'SigAlg']
 

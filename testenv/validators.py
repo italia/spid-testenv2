@@ -6,15 +6,13 @@ from datetime import datetime, timedelta
 
 import importlib_resources
 from lxml import etree
-from voluptuous import (ALLOW_EXTRA, All, In, Invalid, MultipleInvalid,
-                        Optional, Schema)
+from voluptuous import ALLOW_EXTRA, All, In, Invalid, MultipleInvalid, Optional, Schema
 from voluptuous.validators import Equal
 
-from testenv.exceptions import (SPIDValidationError, XMLFormatValidationError,
-                                XMLSchemaValidationError)
+from testenv.exceptions import SPIDValidationError, XMLFormatValidationError, XMLSchemaValidationError
 from testenv.settings import SPID_LEVELS, TIMEDELTA
 from testenv.translation import Libxml2Translator
-from testenv.utils import saml_to_dict, str_to_struct_time, str_to_datetime
+from testenv.utils import saml_to_dict, str_to_datetime, str_to_struct_time
 
 MANDATORY_ERROR = 'L\'attributo è obbligatorio'
 NO_WANT_ERROR = 'L\'attributo non è richiesto'

@@ -13,8 +13,7 @@ from saml2.attribute_converter import AttributeConverter
 from saml2.entity import UnknownBinding
 from saml2.request import AuthnRequest, LogoutRequest
 from saml2.response import IncorrectlySigned
-from saml2.s_utils import (UnravelError, decode_base64_and_inflate, do_ava,
-                           factory)
+from saml2.s_utils import UnravelError, decode_base64_and_inflate, do_ava, factory
 from saml2.saml import Attribute
 from saml2.server import Server
 
@@ -41,7 +40,7 @@ class RequestMixin(object):
         if not self.message:
             raise IncorrectlySigned()
         return self
-    
+
     def verify(self):
         # https://github.com/IdentityPython/pysaml2/blob/master/src/saml2/request.py#L98
         # TODO: move here a bit of parsing flow
@@ -64,7 +63,7 @@ class SpidServer(Server):
         :param binding: Which binding that was used to transport the message
             to this entity.
         :return: A request instance
-        
+
         See: https://github.com/IdentityPython/pysaml2/blob/master/src/saml2/server.py#L221
         """
 
@@ -79,7 +78,7 @@ class SpidServer(Server):
         :return: None if the reply doesn't contain a valid SAML LogoutResponse,
             otherwise the reponse if the logout was successful and None if it
             was not.
-        
+
         See: https://github.com/IdentityPython/pysaml2/blob/master/src/saml2/entity.py#L1183
         """
 

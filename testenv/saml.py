@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-
-
-from lxml.etree import Element, SubElement
-from lxml.etree import tostring
-from lxml.builder import ElementMaker
-from uuid import uuid4
-from hashlib import sha1
 from datetime import datetime
+from hashlib import sha1
+from uuid import uuid4
+
+from lxml.builder import ElementMaker
+from lxml.etree import Element, SubElement, tostring
 
 SAML = 'urn:oasis:names:tc:SAML:2.0:assertion'
 SAMLP = 'urn:oasis:names:tc:SAML:2.0:protocol'
@@ -62,7 +60,7 @@ class SamlMixin(object):
     @property
     def tree(self):
         return self._element
-    
+
     def append(self, el):
         self.tree.append(el.tree)
 

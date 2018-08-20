@@ -9,8 +9,7 @@ from datetime import datetime
 from hashlib import sha1
 from logging.handlers import RotatingFileHandler
 
-from flask import (Response, abort, escape, redirect, render_template, request,
-                   session, url_for)
+from flask import Response, abort, escape, redirect, render_template, request, session, url_for
 from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 from saml2.assertion import filter_on_demands
 from saml2.attribute_converter import list_to_local
@@ -23,19 +22,17 @@ from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, Attribute, Is
 from saml2.samlp import LogoutRequest
 from saml2.sigver import verify_redirect_signature
 
-from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier
-from testenv.exceptions import BadConfiguration, RequestParserError, DeserializationError, SignatureVerificationError
+from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect
+from testenv.exceptions import BadConfiguration, DeserializationError, RequestParserError, SignatureVerificationError
 from testenv.parser import (
-    HTTPPostRequestParser, HTTPRedirectRequestParser,
-    get_http_post_request_deserializer, get_http_redirect_request_deserializer
+    HTTPPostRequestParser, HTTPRedirectRequestParser, get_http_post_request_deserializer,
+    get_http_redirect_request_deserializer,
 )
-from testenv.settings import (ALLOWED_SIG_ALGS, AUTH_NO_CONSENT, DIGEST_ALG,
-                              SIGN_ALG, SPID_LEVELS, STATUS_SUCCESS)
+from testenv.saml import create_logout_response
+from testenv.settings import ALLOWED_SIG_ALGS, AUTH_NO_CONSENT, DIGEST_ALG, SIGN_ALG, SPID_LEVELS, STATUS_SUCCESS
 from testenv.spid import SpidPolicy, SpidServer, ac_factory
 from testenv.users import JsonUserManager
 from testenv.utils import get_spid_error, prettify_xml
-from testenv.saml import create_logout_response
-from testenv.crypto import sign_http_post, sign_http_redirect
 
 try:
     from saml2.sigver import get_xmlsec_binary
