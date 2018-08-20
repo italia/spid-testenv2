@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
 import unittest
 
 import pytest
@@ -5,17 +8,13 @@ import pytest
 from testenv.exceptions import XMLFormatValidationError, XMLSchemaValidationError
 from testenv.validators import AuthnRequestXMLSchemaValidator, XMLFormatValidator
 from testenv.tests.data import sample_saml_requests as sample_requests
+from testenv.tests.utils import FakeRequest
 
 
 class FakeTranslator(object):
 
     def translate_many(self, errors):
         return errors
-
-
-class FakeRequest(object):
-    def __init__(self, data):
-        self.saml_request = data
 
 
 class XMLFormatValidatorTestCase(unittest.TestCase):
