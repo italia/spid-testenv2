@@ -9,7 +9,7 @@ import zlib
 import pytest
 
 from testenv.exceptions import RequestParserError
-from testenv.parser import HTTPRedirectRequestParser
+from testenv.parser import HTTPPostRequestParser, HTTPRedirectRequestParser
 
 try:
     from urllib import urlencode
@@ -67,3 +67,36 @@ class HTTPRedirectRequestParserTestCase(unittest.TestCase):
             self.assertEqual(
                 "Impossibile decodificare l'elemento '{}'".format(key),
                 exc.args[0])
+
+
+class HTTPPostRequestParserTestCase(unittest.TestCase):
+    def setUp(self):
+        saml_request = base64.b64encode(b'saml_request').decode('ascii')
+        self.form = {
+            'SAMLRequest': saml_request,
+        }
+
+    def test_valid_request(self):
+        parser = HTTPPostRequestParser(self.form)
+        parsed = parser.parse()
+        self.assertEqual(parsed.saml_request, 'saml_request')
+
+    def test_missing_data(self):
+        del self.form['SAMLRequest']
+        parser = HTTPPostRequestParser(self.form)
+        with pytest.raises(RequestParserError) as excinfo:
+            parser.parse()
+        exc = excinfo.value
+        self.assertEqual(
+            "Dato mancante nella request: 'SAMLRequest'",
+            exc.args[0])
+
+    def test_decoding_failure(self):
+        self.form['SAMLRequest'] = 'XXX_not_base64_data_XXX'
+        parser = HTTPPostRequestParser(self.form)
+        with pytest.raises(RequestParserError) as excinfo:
+            parser.parse()
+        exc = excinfo.value
+        self.assertEqual(
+            "Impossibile decodificare l'elemento 'SAMLRequest'",
+            exc.args[0])
