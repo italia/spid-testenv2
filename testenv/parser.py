@@ -91,7 +91,7 @@ class HTTPRedirectRequestParser(object):
     def _convert_saml_request(saml_request):
         saml_request = b64decode(saml_request)
         saml_request = zlib.decompress(saml_request, -15)
-        return saml_request.decode()
+        return saml_request.decode('utf-8')
 
     def _parse_sig_alg(self):
         return self._extract('SigAlg')
@@ -156,7 +156,7 @@ class HTTPPostRequestParser(object):
     @staticmethod
     def _convert_saml_request(saml_request):
         saml_request = b64decode(saml_request)
-        return saml_request.decode()
+        return saml_request.decode('utf-8')
 
     def _build_request(self):
         return self._request_class(self._saml_request)
