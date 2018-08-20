@@ -584,7 +584,7 @@ class IdpServer(object):
 
     def get_destination(self, req, sp_id):
         destination = None
-        acs_index = getattr(req, 'assertionconsumerserviceindex', None)
+        acs_index = getattr(req, 'assertion_consumer_service_index', None)
         if acs_index is not None:
             acss = self.server.metadata.assertion_consumer_service(
                 sp_id, req.protocol_binding
@@ -599,7 +599,7 @@ class IdpServer(object):
                 )
             )
         if destination is None:
-            destination = req.assertionconsumerserviceurl
+            destination = req.assertion_consumer_service_url
             self.app.logger.debug(
                 'AssertionConsumerServiceURL: {}'.format(
                     destination
@@ -620,8 +620,8 @@ class IdpServer(object):
             authn_request = self.ticket[key]
             sp_id = authn_request.issuer.text
             destination = self.get_destination(authn_request, sp_id)
-            authn_context = authn_request.requestedauthncontext
-            spid_level = authn_context.authncontextclassref.text
+            authn_context = authn_request.requested_authn_context
+            spid_level = authn_context.authn_context_class_ref.text
             if request.method == 'GET':
                 # inject extra data in form login based on spid level
                 extra_challenge = self._verify_spid(level=spid_level, **{'key': key})
@@ -661,7 +661,7 @@ class IdpServer(object):
                         self.app.logger.debug(
                             'Unfiltered data: {}'.format(identity)
                         )
-                        atcs_idx = getattr(authn_request, 'attributeconsumingserviceindex', None)
+                        atcs_idx = getattr(authn_request, 'attribute_consuming_service_index', None)
                         self.app.logger.debug(
                             'AttributeConsumingServiceIndex: {}'.format(
                                 atcs_idx
