@@ -45,7 +45,7 @@ class FailValidator(object):
 class HTTPRedirectRequestParserTestCase(unittest.TestCase):
 
     def setUp(self):
-        compressor = zlib.compressobj(wbits=-15)
+        compressor = zlib.compressobj(-1, zlib.DEFLATED, -15)
         compressor.compress(b'saml_request')
         compressed = compressor.flush()
         saml_request = base64.b64encode(compressed).decode('ascii')
