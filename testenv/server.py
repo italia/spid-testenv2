@@ -333,11 +333,10 @@ class IdpServer(object):
         return key
 
     def _handle_errors(self, xmlstr, errors=None):
-        _escaped_xml = escape(prettify_xml(xmlstr.decode()))
         rendered_error_response = render_template(
             'spid_error.html',
             **{
-                'lines': _escaped_xml.splitlines(),
+                'lines': xmlstr.splitlines(),
                 'errors': errors
                 }
             )
@@ -416,27 +415,24 @@ class IdpServer(object):
         # TODO: handle errors in FE
         try:
             authn_req, binding = self._parse_message(action='login')
+            self.app.logger.debug(
+                'AuthnRequest: \n{}'.format(authn_req._xml_doc)
+            )
+            issuer_name = authn_req.issuer.text
+            if issuer_name and issuer_name not in self.server.metadata.service_providers():
+                raise UnknownSystemEntity
+            # Perform login
+            key = self._store_request(authn_req)
+            relay_state = saml_msg.get('RelayState', '')
+            session['request_key'] = key
+            session['relay_state'] = relay_state
+            return redirect(url_for('login'))
         except RequestParserError as err:
             raise
         except SignatureVerificationError as err:
             raise
         except DeserializationError as err:
-            print(err.details)
-            raise
-            #return self._handle_errors('<xml></xml>', errors=err.details)
-        self.app.logger.debug(
-            'AuthnRequest: \n{}'.format(prettify_xml(authn_req._xml_doc))
-        )
-        issuer_name = authn_req.issuer.text
-        if issuer_name and issuer_name not in self.server.metadata.service_providers():
-            raise UnknownSystemEntity
-
-        # Perform login
-        key = self._store_request(authn_req)
-        relay_state = saml_msg.get('RelayState', '')
-        session['request_key'] = key
-        session['relay_state'] = relay_state
-        return redirect(url_for('login'))
+            return self._handle_errors(err.initial_data, err.details)
 
     @property
     def _spid_main_fields(self):
@@ -761,85 +757,83 @@ class IdpServer(object):
                     prettify_xml(req_info._xml_doc)
                 )
             )
+            issuer_name = req_info.issuer.text
+            extra = {}
+            extra['receivers'] = req_info.destination
+
+            _slo = self._sp_single_logout_service(issuer_name)
+            if _slo is None:
+                self._raise_error(
+                    'Impossibile trovare un servizio di'\
+                    ' Single Logout per il service provider {}'.format(
+                        issuer_name
+                    )
+                )
+            response_binding = _slo[0].get('binding')
+            self.app.logger.debug(
+                'Response binding: \n{}'.format(
+                    response_binding
+                )
+            )
+            _signing = True if response_binding == BINDING_HTTP_POST else False
+            self.app.logger.debug(
+                'Signature inside response: \n{}'.format(
+                    _signing
+                )
+            )
+            STATUS_SUCCESS = 'urn:oasis:names:tc:SAML:2.0:status:Success'
+            from testenv.saml import create_logout_response
+            from testenv.crypto import sign_http_post, sign_http_redirect, deflate_and_base64_encode
+            import base64
+            destination = _slo[0].get('location')
+            response = create_logout_response(
+                {
+                    'logout_response': {
+                        'attrs': {
+                            'in_response_to': req_info.id,
+                            'destination': destination
+                        }
+                    },
+                    'issuer': {
+                        'attrs': {
+                            'name_qualifier': 'something',
+                        },
+                        'text': self.server.config.entityid
+                    }
+                },
+                {
+                    'status_code': STATUS_SUCCESS
+                }
+            ).to_xml()
+            key_file = self.server.config.key_file
+            cert_file = self.server.config.cert_file
+            key = open(key_file, 'rb').read()
+            cert = open(cert_file, 'rb').read()
+            relay_state = saml_msg.get('RelayState', '')
+            if response_binding == BINDING_HTTP_POST:
+                response = sign_http_post(response, key, cert)
+                saml_response = base64.b64encode(response)
+                rendered_template = render_template(
+                    'form_http_post.html',
+                    **{
+                        'action': destination,
+                        'relay_state': relay_state,
+                        'message': saml_response,
+                        'message_type': 'SAMLResponse'
+                    }
+                )
+                return rendered_template, 200
+            elif response_binding == BINDING_HTTP_REDIRECT:
+                query_string = sign_http_redirect(response, key, relay_state)
+                location = '{}?{}'.format(destination, query_string)
+                if location:
+                    return redirect(location)
         except RequestParserError as err:
             raise
         except SignatureVerificationError as err:
             raise
         except DeserializationError as err:
-            print(err.details)
-            raise
-
-        issuer_name = req_info.issuer.text
-        extra = {}
-        extra['receivers'] = req_info.destination
-
-        _slo = self._sp_single_logout_service(issuer_name)
-        if _slo is None:
-            self._raise_error(
-                'Impossibile trovare un servizio di'\
-                ' Single Logout per il service provider {}'.format(
-                    issuer_name
-                )
-            )
-        response_binding = _slo[0].get('binding')
-        self.app.logger.debug(
-            'Response binding: \n{}'.format(
-                response_binding
-            )
-        )
-        _signing = True if response_binding == BINDING_HTTP_POST else False
-        self.app.logger.debug(
-            'Signature inside response: \n{}'.format(
-                _signing
-            )
-        )
-        STATUS_SUCCESS = 'urn:oasis:names:tc:SAML:2.0:status:Success'
-        from testenv.saml import create_logout_response
-        from testenv.crypto import sign_http_post, sign_http_redirect, deflate_and_base64_encode
-        import base64
-        destination = _slo[0].get('location')
-        response = create_logout_response(
-            {
-                'logout_response': {
-                    'attrs': {
-                        'in_response_to': req_info.id,
-                        'destination': destination
-                    }
-                },
-                'issuer': {
-                    'attrs': {
-                        'name_qualifier': 'something',
-                    },
-                    'text': self.server.config.entityid
-                }
-            },
-            {
-                'status_code': STATUS_SUCCESS
-            }
-        ).to_xml()
-        key_file = self.server.config.key_file
-        cert_file = self.server.config.cert_file
-        key = open(key_file, 'rb').read()
-        cert = open(cert_file, 'rb').read()
-        relay_state = saml_msg.get('RelayState', '')
-        if response_binding == BINDING_HTTP_POST:
-            response = sign_http_post(response, key, cert)
-            saml_response = base64.b64encode(response)
-            rendered_template = render_template(
-                'form_http_post.html',
-                **{
-                    'action': destination,
-                    'relay_state': relay_state,
-                    'message': saml_response,
-                    'message_type': 'SAMLResponse'
-                }
-            )
-            return rendered_template, 200
-        elif response_binding == BINDING_HTTP_REDIRECT:
-            query_string = sign_http_redirect(response, key, relay_state)
-            location = '{}?{}'.format(destination, query_string)
-            if location:
-                return redirect(location)
+            return self._handle_errors(err.initial_data, err.details)
         abort(400)
 
     def metadata(self):
