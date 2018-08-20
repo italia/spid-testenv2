@@ -7,3 +7,4 @@ Faker==0.8.16
 exrex==0.10.5
 voluptuous==0.11.5
 importlib-resources==1.0.1
+signxml==2.5.2
