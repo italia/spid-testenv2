@@ -15,8 +15,9 @@ class RequestParserError(TestenvError):
 
 
 class DeserializationError(TestenvError):
-    def __init__(self, details):
+    def __init__(self, initial_data, details):
         super(DeserializationError, self).__init__()
+        self.initial_data = initial_data
         self.details = details
 
 

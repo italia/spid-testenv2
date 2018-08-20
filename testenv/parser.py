@@ -172,7 +172,10 @@ class HTTPRequestDeserializer(object):
     def deserialize(self):
         self._validate()
         if self._validation_errors:
-            raise DeserializationError(self._validation_errors)
+            raise DeserializationError(
+                self._request.saml_request,
+                self._validation_errors,
+            )
         return self._deserialize()
 
     def _validate(self):
