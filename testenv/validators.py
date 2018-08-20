@@ -146,10 +146,10 @@ class AuthnRequestXMLSchemaValidator(BaseXMLSchemaValidator):
 
 class SpidValidator(object):
 
-    def __init__(self, action, binding, **kwargs):
+    def __init__(self, action, binding, metadata):
         self._action = action
         self._binding = binding
-        self._extra = kwargs.copy()
+        self._metadata = metadata
 
     def _check_utc_date(self, date):
         try:
@@ -173,14 +173,30 @@ class SpidValidator(object):
 
     def validate(self, request):
         xmlstr = request.saml_request
-        attribute_consuming_service_indexes = self._extra.get(
-            'attribute_consuming_service_indexes'
-        )
-        assertion_consumer_service_indexes = self._extra.get(
-            'assertion_consumer_service_indexes'
-        )
-        receivers = self._extra.get('receivers')
-        issuer = self._extra.get('issuer')
+        data = saml_to_dict(xmlstr)
+        atcss = []
+        if self._action == 'login':
+            req_type = 'AuthnRequest'
+        elif self._action == 'logout':
+            req_type = 'LogoutRequest'
+        issuer = data.get('{urn:oasis:names:tc:SAML:2.0:protocol}%s' % (req_type)).get('children').get('{urn:oasis:names:tc:SAML:2.0:assertion}Issuer').get('text')
+        for k, _md in self._metadata.items():
+            if k == issuer:
+                _srvs = _md.get('spsso_descriptor', [])
+                for _srv in _srvs:
+                    for _acs in _srv.get(
+                        'attribute_consuming_service', []
+                    ):
+                        atcss.append(_acs)
+        try:
+            ascss = self._metadata.assertion_consumer_service(issuer)
+        except Exception:
+            ascss = []
+        except Exception:
+            ascss = []
+        attribute_consuming_service_indexes = [str(el.get('index')) for el in atcss]
+        assertion_consumer_service_indexes = [str(el.get('index')) for el in ascss]
+        receivers = data.get('{urn:oasis:names:tc:SAML:2.0:protocol}%s' % (req_type)).get('attrs').get('Destination')
 
         issuer = Schema(
             {
@@ -321,7 +337,7 @@ class SpidValidator(object):
         }
 
         if self._binding == BINDING_HTTP_POST:
-            authnrequest_schema['children']['{}Signature'.format(SIGNATURE)]
+            authnrequest_schema['{}AuthnRequest'.format(PROTOCOL)]['children'].extend = {'{}Signature'.format(SIGNATURE) : signature}
 
         authn_request = Schema(
             authnrequest_schema,
@@ -354,7 +370,6 @@ class SpidValidator(object):
             saml_schema = authn_request
         elif self._action == 'logout':
             saml_schema = logout_request
-        data = saml_to_dict(xmlstr)
         errors = []
         try:
             saml_schema(data)

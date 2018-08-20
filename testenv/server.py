@@ -24,7 +24,7 @@ from saml2.samlp import LogoutRequest
 from saml2.sigver import verify_redirect_signature
 
 from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier
-from testenv.exceptions import BadConfiguration
+from testenv.exceptions import BadConfiguration, RequestParserError, DeserializationError, SignatureVerificationError
 from testenv.parser import (
     HTTPPostRequestParser, HTTPRedirectRequestParser,
     get_http_post_request_deserializer, get_http_redirect_request_deserializer
@@ -332,69 +332,16 @@ class IdpServer(object):
         self.ticket[key] = authnreq
         return key
 
-    def _handle_errors(self, xmlstr, errors={}):
+    def _handle_errors(self, xmlstr, errors=None):
         _escaped_xml = escape(prettify_xml(xmlstr.decode()))
         rendered_error_response = render_template(
             'spid_error.html',
             **{
                 'lines': _escaped_xml.splitlines(),
-                'spid_errors': errors.get('spid_errors', []),
-                'validation_errors': errors.get('validation_errors', [])
+                'errors': errors
                 }
             )
         return rendered_error_response
-
-    # TODO: remove this when the parsing logic is complete
-    # def _verify_redirect(self, saml_msg, issuer_name):
-    #     """
-    #     Verify Http-Redirect signature
-
-    #     :param saml_msg: request parameters
-    #     :param issuer_name: issuer name (Service Provider)
-    #     """
-    #     if "SigAlg" in saml_msg and "Signature" in saml_msg:
-    #         # Signed request
-    #         self.app.logger.debug('Messaggio SAML firmato.')
-    #         _sig_alg = saml_msg['SigAlg']
-    #         if _sig_alg not in ALLOWED_SIG_ALGS:
-    #             self._raise_error(
-    #                 'L\'Algoritmo {} non è supportato.'.format(_sig_alg)
-    #             )
-    #         try:
-    #             _certs = self.server.metadata.certs(
-    #                 issuer_name,
-    #                 "any",
-    #                 "signing"
-    #             )
-    #         except KeyError:
-    #             self._raise_error(
-    #                 'entity ID {} non registrato, impossibile ricavare'\
-    #                 ' un certificato valido.'.format(issuer_name)
-    #             )
-    #         verified_ok = False
-    #         for cert in _certs:
-    #             self.app.logger.debug(
-    #                 'security backend: {}'.format(
-    #                     self.server.sec.sec_backend.__class__.__name__
-    #                 )
-    #             )
-    #             # Check signature
-    #             if verify_redirect_signature(
-    #                 saml_msg,
-    #                 self.server.sec.sec_backend,
-    #                 cert
-    #             ):
-    #                 verified_ok = True
-    #                 break
-    #         if not verified_ok:
-    #             self._raise_error(
-    #                 'Verifica della firma del messaggio fallita.'
-    #             )
-    #     else:
-    #         self._raise_error(
-    #             'I parametri Signature e SigAlg sono entrambi'\
-    #             ' necessari per le richieste di tipo HTTP-REDIRECT'
-    #         )
 
     def _parse_message(self, action):
         """
@@ -420,18 +367,42 @@ class IdpServer(object):
         saml_msg = self.unpack_args(request.args)
         request_data = HTTPRedirectRequestParser(saml_msg).parse()
         deserializer = get_http_redirect_request_deserializer(
-            request_data, action)
+            request_data, action, self.server.metadata)
         samltree = deserializer.deserialize()
-        # HTTPRedirectSignatureVerifier(cert, request_data).verify()
+        try:
+            _certs = self.server.metadata.certs(
+                samltree.issuer.text,
+                "any",
+                "signing"
+            )
+        except KeyError:
+            self._raise_error(
+                'entity ID {} non registrato, impossibile ricavare'\
+                ' un certificato valido.'.format(samltree.issuer.text)
+            )
+        for cert in _certs:
+            HTTPRedirectSignatureVerifier(cert, request_data).verify()
         return samltree, BINDING_HTTP_REDIRECT
 
     def _handle_http_post(self, action):
         saml_msg = self.unpack_args(request.form)
         request_data = HTTPPostRequestParser(saml_msg).parse()
         deserializer = get_http_post_request_deserializer(
-            request_data, action)
+            request_data, action, self.server.metadata)
         samltree = deserializer.deserialize()
-        # HTTPPostSignatureVerifier(cert, request_data).verify()
+        try:
+            _certs = self.server.metadata.certs(
+                samltree.issuer.text,
+                "any",
+                "signing"
+            )
+        except KeyError:
+            self._raise_error(
+                'entity ID {} non registrato, impossibile ricavare'\
+                ' un certificato valido.'.format(samltree.issuer.text)
+            )
+        for cert in _certs:
+            HTTPPostSignatureVerifier(cert, request_data).verify()
         return samltree, BINDING_HTTP_POST
 
     def single_sign_on_service(self):
@@ -442,70 +413,26 @@ class IdpServer(object):
         """
         # Unpack parameters
         saml_msg = self.unpack_args(request.args)
+        # TODO: handle errors in FE
         try:
-            req_info, binding = self._parse_message(action='login')
-            authn_req = req_info
-            self.app.logger.debug(
-                'AuthnRequest: \n{}'.format(prettify_xml(authn_req._xml_doc))
-            )
-            extra = {}
-            sp_id = authn_req.issuer.text
-            issuer_name = authn_req.issuer.text
-            if issuer_name and issuer_name not in self.server.metadata.service_providers():
-                raise UnknownSystemEntity
-            # TODO: refactor a bit fetching this kind of data from pysaml2
-            atcss = []
-            for k, _md in self.server.metadata.items():
-                if k == sp_id:
-                    _srvs = _md.get('spsso_descriptor', [])
-                    for _srv in _srvs:
-                        for _acs in _srv.get(
-                            'attribute_consuming_service', []
-                        ):
-                            atcss.append(_acs)
-            try:
-                ascss = self.server.metadata.assertion_consumer_service(sp_id)
-            except UnknownSystemEntity as err:
-                ascss = []
-            except UnsupportedBinding as err:
-                ascss = []
-            atcss_indexes = [str(el.get('index')) for el in atcss]
-            ascss_indexes = [str(el.get('index')) for el in ascss]
-            extra['issuer'] = issuer_name
-            extra['attribute_consuming_service_indexes'] = atcss_indexes
-            extra['assertion_consumer_service_indexes'] = ascss_indexes
-            extra['receivers'] = req_info.destination
-        except UnknownBinding as err:
-            self.app.logger.debug(str(err))
-            self._raise_error(
-                'Binding non supportato. Formati supportati ({}, {})'.format(
-                    BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
-                )
-            )
-        except UnknownSystemEntity as err:
-            self.app.logger.debug(str(err))
-            self._raise_error(
-                'entity ID {} non registrato.'.format(issuer_name)
-            )
-        except IncorrectlySigned as err:
-            self.app.logger.debug(str(err))
-            self._raise_error(
-                'Messaggio corrotto o non firmato correttamente.'.format(
-                    issuer_name
-                )
-            )
+            authn_req, binding = self._parse_message(action='login')
+        except RequestParserError as err:
+            raise
+        except SignatureVerificationError as err:
+            raise
+        except DeserializationError as err:
+            print(err.details)
+            raise
+            #return self._handle_errors('<xml></xml>', errors=err.details)
+        self.app.logger.debug(
+            'AuthnRequest: \n{}'.format(prettify_xml(authn_req._xml_doc))
+        )
+        issuer_name = authn_req.issuer.text
+        if issuer_name and issuer_name not in self.server.metadata.service_providers():
+            raise UnknownSystemEntity
 
-        # if errors: # TODO: handle this with the new logic
-        #     return self._handle_errors(req_info.xmlstr, errors=errors)
-
-        if not req_info:
-            self._raise_error('Processo di parsing del messaggio fallito.')
-
-        # Check if it is signed TODO: this check it'll be integrated on the parsing phase!
-        # if binding == BINDING_HTTP_REDIRECT:
-        #     self._verify_redirect(saml_msg, issuer_name)
         # Perform login
-        key = self._store_request(req_info)
+        key = self._store_request(authn_req)
         relay_state = saml_msg.get('RelayState', '')
         session['request_key'] = key
         session['relay_state'] = relay_state
@@ -834,34 +761,18 @@ class IdpServer(object):
                     prettify_xml(req_info._xml_doc)
                 )
             )
-            issuer_name = req_info.issuer.text
-            extra = {}
-            extra['receivers'] = req_info.destination
-        except UnknownBinding as err:
-            self.app.logger.debug(str(err))
-            self._raise_error(
-                'Binding non supportato. Formati supportati ({}, {})'.format(
-                    BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
-                )
-            )
-        except UnknownSystemEntity as err:
-            self.app.logger.debug(str(err))
-            self._raise_error(
-                'entity ID {} non registrato.'.format(issuer_name)
-            )
-        except IncorrectlySigned as err:
-            self.app.logger.debug(str(err))
-            self._raise_error(
-                'Messaggio corrotto o non firmato correttamente.'
-            )
+        except RequestParserError as err:
+            raise
+        except SignatureVerificationError as err:
+            raise
+        except DeserializationError as err:
+            print(err.details)
+            raise
 
-        # if errors:
-        #     return self._handle_errors(req_info.xmlstr, errors=errors)
+        issuer_name = req_info.issuer.text
+        extra = {}
+        extra['receivers'] = req_info.destination
 
-        # Check if it is signed
-        # TODO: remove this when the parsing logic is complete
-        # if _binding == BINDING_HTTP_REDIRECT:
-        #     self._verify_redirect(saml_msg, issuer_name)
         _slo = self._sp_single_logout_service(issuer_name)
         if _slo is None:
             self._raise_error(
