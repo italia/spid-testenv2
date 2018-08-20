@@ -2,19 +2,44 @@
 from __future__ import unicode_literals
 
 import base64
-from copy import copy
 import unittest
 import zlib
+from copy import copy
 
 import pytest
 
-from testenv.exceptions import RequestParserError
-from testenv.parser import HTTPPostRequestParser, HTTPRedirectRequestParser
+from testenv.exceptions import (
+    DeserializationError, RequestParserError, SPIDValidationError,
+    XMLFormatValidationError, XMLSchemaValidationError,
+)
+from testenv.parser import (
+    HTTPRequestDeserializer, HTTPPostRequestParser, HTTPRedirectRequestParser,
+)
+from testenv.tests.utils import FakeRequest
 
 try:
     from urllib import urlencode
 except ImportError:
     from urllib.parse import urlencode
+
+
+class FakeSAMLClass(object):
+    def __init__(self, data):
+        self.data = data
+
+
+class SuccessValidator(object):
+    @staticmethod
+    def validate(request):
+        return None
+
+
+class FailValidator(object):
+    def __init__(self, exc):
+        self._exc = exc
+
+    def validate(self, request):
+        raise self._exc
 
 
 class HTTPRedirectRequestParserTestCase(unittest.TestCase):
@@ -100,3 +125,52 @@ class HTTPPostRequestParserTestCase(unittest.TestCase):
         self.assertEqual(
             "Impossibile decodificare l'elemento 'SAMLRequest'",
             exc.args[0])
+
+
+class HTTPRequestDeserializerTestCase(unittest.TestCase):
+
+    def test_successful_deserialization(self):
+        validators = [SuccessValidator(), SuccessValidator()]
+        request = FakeRequest('<xml></xml>')
+        deserializer = HTTPRequestDeserializer(
+            request, validators=validators, saml_class=FakeSAMLClass)
+        deserialized = deserializer.deserialize()
+        self.assertIsInstance(deserialized, FakeSAMLClass)
+
+    def test_blocking_validation_failure(self):
+        xml = '<xml></xml>'
+        blocking_validator = FailValidator(
+            XMLFormatValidationError(['blocking error']))
+        nonblocking_validator = FailValidator(
+            XMLSchemaValidationError(['nonblocking error']))
+        validators = [blocking_validator, nonblocking_validator]
+        request = FakeRequest(xml)
+        deserializer = HTTPRequestDeserializer(
+            request, validators=validators, saml_class=FakeSAMLClass)
+        with pytest.raises(DeserializationError) as excinfo:
+            deserializer.deserialize()
+        exc = excinfo.value
+        self.assertEqual(len(exc.details), 1)
+        self.assertEqual(exc.details[0], 'blocking error')
+        self.assertEqual(exc.initial_data, xml)
+
+    def test_nonblocking_validation_failure(self):
+        xml = '<xml></xml>'
+        first_nonblocking_validator = FailValidator(
+            XMLSchemaValidationError(['a nonblocking error']))
+        second_nonblocking_validator = FailValidator(
+            SPIDValidationError(['another nonblocking error']))
+        validators = [
+            first_nonblocking_validator,
+            second_nonblocking_validator,
+        ]
+        request = FakeRequest(xml)
+        deserializer = HTTPRequestDeserializer(
+            request, validators=validators, saml_class=FakeSAMLClass)
+        with pytest.raises(DeserializationError) as excinfo:
+            deserializer.deserialize()
+        exc = excinfo.value
+        self.assertEqual(len(exc.details), 2)
+        self.assertEqual(exc.details[0], 'a nonblocking error')
+        self.assertEqual(exc.details[1], 'another nonblocking error')
+        self.assertEqual(exc.initial_data, xml)
