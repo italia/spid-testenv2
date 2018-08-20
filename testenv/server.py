@@ -30,10 +30,12 @@ from testenv.parser import (
     get_http_post_request_deserializer, get_http_redirect_request_deserializer
 )
 from testenv.settings import (ALLOWED_SIG_ALGS, AUTH_NO_CONSENT, DIGEST_ALG,
-                              SIGN_ALG, SPID_LEVELS)
+                              SIGN_ALG, SPID_LEVELS, STATUS_SUCCESS)
 from testenv.spid import SpidPolicy, SpidServer, ac_factory
 from testenv.users import JsonUserManager
 from testenv.utils import get_spid_error, prettify_xml
+from testenv.saml import create_logout_response
+from testenv.crypto import sign_http_post, sign_http_redirect
 
 try:
     from saml2.sigver import get_xmlsec_binary
@@ -665,7 +667,7 @@ class IdpServer(object):
                             'confirm.html',
                             **{
                                 'destination_service': sp_id,
-                                'lines':  escape(
+                                'lines': escape(
                                     response
                                 ).splitlines(),
                                 'attrs': identity.keys(),
@@ -758,9 +760,7 @@ class IdpServer(object):
                 )
             )
             issuer_name = req_info.issuer.text
-            extra = {}
-            extra['receivers'] = req_info.destination
-
+            # TODO: retrieve the following data from some custom structure
             _slo = self._sp_single_logout_service(issuer_name)
             if _slo is None:
                 self._raise_error(
@@ -775,16 +775,6 @@ class IdpServer(object):
                     response_binding
                 )
             )
-            _signing = True if response_binding == BINDING_HTTP_POST else False
-            self.app.logger.debug(
-                'Signature inside response: \n{}'.format(
-                    _signing
-                )
-            )
-            STATUS_SUCCESS = 'urn:oasis:names:tc:SAML:2.0:status:Success'
-            from testenv.saml import create_logout_response
-            from testenv.crypto import sign_http_post, sign_http_redirect, deflate_and_base64_encode
-            import base64
             destination = _slo[0].get('location')
             response = create_logout_response(
                 {
@@ -812,13 +802,12 @@ class IdpServer(object):
             relay_state = saml_msg.get('RelayState', '')
             if response_binding == BINDING_HTTP_POST:
                 response = sign_http_post(response, key, cert)
-                saml_response = base64.b64encode(response)
                 rendered_template = render_template(
                     'form_http_post.html',
                     **{
                         'action': destination,
                         'relay_state': relay_state,
-                        'message': saml_response,
+                        'message': response,
                         'message_type': 'SAMLResponse'
                     }
                 )
@@ -837,6 +826,7 @@ class IdpServer(object):
         abort(400)
 
     def metadata(self):
+        # TODO: generate from some custom logic
         metadata = create_metadata_string(
             __file__,
             self.server.config,

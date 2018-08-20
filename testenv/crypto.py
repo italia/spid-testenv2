@@ -105,7 +105,7 @@ RSA_SIGNERS = {
 }
 
 
-def sign_http_post(xmlstr, key, cert):
+def sign_http_post(xmlstr, key, cert, message=True, assertion=False):
     # TODO: handle message and assertion signing (both)
     signer = XMLSigner(
         signature_algorithm='rsa-sha256',
@@ -113,7 +113,8 @@ def sign_http_post(xmlstr, key, cert):
     )
     root = fromstring(xmlstr)
     signed_root = signer.sign(root, key=key, cert=cert)
-    return tostring(signed_root)
+    response = tostring(signed_root)
+    return base64.b64encode(response)
 
 
 def sign_http_redirect(xmlstr, key, relay_state=None):

@@ -2,7 +2,6 @@
 from __future__ import unicode_literals
 
 import saml2.xmldsig as ds
-from saml2.samlp import STATUS_AUTHN_FAILED
 
 ALLOWED_SIG_ALGS = [
     ds.SIG_RSA_SHA256,
@@ -25,6 +24,7 @@ AUTH_TIMEOUT = 21
 AUTH_NO_CONSENT = 22
 AUTH_BLOCKED_CREDENTIALS = 23
 
+STATUS_AUTHN_FAILED = 'urn:oasis:names:tc:SAML:2.0:status:AuthnFailed'
 SPID_ERRORS = {
     AUTH_FAILED_ATTEMPTS: STATUS_AUTHN_FAILED,
     AUTH_WRONG_SPID_LEVEL: STATUS_AUTHN_FAILED,
@@ -32,6 +32,8 @@ SPID_ERRORS = {
     AUTH_NO_CONSENT: STATUS_AUTHN_FAILED,
     AUTH_BLOCKED_CREDENTIALS: STATUS_AUTHN_FAILED
 }
+
+STATUS_SUCCESS = 'urn:oasis:names:tc:SAML:2.0:status:Success'
 
 TIMEDELTA = 2
 SIGN_ALG = ds.SIG_RSA_SHA512
