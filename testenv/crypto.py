@@ -3,16 +3,16 @@ from __future__ import unicode_literals
 
 import base64
 import zlib
-from cryptography.exceptions import InvalidSignature
+
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.x509 import load_pem_x509_certificate
 from lxml import objectify
 from lxml.etree import fromstring, tostring
-from signxml import XMLVerifier, XMLSigner
+from signxml import XMLSigner, XMLVerifier
+from signxml.exceptions import InvalidDigest, InvalidSignature
 
 from testenv.exceptions import SignatureVerificationError
 
@@ -196,12 +196,10 @@ class HTTPPostSignatureVerifier(object):
     def verify(self):
         self._ensure_supported_algorithm()
         self._ensure_matching_certificate()
-        self._ensure_matching_digest()
         self._verify()
 
     def _ensure_supported_algorithm(self):
-        sig_alg = self._xml_doc[
-            SIGNATURE][SIGNED_INFO][SIGNATURE_METHOD].get('Algorithm')
+        sig_alg = self._extract('sig_alg')
         if sig_alg in DEPRECATED_ALGORITHMS:
             self._fail(
                 "L'algoritmo '{}' è considerato deprecato. Si prega di "
@@ -209,27 +207,33 @@ class HTTPPostSignatureVerifier(object):
                 .format(sig_alg, self._supported_algorithms)
             )
 
+    def _extract(self, key):
+        return {
+            'sig_alg': (
+                self._xml_doc[SIGNATURE][SIGNED_INFO]
+                [SIGNATURE_METHOD].get('Algorithm')),
+            'certificate': (
+                self._xml_doc[SIGNATURE][KEY_INFO][X509_DATA]
+                [X509_CERTIFICATE].text),
+        }[key]
+
     @staticmethod
     def _fail(message):
         raise SignatureVerificationError(message)
 
     def _ensure_matching_certificate(self):
-        request_cert = self._xml_doc[
-            SIGNATURE][KEY_INFO][X509_DATA][X509_CERTIFICATE].text
+        request_cert = self._extract('certificate')
         if normalize_x509(request_cert) != normalize_x509(self._cert):
             self._fail(
                 'Il certificato X509 contenuto nella request è differente '
                 'rispetto a quello contenuto nei metadata del Service Provider.'
             )
 
-    def _ensure_matching_digest(self):
-        # TODO
-        pass
-
     def _verify(self):
         try:
             self._verifier.verify(
                 self._request.saml_request, x509_cert=self._cert)
-        except InvalidSignature as e:
-            print(e)
+        except InvalidDigest:
+            self._fail('Il valore del digest non è valido.')
+        except InvalidSignature:
             self._fail('Verifica della firma fallita.')
