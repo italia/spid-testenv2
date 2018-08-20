@@ -38,15 +38,6 @@ missing_issue_instant_attr = """\
     </saml2p:RequestedAuthnContext>
 </saml2p:AuthnRequest>"""
 
-duplicate_version_attr = """\
-<saml2p:AuthnRequest IssueInstant="2018-06-28T15:49:38Z" AssertionConsumerServiceIndex="0" AttributeConsumingServiceIndex="1" Destination="http://localhost:8088/sso" ID="a0a50e3ee82ecb44365a0b4bec0374e0" ProtocolBinding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Version="2.0" Version="2.0" xmlns:saml2p="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
-    <saml2:Issuer Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity" NameQualifier="https://localhost/">https://localhost/</saml2:Issuer>
-    <saml2p:NameIDPolicy Format="urn:oasis:names:tc:SAML:2.0:nameid-format:transient"></saml2p:NameIDPolicy>
-    <saml2p:RequestedAuthnContext Comparison="minimum">
-        <saml2:AuthnContextClassRef>https://www.spid.gov.it/SpidL1</saml2:AuthnContextClassRef>
-    </saml2p:RequestedAuthnContext>
-</saml2p:AuthnRequest>"""
-
 multiple_errors = """\
 <saml2p:AuthnRequest IssueInstant="2018-06-28T15:49:38Z" AssertionConsumerServiceIndex="0" AttributeConsumingServiceIndex="1" Destination="http://localhost:8088/sso" ID="0a" ProtocolBinding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" xmlns:saml2p="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
     <saml2:Issuer Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity" NameQualifier="https://localhost/">https://localhost/</saml2:Issuer>

@@ -53,12 +53,12 @@ class XMLFormatValidatorTestCase(unittest.TestCase):
 
     def test_duplicate_attribute(self):
         validator = XMLFormatValidator(translator=FakeTranslator())
-        request = FakeRequest(sample_requests.duplicate_version_attr)
+        request = FakeRequest('<a attr="value" attr="value"></a>')
         with pytest.raises(XMLFormatValidationError) as excinfo:
             validator.validate(request)
         exc = excinfo.value
         self.assertEqual(len(exc.details), 1)
-        self.assertIn('Attribute Version redefined', exc.details[0].message)
+        self.assertIn('Attribute attr redefined', exc.details[0].message)
 
 
 class AuthnRequestXMLSchemaValidatorTestCase(unittest.TestCase):
