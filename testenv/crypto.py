@@ -148,13 +148,13 @@ class HTTPRedirectSignatureVerifier(object):
 
     def verify(self):
         self._ensure_supported_algorithm()
-        pubkey = self._get_pubkey()
-        verifier = self._select_verifier()
-        if not verifier.verify(
-                pubkey, self._request.signed_data, self._request.signature):
-            self._fail('Verifica della firma fallita.')
+        self._verify_signature()
 
     def _ensure_supported_algorithm(self):
+        self._check_algorithm_deprecation_list()
+        self._check_algorithm_whitelist()
+
+    def _check_algorithm_deprecation_list(self):
         if self._request.sig_alg in DEPRECATED_ALGORITHMS:
             self._fail(
                 "L'algoritmo '{}' è considerato deprecato. Si prega di "
@@ -162,24 +162,29 @@ class HTTPRedirectSignatureVerifier(object):
                 .format(self._request.sig_alg, self._supported_algorithms)
             )
 
-    def _get_pubkey(self):
-        cert_bytes = pem_format(self._cert).encode('ascii')
-        x509 = load_pem_x509_certificate(cert_bytes, backend=default_backend())
-        return x509.public_key()
-
     @staticmethod
     def _fail(message):
         raise SignatureVerificationError(message)
 
-    def _select_verifier(self):
-        try:
-            return self._verifiers[self._request.sig_alg]
-        except KeyError:
+    def _check_algorithm_whitelist(self):
+        if self._request.sig_alg not in SUPPORTED_ALGORITHMS:
             self._fail(
                 "L'algoritmo '{}' è sconosciuto o non supportato. Si prega di "
                 "utilizzare uno dei seguenti: {}"
                 .format(self._request.sig_alg, self._supported_algorithms)
             )
+
+    def _verify_signature(self):
+        pubkey = self._get_pubkey()
+        verifier = self._verifiers[self._request.sig_alg]
+        if not verifier.verify(
+                pubkey, self._request.signed_data, self._request.signature):
+            self._fail('Verifica della firma fallita.')
+
+    def _get_pubkey(self):
+        cert_bytes = pem_format(self._cert).encode('ascii')
+        x509 = load_pem_x509_certificate(cert_bytes, backend=default_backend())
+        return x509.public_key()
 
 
 class HTTPPostSignatureVerifier(object):
@@ -196,9 +201,13 @@ class HTTPPostSignatureVerifier(object):
     def verify(self):
         self._ensure_supported_algorithm()
         self._ensure_matching_certificate()
-        self._verify()
+        self._verify_signature()
 
     def _ensure_supported_algorithm(self):
+        self._check_algorithm_deprecation_list()
+        self._check_algorithm_whitelist()
+
+    def _check_algorithm_deprecation_list(self):
         sig_alg = self._extract('sig_alg')
         if sig_alg in DEPRECATED_ALGORITHMS:
             self._fail(
@@ -221,6 +230,15 @@ class HTTPPostSignatureVerifier(object):
     def _fail(message):
         raise SignatureVerificationError(message)
 
+    def _check_algorithm_whitelist(self):
+        sig_alg = self._extract('sig_alg')
+        if sig_alg not in SUPPORTED_ALGORITHMS:
+            self._fail(
+                "L'algoritmo '{}' è sconosciuto o non supportato. Si prega di "
+                "utilizzare uno dei seguenti: {}"
+                .format(sig_alg, self._supported_algorithms)
+            )
+
     def _ensure_matching_certificate(self):
         request_cert = self._extract('certificate')
         if normalize_x509(request_cert) != normalize_x509(self._cert):
@@ -229,7 +247,7 @@ class HTTPPostSignatureVerifier(object):
                 'rispetto a quello contenuto nei metadata del Service Provider.'
             )
 
-    def _verify(self):
+    def _verify_signature(self):
         try:
             self._verifier.verify(
                 self._request.saml_request, x509_cert=self._cert)

@@ -193,6 +193,26 @@ class HTTPPostSignatureVerifierTestCase(unittest.TestCase):
             exc.args[0]
         )
 
+    def test_unknown_algorithm(self):
+        sig_alg = 'unknown_sig_alg'
+        saml_request = self.saml_request.format(
+            break_digest='',
+            signature_value=self.signature_value,
+            signed_info=self.signed_info.format(sig_alg=sig_alg, break_signature=''),
+            certificate=self.cert,
+        )
+        relay_state = 'relay_state'
+        request = HTTPPostRequest(saml_request=saml_request, relay_state=relay_state)
+        verifier = HTTPPostSignatureVerifier(self.cert, request)
+        with pytest.raises(SignatureVerificationError) as excinfo:
+            verifier.verify()
+        exc = excinfo.value
+        self.assertEqual(
+            "L'algoritmo 'unknown_sig_alg' è sconosciuto o non supportato. Si prega di "
+            "utilizzare uno dei seguenti: {}".format(self.supported_sig_alg),
+            exc.args[0]
+        )
+
     def test_certificate_mismatch(self):
         saml_request = self.saml_request.format(
             break_digest='',
