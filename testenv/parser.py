@@ -7,7 +7,7 @@ from base64 import b64decode
 from collections import namedtuple
 
 from lxml import etree, objectify
-from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
+from testenv.settings import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 
 from testenv.exceptions import (
     DeserializationError, RequestParserError, StopValidation, ValidationError, XMLFormatValidationError,

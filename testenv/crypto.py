@@ -15,24 +15,14 @@ from signxml import XMLSigner, XMLVerifier
 from signxml.exceptions import InvalidDigest, InvalidSignature
 
 from testenv.exceptions import SignatureVerificationError
-from testenv.settings import SAML
+from testenv.settings import (
+    SAML, SIG_NS, SIG_RSA_SHA1,
+    SIG_RSA_SHA224, SIG_RSA_SHA256, SIG_RSA_SHA384,
+    SIG_RSA_SHA512, DEPRECATED_ALGORITHMS,
+    SIGNATURE, SIGNED_INFO, SIGNATURE_METHOD, KEY_INFO,
+    X509_CERTIFICATE, SIGNED_PARAMS
+)
 
-SIG_RSA_SHA1 = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1'
-SIG_RSA_SHA224 = 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha224'
-SIG_RSA_SHA256 = 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256'
-SIG_RSA_SHA384 = 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha384'
-SIG_RSA_SHA512 = 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha512'
-DEPRECATED_ALGORITHMS = {SIG_RSA_SHA1}
-
-SIG_NS = '{http://www.w3.org/2000/09/xmldsig#}'
-SIGNATURE = '{}Signature'.format(SIG_NS)
-SIGNED_INFO = '{}SignedInfo'.format(SIG_NS)
-SIGNATURE_METHOD = '{}SignatureMethod'.format(SIG_NS)
-KEY_INFO = '{}KeyInfo'.format(SIG_NS)
-X509_DATA = '{}X509Data'.format(SIG_NS)
-X509_CERTIFICATE = '{}X509Certificate'.format(SIG_NS)
-
-SIGNED_PARAMS = ['SAMLRequest', 'RelayState', 'SigAlg']
 
 try:
     from urllib import urlencode

@@ -10,22 +10,14 @@ from voluptuous import ALLOW_EXTRA, All, In, Invalid, MultipleInvalid, Optional,
 from voluptuous.validators import Equal
 
 from testenv.exceptions import SPIDValidationError, XMLFormatValidationError, XMLSchemaValidationError
-from testenv.settings import SPID_LEVELS, TIMEDELTA
+from testenv.settings import (
+    SPID_LEVELS, TIMEDELTA, MANDATORY_ERROR,
+    NO_WANT_ERROR, DEFAULT_VALUE_ERROR, DEFAULT_LIST_VALUE_ERROR,
+    SAML as ASSERTION, SAMLP as PROTOCOL, DS as SIGNATURE,
+    BINDING_HTTP_POST, NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
+)
 from testenv.translation import Libxml2Translator
 from testenv.utils import saml_to_dict, str_to_datetime, str_to_struct_time
-
-MANDATORY_ERROR = 'L\'attributo è obbligatorio'
-NO_WANT_ERROR = 'L\'attributo non è richiesto'
-DEFAULT_VALUE_ERROR = 'è diverso dal valore di riferimento {}'
-DEFAULT_LIST_VALUE_ERROR = 'non corrisponde a nessuno '\
-                           'dei valori contenuti in {}'
-ASSERTION = '{urn:oasis:names:tc:SAML:2.0:assertion}'
-PROTOCOL = '{urn:oasis:names:tc:SAML:2.0:protocol}'
-SIGNATURE = 'http://www.w3.org/2000/09/xmldsig#'
-
-NAMEID_FORMAT_ENTITY = 'urn:oasis:names:tc:SAML:2.0:nameid-format:entity'
-NAMEID_FORMAT_TRANSIENT = 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient'
-BINDING_HTTP_POST = 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST'
 
 ValidationDetail = namedtuple(
     'ValidationDetail',

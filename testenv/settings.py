@@ -1,16 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-import saml2.xmldsig as ds
 
-ALLOWED_SIG_ALGS = [
-    ds.SIG_RSA_SHA256,
-    ds.SIG_RSA_SHA384,
-    ds.SIG_RSA_SHA512,
-    ds.SIG_RSA_RIPEMD160,
-]
-
-COMPARISONS = ['exact', 'minimum', 'better', 'maximum']
+# SPID
 
 SPID_LEVELS = [
     'https://www.spid.gov.it/SpidL1',
@@ -18,6 +10,10 @@ SPID_LEVELS = [
     'https://www.spid.gov.it/SpidL3'
 ]
 
+#######
+
+# SAML2
+COMPARISONS = ['exact', 'minimum', 'better', 'maximum']
 AUTH_FAILED_ATTEMPTS = 19
 AUTH_WRONG_SPID_LEVEL = 20
 AUTH_TIMEOUT = 21
@@ -36,10 +32,6 @@ SPID_ERRORS = {
 STATUS_SUCCESS = 'urn:oasis:names:tc:SAML:2.0:status:Success'
 
 
-TIMEDELTA = 2
-SIGN_ALG = ds.SIG_RSA_SHA512
-DIGEST_ALG = ds.DIGEST_SHA512
-
 SAML = 'urn:oasis:names:tc:SAML:2.0:assertion'
 SAMLP = 'urn:oasis:names:tc:SAML:2.0:protocol'
 DS = 'http://www.w3.org/2000/09/xmldsig#'
@@ -52,3 +44,45 @@ NAMEID_FORMAT_TRANSIENT = 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient'
 NAMEID_FORMAT_ENTITY = 'urn:oasis:names:tc:SAML:2.0:nameid-format:entity'
 VERSION = '2.0'
 SCM_BEARER = "urn:oasis:names:tc:SAML:2.0:cm:bearer"
+
+
+BINDING_HTTP_POST = 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST'
+BINDING_HTTP_REDIRECT = 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect'
+
+################
+
+# Parsing errors
+
+MANDATORY_ERROR = 'L\'attributo è obbligatorio'
+NO_WANT_ERROR = 'L\'attributo non è richiesto'
+DEFAULT_VALUE_ERROR = 'è diverso dal valore di riferimento {}'
+DEFAULT_LIST_VALUE_ERROR = 'non corrisponde a nessuno '\
+                           'dei valori contenuti in {}'
+
+
+# Crypto
+
+SIG_RSA_SHA1 = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1'
+SIG_RSA_SHA224 = 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha224'
+SIG_RSA_SHA256 = 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256'
+SIG_RSA_SHA384 = 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha384'
+SIG_RSA_SHA512 = 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha512'
+DEPRECATED_ALGORITHMS = {SIG_RSA_SHA1}
+
+SIG_NS = '{http://www.w3.org/2000/09/xmldsig#}'
+
+SIGNATURE = '{}Signature'.format(SIG_NS)
+SIGNED_INFO = '{}SignedInfo'.format(SIG_NS)
+SIGNATURE_METHOD = '{}SignatureMethod'.format(SIG_NS)
+KEY_INFO = '{}KeyInfo'.format(SIG_NS)
+X509_DATA = '{}X509Data'.format(SIG_NS)
+X509_CERTIFICATE = '{}X509Certificate'.format(SIG_NS)
+
+SIGNED_PARAMS = ['SAMLRequest', 'RelayState', 'SigAlg']
+
+########
+
+
+# Misc
+TIMEDELTA = 2 # minutes (used to verify and generate range limits for issue instant etc.)
+CHALLENGES_TIMEOUT = 30 # seconds (used to verify spid level >= 2 challenges)

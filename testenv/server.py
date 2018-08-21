@@ -10,19 +10,20 @@ from datetime import datetime
 from hashlib import sha1
 from logging.handlers import RotatingFileHandler
 
-from flask import Response, abort, escape, redirect, render_template, request, session, url_for
-from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
+from flask import (
+    Response, abort, escape, redirect, render_template,
+    request, session, url_for
+)
+
+# TODO: avoid the following pysaml2 dependencies
 from saml2.assertion import filter_on_demands
 from saml2.attribute_converter import list_to_local
 from saml2.config import Config as Saml2Config
-from saml2.entity import UnknownBinding
 from saml2.metadata import create_metadata_string
-from saml2.response import IncorrectlySigned
-from saml2.s_utils import UnknownSystemEntity, UnsupportedBinding
-from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, Attribute, Issuer
-from saml2.samlp import LogoutRequest
-from saml2.sigver import verify_redirect_signature
+from saml2.s_utils import UnsupportedBinding
+from saml2.saml import Attribute
 from saml2.server import Server
+######
 
 from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect
 from testenv.exceptions import BadConfiguration, DeserializationError, RequestParserError, SignatureVerificationError
@@ -30,22 +31,18 @@ from testenv.parser import (
     HTTPPostRequestParser, HTTPRedirectRequestParser, get_http_post_request_deserializer,
     get_http_redirect_request_deserializer,
 )
-from testenv.settings import ALLOWED_SIG_ALGS, AUTH_NO_CONSENT, DIGEST_ALG, SIGN_ALG, SPID_LEVELS, STATUS_SUCCESS
+from testenv.settings import (
+    AUTH_NO_CONSENT, SPID_LEVELS, STATUS_SUCCESS,
+    NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT,
+    BINDING_HTTP_POST, BINDING_HTTP_REDIRECT,
+    CHALLENGES_TIMEOUT
+)
 from testenv.spid import SpidPolicy, ac_factory
 from testenv.users import JsonUserManager
 from testenv.utils import get_spid_error, prettify_xml
 from testenv.saml import create_logout_response, create_response, create_error_response
 from testenv.crypto import sign_http_post, sign_http_redirect
 
-try:
-    from saml2.sigver import get_xmlsec_binary
-except ImportError:
-    get_xmlsec_binary = None
-
-if get_xmlsec_binary:
-    xmlsec_path = get_xmlsec_binary(["/opt/local/bin"])
-else:
-    xmlsec_path = '/usr/bin/xmlsec1'
 
 # FIXME: move to a the parser.py module after metadata refactoring
 SPIDRequest = namedtuple('SPIDRequest', ['data', 'saml_tree'])
@@ -86,8 +83,7 @@ class IdpServer(object):
         }
     }
     # digitalAddress => PEC
-    CHALLENGES_TIMEOUT = 30  # seconds
-    SAML_VERSION = '2.0'
+    challenges_timeout = CHALLENGES_TIMEOUT
 
     def __init__(self, app, config, *args, **kwargs):
         """
@@ -278,7 +274,7 @@ class IdpServer(object):
                     datetime.now() - self.challenges[key][1]
                 ).total_seconds()
                 # Check that opt value is equal and not expired
-                _is_expired = total_seconds > self.CHALLENGES_TIMEOUT
+                _is_expired = total_seconds > self.challenges_timeout
                 if self.challenges[key][0] != otp or _is_expired:
                     del self.challenges[key]
                     return False
@@ -421,7 +417,7 @@ class IdpServer(object):
             )
             issuer_name = spid_request.saml_tree.issuer.text
             if issuer_name and issuer_name not in self.server.metadata.service_providers():
-                raise UnknownSystemEntity
+                self._raise_error('entity ID {} non registrato'.format(issuer_name))
             # Perform login
             key = self._store_request(spid_request.saml_tree)
             session['request_key'] = key
@@ -770,7 +766,7 @@ class IdpServer(object):
                     {
                         'response': {
                             'attrs': {
-                                'in_response_to': authn_req.id,
+                                'in_response_to': auth_req.id,
                                 'destination': destination
                             }
                         },
