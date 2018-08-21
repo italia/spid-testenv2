@@ -46,10 +46,12 @@ class HTTPRedirectRequestParserTestCase(unittest.TestCase):
         compressor.compress(b'saml_request')
         compressed = compressor.flush()
         saml_request = base64.b64encode(compressed).decode('ascii')
+        relay_state = 'relay_state'
         sig_alg = 'sig_alg'
         signature = base64.b64encode(b'signature').decode('ascii')
         self.querystring = {
             'SAMLRequest': saml_request,
+            'RelayState': relay_state,
             'SigAlg': sig_alg,
             'Signature': signature,
         }
@@ -59,12 +61,20 @@ class HTTPRedirectRequestParserTestCase(unittest.TestCase):
         parsed = parser.parse()
         self.assertEqual(parsed.saml_request, 'saml_request')
         self.assertEqual(parsed.sig_alg, 'sig_alg')
+        self.assertEqual(parsed.relay_state, 'relay_state')
         self.assertEqual(parsed.signature, b'signature')
         signed_data = urlencode([
             ('SAMLRequest', self.querystring['SAMLRequest']),
+            ('RelayState', self.querystring['RelayState']),
             ('SigAlg', self.querystring['SigAlg']),
         ]).encode('ascii')
         self.assertEqual(parsed.signed_data, signed_data)
+
+    def test_relay_state_is_optional(self):
+        del self.querystring['RelayState']
+        parser = HTTPRedirectRequestParser(self.querystring)
+        parsed = parser.parse()
+        self.assertIsNone(parsed.relay_state)
 
     def test_missing_data(self):
         for key in ['SAMLRequest', 'SigAlg', 'Signature']:
@@ -94,14 +104,23 @@ class HTTPRedirectRequestParserTestCase(unittest.TestCase):
 class HTTPPostRequestParserTestCase(unittest.TestCase):
     def setUp(self):
         saml_request = base64.b64encode(b'saml_request').decode('ascii')
+        relay_state = 'relay_state'
         self.form = {
             'SAMLRequest': saml_request,
+            'RelayState': relay_state,
         }
 
     def test_valid_request(self):
         parser = HTTPPostRequestParser(self.form)
         parsed = parser.parse()
         self.assertEqual(parsed.saml_request, 'saml_request')
+        self.assertEqual(parsed.relay_state, 'relay_state')
+
+    def test_relay_state_is_optional(self):
+        del self.form['RelayState']
+        parser = HTTPPostRequestParser(self.form)
+        parsed = parser.parse()
+        self.assertIsNone(parsed.relay_state)
 
     def test_missing_data(self):
         del self.form['SAMLRequest']

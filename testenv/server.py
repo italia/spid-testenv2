@@ -5,6 +5,7 @@ import os
 import os.path
 import random
 import string
+from collections import namedtuple
 from datetime import datetime
 from hashlib import sha1
 from logging.handlers import RotatingFileHandler
@@ -43,6 +44,9 @@ if get_xmlsec_binary:
     xmlsec_path = get_xmlsec_binary(["/opt/local/bin"])
 else:
     xmlsec_path = '/usr/bin/xmlsec1'
+
+
+SPIDRequest = namedtuple('SPIDRequest', ['data', 'saml_tree'])
 
 
 class IdpServer(object):
@@ -345,8 +349,6 @@ class IdpServer(object):
         """
         Parse an AuthnRequest or a LogoutRequest
 
-        :param saml_msg: request parameters
-        :param method: request method
         :param action: type of request
         """
         method = request.method
@@ -366,42 +368,31 @@ class IdpServer(object):
         request_data = HTTPRedirectRequestParser(saml_msg).parse()
         deserializer = get_http_redirect_request_deserializer(
             request_data, action, self.server.metadata)
-        samltree = deserializer.deserialize()
-        try:
-            _certs = self.server.metadata.certs(
-                samltree.issuer.text,
-                "any",
-                "signing"
-            )
-        except KeyError:
-            self._raise_error(
-                'entity ID {} non registrato, impossibile ricavare'\
-                ' un certificato valido.'.format(samltree.issuer.text)
-            )
-        for cert in _certs:
+        saml_tree = deserializer.deserialize()
+        certs = self._get_certificates_by_issuer(saml_tree.issuer.text)
+        for cert in certs:
             HTTPRedirectSignatureVerifier(cert, request_data).verify()
-        return samltree, BINDING_HTTP_REDIRECT
+        return SPIDRequest(request_data, saml_tree)
 
     def _handle_http_post(self, action):
         saml_msg = self.unpack_args(request.form)
         request_data = HTTPPostRequestParser(saml_msg).parse()
         deserializer = get_http_post_request_deserializer(
             request_data, action, self.server.metadata)
-        samltree = deserializer.deserialize()
+        saml_tree = deserializer.deserialize()
+        certs = self._get_certificates_by_issuer(saml_tree.issuer.text)
+        for cert in certs:
+            HTTPPostSignatureVerifier(cert, request_data).verify()
+        return SPIDRequest(request_data, saml_tree)
+
+    def _get_certificates_by_issuer(self, issuer):
         try:
-            _certs = self.server.metadata.certs(
-                samltree.issuer.text,
-                "any",
-                "signing"
-            )
+            return self.server.metadata.certs(issuer, 'any', 'signing')
         except KeyError:
             self._raise_error(
                 'entity ID {} non registrato, impossibile ricavare'\
-                ' un certificato valido.'.format(samltree.issuer.text)
+                ' un certificato valido.'.format(issuer)
             )
-        for cert in _certs:
-            HTTPPostSignatureVerifier(cert, request_data).verify()
-        return samltree, BINDING_HTTP_POST
 
     def single_sign_on_service(self):
         """
@@ -409,22 +400,19 @@ class IdpServer(object):
 
         :param request: Flask request object
         """
-        # Unpack parameters
-        saml_msg = self.unpack_args(request.args)
         # TODO: handle errors in FE
         try:
-            authn_req, binding = self._parse_message(action='login')
+            spid_request = self._parse_message(action='login')
             self.app.logger.debug(
-                'AuthnRequest: \n{}'.format(authn_req._xml_doc)
+                'AuthnRequest: \n{}'.format(spid_request.data.saml_request)
             )
-            issuer_name = authn_req.issuer.text
+            issuer_name = spid_request.saml_tree.issuer.text
             if issuer_name and issuer_name not in self.server.metadata.service_providers():
                 raise UnknownSystemEntity
             # Perform login
-            key = self._store_request(authn_req)
-            relay_state = saml_msg.get('RelayState', '')
+            key = self._store_request(spid_request.saml_tree)
             session['request_key'] = key
-            session['relay_state'] = relay_state
+            session['relay_state'] = spid_request.data.relay_state or ''
             return redirect(url_for('login'))
         except RequestParserError as err:
             raise
@@ -748,15 +736,14 @@ class IdpServer(object):
         """
 
         self.app.logger.debug("req: '%s'", request)
-        saml_msg = self.unpack_args(request.args)
         try:
-            req_info, _binding = self._parse_message(action='logout')
+            spid_request = self._parse_message(action='logout')
             self.app.logger.debug(
                 'LogoutRequest: \n{}'.format(
                     prettify_xml(req_info._xml_doc)
                 )
             )
-            issuer_name = req_info.issuer.text
+            issuer_name = spid_request.saml_tree.issuer.text
             # TODO: retrieve the following data from some custom structure
             _slo = self._sp_single_logout_service(issuer_name)
             if _slo is None:
@@ -796,7 +783,7 @@ class IdpServer(object):
             cert_file = self.server.config.cert_file
             key = open(key_file, 'rb').read()
             cert = open(cert_file, 'rb').read()
-            relay_state = saml_msg.get('RelayState', '')
+            relay_state = spid_request.data.relay_state or ''
             if response_binding == BINDING_HTTP_POST:
                 response = sign_http_post(response, key, cert)
                 rendered_template = render_template(

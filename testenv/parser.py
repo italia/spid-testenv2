@@ -25,11 +25,11 @@ SIGNED_PARAMS = ['SAMLRequest', 'RelayState', 'SigAlg']
 
 HTTPRedirectRequest = namedtuple(
     'HTTPRedirectRequest',
-    ['saml_request', 'sig_alg', 'signature', 'signed_data'],
+    ['saml_request', 'relay_state', 'sig_alg', 'signature', 'signed_data'],
 )
 
 
-HTTPPostRequest = namedtuple('HTTPPostRequest', ['saml_request'])
+HTTPPostRequest = namedtuple('HTTPPostRequest', ['saml_request', 'relay_state'])
 
 
 def _get_deserializer(request, action, binding, metadata):
@@ -54,12 +54,14 @@ class HTTPRedirectRequestParser(object):
         self._querystring = querystring
         self._request_class = request_class or HTTPRedirectRequest
         self._saml_request = None
+        self._relay_state = None
         self._sig_alg = None
         self._signature = None
         self._signed_data = None
 
     def parse(self):
         self._saml_request = self._parse_saml_request()
+        self._relay_state = self._parse_relay_state()
         self._sig_alg = self._parse_sig_alg()
         self._signature = self._parse_signature()
         self._signed_data = self._build_signed_data()
@@ -91,6 +93,12 @@ class HTTPRedirectRequestParser(object):
         saml_request = zlib.decompress(saml_request, -15)
         return saml_request.decode('utf-8')
 
+    def _parse_relay_state(self):
+        try:
+            return self._extract('RelayState')
+        except RequestParserError:
+            return None
+
     def _parse_sig_alg(self):
         return self._extract('SigAlg')
 
@@ -115,6 +123,7 @@ class HTTPRedirectRequestParser(object):
     def _build_request(self):
         return self._request_class(
             self._saml_request,
+            self._relay_state,
             self._sig_alg,
             self._signature,
             self._signed_data,
@@ -126,9 +135,11 @@ class HTTPPostRequestParser(object):
         self._form = form
         self._request_class = request_class or HTTPPostRequest
         self._saml_request = None
+        self._relay_state = None
 
     def parse(self):
         self._saml_request = self._parse_saml_request()
+        self._relay_state = self._parse_relay_state()
         return self._build_request()
 
     def _parse_saml_request(self):
@@ -156,8 +167,14 @@ class HTTPPostRequestParser(object):
         saml_request = b64decode(saml_request)
         return saml_request.decode('utf-8')
 
+    def _parse_relay_state(self):
+        try:
+            return self._extract('RelayState')
+        except RequestParserError:
+            return None
+
     def _build_request(self):
-        return self._request_class(self._saml_request)
+        return self._request_class(self._saml_request, self._relay_state)
 
 
 class HTTPRequestDeserializer(object):
