@@ -16,8 +16,8 @@ from signxml.exceptions import InvalidDigest, InvalidSignature
 
 from testenv.exceptions import SignatureVerificationError
 from testenv.settings import (
-    DEPRECATED_ALGORITHMS, KEY_INFO, SAML, SIG_NS, SIG_RSA_SHA1, SIG_RSA_SHA224, SIG_RSA_SHA256, SIG_RSA_SHA384,
-    SIG_RSA_SHA512, SIGNATURE, SIGNATURE_METHOD, SIGNED_INFO, SIGNED_PARAMS, X509_CERTIFICATE,
+    DEPRECATED_ALGORITHMS, KEY_INFO, SAML, SIG_NS, SIG_RSA_SHA224, SIG_RSA_SHA256, SIG_RSA_SHA384, SIG_RSA_SHA512,
+    SIGNATURE, SIGNATURE_METHOD, SIGNED_INFO, SIGNED_PARAMS, X509_CERTIFICATE, X509_DATA,
 )
 
 try:
@@ -109,7 +109,7 @@ def sign_http_post(xmlstr, key, cert, message=False, assertion=True):
             issuer.addnext(signature)
             assertion.getparent().replace(assertion, _assertion)
     response = tostring(root)
-    return  base64.b64encode(response).decode('ascii')
+    return base64.b64encode(response).decode('ascii')
 
 
 def sign_http_redirect(xmlstr, key, relay_state=None):

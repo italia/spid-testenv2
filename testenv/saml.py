@@ -6,7 +6,7 @@ from hashlib import sha1
 from uuid import uuid4
 
 from lxml.builder import ElementMaker
-from lxml.etree import Element, SubElement, tostring
+from lxml.etree import tostring
 
 from testenv.settings import (
     DS, NAME_FORMAT_BASIC, NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT, NSMAP, SAML, SAMLP, SCM_BEARER, TIMEDELTA,
@@ -65,7 +65,6 @@ class SamlMixin(object):
         self.tree.append(el.tree)
 
 
-
 class Response(SamlMixin):
     saml_type = 'samlp'
     defaults = {
@@ -78,6 +77,7 @@ class LogoutResponse(SamlMixin):
     defaults = {
         'Version': VERSION
     }
+
 
 class Assertion(SamlMixin):
     saml_type = 'saml'
@@ -225,7 +225,7 @@ def create_logout_response(data, response_status):
     logout_response_attrs = data.get('logout_response').get('attrs')
     # Create a logout response
     response = LogoutResponse(
-        attrib = dict(
+        attrib=dict(
             ID=generate_unique_id(),
             IssueInstant=issue_instant,
             Destination=logout_response_attrs.get('destination'),
@@ -259,7 +259,7 @@ def create_response(data, response_status, attributes={}):
     response_attrs = data.get('response').get('attrs')
     # Create a response
     response = Response(
-        attrib = dict(
+        attrib=dict(
             ID=generate_unique_id(),
             IssueInstant=issue_instant,
             Destination=response_attrs.get('destination'),
@@ -360,13 +360,12 @@ def create_response(data, response_status, attributes={}):
     return response
 
 
-
 def create_error_response(data, response_status):
     issue_instant, not_before, not_on_or_after = generate_issue_instant()
     response_attrs = data.get('response').get('attrs')
     # Create a response
     response = Response(
-        attrib = dict(
+        attrib=dict(
             ID=generate_unique_id(),
             IssueInstant=issue_instant,
             Destination=response_attrs.get('destination'),

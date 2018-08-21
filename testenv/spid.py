@@ -1,49 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-import base64
-import collections
 import os
 import sys
 from importlib import import_module
 
-from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
-from saml2.assertion import Policy
 from saml2.attribute_converter import AttributeConverter
-from saml2.entity import UnknownBinding
-from saml2.request import AuthnRequest, LogoutRequest
-from saml2.response import IncorrectlySigned
-from saml2.s_utils import UnravelError, decode_base64_and_inflate, do_ava, factory
+from saml2.s_utils import do_ava, factory
 from saml2.saml import Attribute
-from saml2.server import Server
-
-
-class SpidPolicy(Policy):
-
-    def __init__(self, restrictions=None, index=None):
-        # See: https://github.com/IdentityPython/pysaml2/blob/master/src/saml2/assertion.py#L325
-        super(SpidPolicy, self).__init__(restrictions=restrictions)
-        self.index = index
-
-    def restrict(self, ava, sp_entity_id, metadata=None):
-        """ Identity attribute names are expected to be expressed in
-        the local lingo (== friendlyName)
-
-        :return: A filtered ava according to the IdPs/AAs rules and
-            the list of required/optional attributes according to the SP.
-            If the requirements can't be met an exception is raised.
-
-        See: https://github.com/IdentityPython/pysaml2/blob/master/src/saml2/assertion.py#L539
-        """
-        if metadata:
-            spec = metadata.attribute_requirement(
-                sp_entity_id, index=self.index
-            )
-            if spec:
-                return self.filter(ava, sp_entity_id, metadata,
-                                   spec["required"], spec["optional"])
-
-        return self.filter(ava, sp_entity_id, metadata, [], [])
 
 
 def ac_factory(path="", **kwargs):

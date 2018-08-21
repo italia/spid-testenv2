@@ -31,16 +31,19 @@ from testenv.settings import (
     AUTH_NO_CONSENT, BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, CHALLENGES_TIMEOUT, NAME_FORMAT_BASIC,
     NAMEID_FORMAT_TRANSIENT, SPID_LEVELS, STATUS_SUCCESS,
 )
-from testenv.spid import SpidPolicy, ac_factory
+from testenv.spid import ac_factory
 from testenv.users import JsonUserManager
 from testenv.utils import get_spid_error, prettify_xml
 
 ######
 
 
-
 # FIXME: move to a the parser.py module after metadata refactoring
 SPIDRequest = namedtuple('SPIDRequest', ['data', 'saml_tree'])
+
+
+def from_session(key):
+    return session[key] if key in session else None
 
 
 class IdpServer(object):
@@ -525,8 +528,7 @@ class IdpServer(object):
         """
         Login endpoint (verify user credentials)
         """
-        def from_session(key):
-            return session[key] if key in session else None
+
         key = from_session('request_key')
         relay_state = from_session('relay_state')
         self.app.logger.debug('Request key: {}'.format(key))
@@ -745,6 +747,7 @@ class IdpServer(object):
 
     def continue_response(self):
         key = request.form['request_key']
+        relay_state = from_session('relay_state')
         if key and key in self.responses:
             _response = self.responses.pop(key)
             auth_req = self.ticket.pop(key)
@@ -819,7 +822,7 @@ class IdpServer(object):
             spid_request = self._parse_message(action='logout')
             self.app.logger.debug(
                 'LogoutRequest: \n{}'.format(
-                    prettify_xml(req_info._xml_doc)
+                    prettify_xml(spid_request._xml_doc)
                 )
             )
             issuer_name = spid_request.saml_tree.issuer.text
@@ -843,7 +846,7 @@ class IdpServer(object):
                 {
                     'logout_response': {
                         'attrs': {
-                            'in_response_to': req_info.id,
+                            'in_response_to': spid_request.id,
                             'destination': destination
                         }
                     },

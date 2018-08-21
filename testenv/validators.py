@@ -11,9 +11,8 @@ from voluptuous.validators import Equal
 
 from testenv.exceptions import SPIDValidationError, XMLFormatValidationError, XMLSchemaValidationError
 from testenv.settings import (
-    BINDING_HTTP_POST, DEFAULT_LIST_VALUE_ERROR, DEFAULT_VALUE_ERROR, DS as SIGNATURE, MANDATORY_ERROR,
-    NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT, NO_WANT_ERROR, SAML as ASSERTION, SAMLP as PROTOCOL, SPID_LEVELS,
-    TIMEDELTA,
+    BINDING_HTTP_POST, DEFAULT_LIST_VALUE_ERROR, DEFAULT_VALUE_ERROR, DS as SIGNATURE, NAMEID_FORMAT_ENTITY,
+    NAMEID_FORMAT_TRANSIENT, SAML as ASSERTION, SAMLP as PROTOCOL, SPID_LEVELS, TIMEDELTA,
 )
 from testenv.translation import Libxml2Translator
 from testenv.utils import saml_to_dict, str_to_datetime, str_to_struct_time

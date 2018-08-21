@@ -14,14 +14,14 @@ from bs4 import BeautifulSoup as BS
 from freezegun import freeze_time
 from lxml import etree as ET
 from OpenSSL import crypto
-from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 from saml2.s_utils import decode_base64_and_inflate, deflate_and_base64_encode
-from saml2.saml import NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
 from saml2.sigver import REQ_ORDER, import_rsa_key_from_file
-from saml2.xmldsig import SIG_RSA_SHA1, SIG_RSA_SHA256
 from six.moves.urllib.parse import parse_qs, quote, urlencode, urlparse
 
-from testenv.spid import SpidServer
+from testenv.settings import (
+    BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT, SIG_RSA_SHA1,
+    SIG_RSA_SHA256,
+)
 from testenv.utils import get_config
 
 sys.path.insert(0, '../')

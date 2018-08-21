@@ -4,7 +4,6 @@ from __future__ import unicode_literals
 import calendar
 import json
 import re
-import sys
 import time
 from datetime import datetime
 
@@ -93,12 +92,12 @@ def prettify_xml(msg):
 
 def saml_to_dict(xmlstr):
     root = objectify.fromstring(xmlstr)
+
     def _obj(elem):
         return {
             'attrs': dict(elem.attrib),
             'children': {
-                k.tag: _obj(k)
-            for k in elem.iterchildren()
+                k.tag: _obj(k) for k in elem.iterchildren()
             },
             'text': elem.text
         }
