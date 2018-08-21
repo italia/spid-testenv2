@@ -18,7 +18,7 @@ from signxml.exceptions import InvalidDigest, InvalidSignature as InvalidSignatu
 from testenv.exceptions import SignatureVerificationError
 from testenv.settings import (
     DEPRECATED_ALGORITHMS, KEY_INFO, SAML, SIG_NS, SIG_RSA_SHA224, SIG_RSA_SHA256, SIG_RSA_SHA384, SIG_RSA_SHA512,
-    SIGNATURE, SIGNATURE_METHOD, SIGNED_INFO, SIGNED_PARAMS, X509_CERTIFICATE, X509_DATA,
+    SIGNATURE, SIGNATURE_METHOD, SIGNED_INFO, SIGNED_PARAMS, SUPPORTED_ALGORITHMS, X509_CERTIFICATE, X509_DATA,
 )
 
 try:
@@ -144,7 +144,7 @@ class HTTPRedirectSignatureVerifier(object):
 
     @property
     def _supported_algorithms(self):
-        return ', '.join(self._verifiers.keys())
+        return ', '.join(SUPPORTED_ALGORITHMS)
 
     def verify(self):
         self._ensure_supported_algorithm()
@@ -191,7 +191,7 @@ class HTTPPostSignatureVerifier(object):
 
     @property
     def _supported_algorithms(self):
-        return ', '.join(RSA_VERIFIERS.keys())
+        return ', '.join(SUPPORTED_ALGORITHMS)
 
     def verify(self):
         self._ensure_supported_algorithm()
