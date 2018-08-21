@@ -45,7 +45,7 @@ if get_xmlsec_binary:
 else:
     xmlsec_path = '/usr/bin/xmlsec1'
 
-
+# FIXME: move to a the parser.py module after metadata refactoring
 SPIDRequest = namedtuple('SPIDRequest', ['data', 'saml_tree'])
 
 
@@ -364,6 +364,11 @@ class IdpServer(object):
             )
 
     def _handle_http_redirect(self, action):
+        # FIXME: replace the following code with a call to a function
+        # in the parser.py module after metadata refactoring.
+        # The IdpServer class should not
+        # be responsible of request parsing, or know anything
+        # about request parsing *at all*.
         saml_msg = self.unpack_args(request.args)
         request_data = HTTPRedirectRequestParser(saml_msg).parse()
         deserializer = get_http_redirect_request_deserializer(
@@ -375,6 +380,11 @@ class IdpServer(object):
         return SPIDRequest(request_data, saml_tree)
 
     def _handle_http_post(self, action):
+        # FIXME: replace the following code with a call to a function
+        # in the parser.py module after metadata refactoring.
+        # The IdpServer class should not
+        # be responsible of request parsing, or know anything
+        # about request parsing *at all*.
         saml_msg = self.unpack_args(request.form)
         request_data = HTTPPostRequestParser(saml_msg).parse()
         deserializer = get_http_post_request_deserializer(
