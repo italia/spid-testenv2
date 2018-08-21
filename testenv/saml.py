@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-
-from datetime import datetime
+from datetime import datetime, timedelta
 from hashlib import sha1
 from uuid import uuid4
 
@@ -10,12 +9,9 @@ from lxml.builder import ElementMaker
 from lxml.etree import Element, SubElement, tostring
 
 from testenv.settings import (
-    TIMEDELTA, SAML, SAMLP, DS, XSI, XS, NSMAP, NAME_FORMAT_BASIC,
-    NAMEID_FORMAT_TRANSIENT, NAMEID_FORMAT_ENTITY,
-    VERSION, SCM_BEARER
+    DS, NAME_FORMAT_BASIC, NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT, NSMAP, SAML, SAMLP, SCM_BEARER, TIMEDELTA,
+    VERSION, XS, XSI,
 )
-from datetime import timedelta
-
 
 samlp_maker = ElementMaker(
     namespace=SAMLP,

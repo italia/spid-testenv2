@@ -10,11 +10,7 @@ from datetime import datetime
 from hashlib import sha1
 from logging.handlers import RotatingFileHandler
 
-from flask import (
-    Response, abort, escape, redirect, render_template,
-    request, session, url_for
-)
-
+from flask import Response, abort, escape, redirect, render_template, request, session, url_for
 # TODO: avoid the following pysaml2 dependencies
 from saml2.assertion import filter_on_demands
 from saml2.attribute_converter import list_to_local
@@ -23,7 +19,6 @@ from saml2.metadata import create_metadata_string
 from saml2.s_utils import UnsupportedBinding
 from saml2.saml import Attribute
 from saml2.server import Server
-######
 
 from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect
 from testenv.exceptions import BadConfiguration, DeserializationError, RequestParserError, SignatureVerificationError
@@ -31,17 +26,17 @@ from testenv.parser import (
     HTTPPostRequestParser, HTTPRedirectRequestParser, get_http_post_request_deserializer,
     get_http_redirect_request_deserializer,
 )
+from testenv.saml import create_error_response, create_logout_response, create_response
 from testenv.settings import (
-    AUTH_NO_CONSENT, SPID_LEVELS, STATUS_SUCCESS,
-    NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT,
-    BINDING_HTTP_POST, BINDING_HTTP_REDIRECT,
-    CHALLENGES_TIMEOUT
+    AUTH_NO_CONSENT, BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, CHALLENGES_TIMEOUT, NAME_FORMAT_BASIC,
+    NAMEID_FORMAT_TRANSIENT, SPID_LEVELS, STATUS_SUCCESS,
 )
 from testenv.spid import SpidPolicy, ac_factory
 from testenv.users import JsonUserManager
 from testenv.utils import get_spid_error, prettify_xml
-from testenv.saml import create_logout_response, create_response, create_error_response
-from testenv.crypto import sign_http_post, sign_http_redirect
+
+######
+
 
 
 # FIXME: move to a the parser.py module after metadata refactoring

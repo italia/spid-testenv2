@@ -16,13 +16,9 @@ from signxml.exceptions import InvalidDigest, InvalidSignature
 
 from testenv.exceptions import SignatureVerificationError
 from testenv.settings import (
-    SAML, SIG_NS, SIG_RSA_SHA1,
-    SIG_RSA_SHA224, SIG_RSA_SHA256, SIG_RSA_SHA384,
-    SIG_RSA_SHA512, DEPRECATED_ALGORITHMS,
-    SIGNATURE, SIGNED_INFO, SIGNATURE_METHOD, KEY_INFO,
-    X509_CERTIFICATE, SIGNED_PARAMS
+    DEPRECATED_ALGORITHMS, KEY_INFO, SAML, SIG_NS, SIG_RSA_SHA1, SIG_RSA_SHA224, SIG_RSA_SHA256, SIG_RSA_SHA384,
+    SIG_RSA_SHA512, SIGNATURE, SIGNATURE_METHOD, SIGNED_INFO, SIGNED_PARAMS, X509_CERTIFICATE,
 )
-
 
 try:
     from urllib import urlencode

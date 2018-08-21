@@ -7,11 +7,11 @@ from base64 import b64decode
 from collections import namedtuple
 
 from lxml import etree, objectify
-from testenv.settings import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 
 from testenv.exceptions import (
     DeserializationError, RequestParserError, StopValidation, ValidationError, XMLFormatValidationError,
 )
+from testenv.settings import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
 from testenv.validators import AuthnRequestXMLSchemaValidator, SpidValidator, XMLFormatValidator
 
 try:
