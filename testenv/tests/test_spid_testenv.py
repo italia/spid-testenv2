@@ -14,10 +14,10 @@ from bs4 import BeautifulSoup as BS
 from freezegun import freeze_time
 from lxml import etree as ET
 from OpenSSL import crypto
-from saml2.s_utils import decode_base64_and_inflate, deflate_and_base64_encode
 from saml2.sigver import REQ_ORDER, import_rsa_key_from_file
 from six.moves.urllib.parse import parse_qs, quote, urlencode, urlparse
 
+from testenv.crypto import decode_base64_and_inflate, deflate_and_base64_encode, get_config
 from testenv.settings import (
     BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT, SIG_RSA_SHA1,
     SIG_RSA_SHA256,

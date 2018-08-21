@@ -32,6 +32,10 @@ def deflate_and_base64_encode(msg):
     return base64.b64encode(zlib.compress(msg)[2:-4])
 
 
+def decode_base64_and_inflate(string):
+    return zlib.decompress(base64.b64decode(string), -15)
+
+
 def pem_format(cert):
     return '\n'.join([
         '-----BEGIN CERTIFICATE-----',
