@@ -19,6 +19,11 @@ class FakeTranslator(object):
 
 class XMLFormatValidatorTestCase(unittest.TestCase):
 
+    def test_valid_request(self):
+        validator = XMLFormatValidator(translator=FakeTranslator())
+        request = FakeRequest('<a></a>')
+        self.assertIsNone(validator.validate(request))
+
     def test_empty_request(self):
         validator = XMLFormatValidator(translator=FakeTranslator())
         request = FakeRequest('')
