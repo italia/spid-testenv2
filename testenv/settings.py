@@ -35,6 +35,7 @@ SPID_ERRORS = {
 
 STATUS_SUCCESS = 'urn:oasis:names:tc:SAML:2.0:status:Success'
 
+
 TIMEDELTA = 2
 SIGN_ALG = ds.SIG_RSA_SHA512
 DIGEST_ALG = ds.DIGEST_SHA512

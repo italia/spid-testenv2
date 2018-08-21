@@ -105,16 +105,24 @@ RSA_SIGNERS = {
 }
 
 
-def sign_http_post(xmlstr, key, cert, message=True, assertion=False):
-    # TODO: handle message and assertion signing (both)
+def sign_http_post(xmlstr, key, cert, message=False, assertion=True):
     signer = XMLSigner(
         signature_algorithm='rsa-sha256',
         digest_algorithm='sha256',
     )
     root = fromstring(xmlstr)
-    signed_root = signer.sign(root, key=key, cert=cert)
-    response = tostring(signed_root)
-    return base64.b64encode(response)
+    if message:
+        root = signer.sign(root, key=key, cert=cert)
+    if assertion:
+        assertions = root.findall('{urn:oasis:names:tc:SAML:2.0:assertion}Assertion')
+        for assertion in assertions:
+            _assertion = signer.sign(assertion, key=key, cert=cert)
+            issuer = _assertion.find('{urn:oasis:names:tc:SAML:2.0:assertion}Issuer')
+            signature = _assertion.find('{http://www.w3.org/2000/09/xmldsig#}Signature')
+            issuer.addnext(signature)
+            assertion.getparent().replace(assertion, _assertion)
+    response = tostring(root)
+    return  base64.b64encode(response).decode('ascii')
 
 
 def sign_http_redirect(xmlstr, key, relay_state=None):
@@ -132,7 +140,6 @@ def sign_http_redirect(xmlstr, key, relay_state=None):
     ).encode('ascii')
     signer = RSA_SIGNERS[SIG_RSA_SHA256]
     key = load_pem_private_key(key, None, default_backend())
-    print(key)
     args["Signature"] = base64.b64encode(signer.sign(query_string, key))
     return urlencode(args)
 
