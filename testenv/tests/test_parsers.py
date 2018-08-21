@@ -7,11 +7,12 @@ import zlib
 from copy import copy
 
 import pytest
+from lxml import objectify
 
 from testenv.exceptions import (
     DeserializationError, RequestParserError, SPIDValidationError, XMLFormatValidationError, XMLSchemaValidationError,
 )
-from testenv.parser import HTTPPostRequestParser, HTTPRedirectRequestParser, HTTPRequestDeserializer
+from testenv.parser import HTTPPostRequestParser, HTTPRedirectRequestParser, HTTPRequestDeserializer, SAMLTree
 from testenv.tests.utils import FakeRequest
 
 try:
@@ -190,3 +191,25 @@ class HTTPRequestDeserializerTestCase(unittest.TestCase):
         self.assertEqual(exc.details[0], 'a nonblocking error')
         self.assertEqual(exc.details[1], 'another nonblocking error')
         self.assertEqual(exc.initial_data, xml)
+
+
+class SAMLTreeTestCase(unittest.TestCase):
+    def test_deserialization(self):
+        xml = """\
+<root>
+    <child1>some data</child1>
+    <child2 AnAttribute="more data"></child2>
+    <SpecialChild3>
+        <Item AnotherAttribute="foo"></Item>
+        <Item EvenAnotherAttribute="bar"></Item>
+    </SpecialChild3>
+</root>"""
+        xml_doc = objectify.fromstring(xml)
+        saml_tree = SAMLTree(xml_doc)
+        self.assertEqual(saml_tree.child1.text, 'some data')
+        self.assertEqual(saml_tree.child1.tag, 'child1')
+        self.assertEqual(saml_tree.child2.an_attribute, 'more data')
+        self.assertEqual(len(saml_tree.special_child3.item), 2)
+        self.assertEqual(saml_tree.special_child3.tag, 'special_child3')
+        self.assertEqual(saml_tree.special_child3.item[0].another_attribute, 'foo')
+        self.assertEqual(saml_tree.special_child3.item[1].even_another_attribute, 'bar')
