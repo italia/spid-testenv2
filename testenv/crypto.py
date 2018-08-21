@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 import base64
 import zlib
 
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
@@ -12,7 +13,7 @@ from cryptography.x509 import load_pem_x509_certificate
 from lxml import objectify
 from lxml.etree import fromstring, tostring
 from signxml import XMLSigner, XMLVerifier
-from signxml.exceptions import InvalidDigest, InvalidSignature
+from signxml.exceptions import InvalidDigest, InvalidSignature as InvalidSignature_
 
 from testenv.exceptions import SignatureVerificationError
 from testenv.settings import (
@@ -234,5 +235,5 @@ class HTTPPostSignatureVerifier(object):
                 self._request.saml_request, x509_cert=self._cert)
         except InvalidDigest:
             self._fail('Il valore del digest non è valido.')
-        except InvalidSignature:
+        except InvalidSignature_:
             self._fail('Verifica della firma fallita.')
