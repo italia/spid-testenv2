@@ -250,7 +250,7 @@ class SpidValidator(object):
                     'Comparison': str
                 },
                 'children': {
-                    '{}AuthnContextClassRef'.format(ASSERTION): authn_context_class_ref
+                    '{%s}AuthnContextClassRef' % (ASSERTION): authn_context_class_ref
                 },
                 'text': None
             }
@@ -290,7 +290,7 @@ class SpidValidator(object):
         # LOGIN
 
         authnrequest_schema = {
-            '{}AuthnRequest'.format(PROTOCOL): {
+            '{%s}AuthnRequest' % (PROTOCOL): {
                 'attrs': {
                     'Version': Equal('2.0', msg=DEFAULT_VALUE_ERROR.format('2.0')),
                     'IssueInstant': All(str, self._check_utc_date, self._check_date_in_range),
@@ -312,12 +312,12 @@ class SpidValidator(object):
                 },
                 'children': Schema(
                     {
-                        Optional('{}Subject'.format(ASSERTION)): subject,
-                        '{}Issuer'.format(ASSERTION): issuer,
-                        '{}NameIDPolicy'.format(PROTOCOL): name_id_policy,
-                        Optional('{}Conditions'.format(ASSERTION)): conditions,
-                        '{}RequestedAuthnContext'.format(PROTOCOL): requested_authn_context,
-                        Optional('{}Scoping'.format(PROTOCOL)): scoping,
+                        Optional('{%s}Subject' % (ASSERTION)): subject,
+                        '{%s}Issuer' % (ASSERTION): issuer,
+                        '{%s}NameIDPolicy' % (PROTOCOL): name_id_policy,
+                        Optional('{%s}Conditions' % (ASSERTION)): conditions,
+                        '{%s}RequestedAuthnContext' % (PROTOCOL): requested_authn_context,
+                        Optional('{%s}Scoping' % (PROTOCOL)): scoping,
                     }
                 ),
                 'text': None
@@ -325,7 +325,7 @@ class SpidValidator(object):
         }
 
         if self._binding == BINDING_HTTP_POST:
-            authnrequest_schema['{}AuthnRequest'.format(PROTOCOL)]['children'].extend = {'{}Signature'.format(SIGNATURE) : signature}
+            authnrequest_schema['{%s}AuthnRequest' % (PROTOCOL)]['children'].extend = {'{%s}Signature' % (SIGNATURE) : signature}
 
         authn_request = Schema(
             authnrequest_schema,
@@ -336,15 +336,15 @@ class SpidValidator(object):
 
         logout_request= Schema(
             {
-                '{}LogoutRequest'.format(PROTOCOL): {
+                '{%s}LogoutRequest' % (PROTOCOL): {
                     'attrs': {
                     'Version': Equal('2.0', msg=DEFAULT_VALUE_ERROR.format('2.0')),
                     'IssueInstant': All(str, self._check_utc_date, self._check_date_in_range),
                     'Destination': In(receivers, msg=DEFAULT_LIST_VALUE_ERROR.format(receivers)),
                     },
                     'children': {
-                        '{}Issuer'.format(ASSERTION): issuer,
-                        '{}NameID'.format(ASSERTION): str
+                        '{%s}Issuer' % (ASSERTION): issuer,
+                        '{%s}NameID' % (ASSERTION): str
                     },
                     'text': None
                 }

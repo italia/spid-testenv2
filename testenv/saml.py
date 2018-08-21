@@ -45,7 +45,7 @@ class SamlMixin(object):
         attributes = self.defaults.copy()
         attributes.update(attrib.copy())
         self._element = getattr(E, tag)(
-            **attributes,
+            **attributes
         )
         if text is not None:
             self._element.text = text

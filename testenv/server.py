@@ -502,9 +502,10 @@ class IdpServer(object):
     def get_destination(self, req, sp_id):
         destination = None
         acs_index = getattr(req, 'assertion_consumer_service_index', None)
-        if acs_index is not None:
+        protocol_binding = getattr(req, 'protocol_binding', None)
+        if acs_index is not None and protocol_binding is not None:
             acss = self.server.metadata.assertion_consumer_service(
-                sp_id, req.protocol_binding
+                sp_id, protocol_binding
             )
             for acs in acss:
                 if acs.get('index') == acs_index:
@@ -516,7 +517,7 @@ class IdpServer(object):
                 )
             )
         if destination is None:
-            destination = req.assertion_consumer_service_url
+            destination = getattr(req, 'assertion_consumer_service_url', None)
             self.app.logger.debug(
                 'AssertionConsumerServiceURL: {}'.format(
                     destination
@@ -820,11 +821,6 @@ class IdpServer(object):
         self.app.logger.debug("req: '%s'", request)
         try:
             spid_request = self._parse_message(action='logout')
-            self.app.logger.debug(
-                'LogoutRequest: \n{}'.format(
-                    prettify_xml(spid_request._xml_doc)
-                )
-            )
             issuer_name = spid_request.saml_tree.issuer.text
             # TODO: retrieve the following data from some custom structure
             _slo = self._sp_single_logout_service(issuer_name)
@@ -846,7 +842,7 @@ class IdpServer(object):
                 {
                     'logout_response': {
                         'attrs': {
-                            'in_response_to': spid_request.id,
+                            'in_response_to': spid_request.saml_tree.id,
                             'destination': destination
                         }
                     },
