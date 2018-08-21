@@ -15,6 +15,7 @@ from signxml import XMLSigner, XMLVerifier
 from signxml.exceptions import InvalidDigest, InvalidSignature
 
 from testenv.exceptions import SignatureVerificationError
+from testenv.settings import SAML
 
 SIG_RSA_SHA1 = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1'
 SIG_RSA_SHA224 = 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha224'
@@ -114,11 +115,11 @@ def sign_http_post(xmlstr, key, cert, message=False, assertion=True):
     if message:
         root = signer.sign(root, key=key, cert=cert)
     if assertion:
-        assertions = root.findall('{urn:oasis:names:tc:SAML:2.0:assertion}Assertion')
+        assertions = root.findall('{%s}Assertion' % SAML)
         for assertion in assertions:
             _assertion = signer.sign(assertion, key=key, cert=cert)
-            issuer = _assertion.find('{urn:oasis:names:tc:SAML:2.0:assertion}Issuer')
-            signature = _assertion.find('{http://www.w3.org/2000/09/xmldsig#}Signature')
+            issuer = _assertion.find('{%s}Issuer' % SAML)
+            signature = _assertion.find('%sSignature' % SIG_NS)
             issuer.addnext(signature)
             assertion.getparent().replace(assertion, _assertion)
     response = tostring(root)

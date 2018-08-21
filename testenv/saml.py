@@ -9,22 +9,12 @@ from uuid import uuid4
 from lxml.builder import ElementMaker
 from lxml.etree import Element, SubElement, tostring
 
-from testenv.settings import TIMEDELTA
+from testenv.settings import (
+    TIMEDELTA, SAML, SAMLP, DS, XSI, XS, NSMAP, NAME_FORMAT_BASIC,
+    NAMEID_FORMAT_TRANSIENT, NAMEID_FORMAT_ENTITY,
+    VERSION, SCM_BEARER
+)
 from datetime import timedelta
-
-
-SAML = 'urn:oasis:names:tc:SAML:2.0:assertion'
-SAMLP = 'urn:oasis:names:tc:SAML:2.0:protocol'
-DS = 'http://www.w3.org/2000/09/xmldsig#'
-XSI = 'http://www.w3.org/2001/XMLSchema-instance'
-XS = 'http://www.w3.org/2001/XMLSchema'
-
-NSMAP = { 'saml':  SAML, 'samlp': SAMLP, 'ds': DS}
-NAME_FORMAT_BASIC = 'urn:oasis:names:tc:SAML:2.0:attrname-format:basic'
-NAMEID_FORMAT_TRANSIENT = 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient'
-NAMEID_FORMAT_ENTITY = 'urn:oasis:names:tc:SAML:2.0:nameid-format:entity'
-VERSION = '2.0'
-SCM_BEARER = "urn:oasis:names:tc:SAML:2.0:cm:bearer"
 
 
 samlp_maker = ElementMaker(
