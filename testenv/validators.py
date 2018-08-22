@@ -372,11 +372,23 @@ class SpidValidator(object):
         except MultipleInvalid as e:
             for err in e.errors:
                 _val = data
+                _paths = []
+                _attr = None
+                for idx, _path in enumerate(err.path):
+                    if _path != 'children':
+                        if _path == 'attrs':
+                            _attr = err.path[(idx + 1)]
+                            break
+                        _paths.append(_path)
+                path = '/'.join(_paths)
+                path = 'xpath: {}'.format(path)
+                if _attr is not None:
+                    path = '{} - attribute: {}'.format(path, _attr)
                 for _ in err.path:
                     _val = _val.get(_)
                 errors.append(
                     ValidationDetail(
-                        _val, None, None, None, None, err.msg, err.path
+                        _val, None, None, None, None, err.msg, path
                     )
                 )
             raise SPIDValidationError(details=errors)
