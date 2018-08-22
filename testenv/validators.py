@@ -9,7 +9,9 @@ from lxml import etree
 from voluptuous import ALLOW_EXTRA, All, In, Invalid, MultipleInvalid, Optional, Schema
 from voluptuous.validators import Equal
 
-from testenv.exceptions import SPIDValidationError, UnknownEntityIDError, XMLFormatValidationError, XMLSchemaValidationError
+from testenv.exceptions import (
+    SPIDValidationError, UnknownEntityIDError, XMLFormatValidationError, XMLSchemaValidationError,
+)
 from testenv.settings import (
     BINDING_HTTP_POST, DEFAULT_LIST_VALUE_ERROR, DEFAULT_VALUE_ERROR, DS as SIGNATURE, NAMEID_FORMAT_ENTITY,
     NAMEID_FORMAT_TRANSIENT, SAML as ASSERTION, SAMLP as PROTOCOL, SPID_LEVELS, TIMEDELTA,

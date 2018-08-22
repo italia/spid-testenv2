@@ -12,16 +12,15 @@ from logging.handlers import RotatingFileHandler
 
 from flask import Response, abort, escape, redirect, render_template, request, session, url_for
 # TODO: avoid the following pysaml2 dependencies
-from saml2.assertion import filter_on_demands
-from saml2.attribute_converter import list_to_local
 from saml2.config import Config as Saml2Config
 from saml2.metadata import create_metadata_string
 from saml2.s_utils import UnsupportedBinding
-from saml2.saml import Attribute
 from saml2.server import Server
 
 from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect
-from testenv.exceptions import BadConfiguration, DeserializationError, RequestParserError, SignatureVerificationError, UnknownEntityIDError
+from testenv.exceptions import (
+    BadConfiguration, DeserializationError, RequestParserError, SignatureVerificationError, UnknownEntityIDError,
+)
 from testenv.parser import (
     HTTPPostRequestParser, HTTPRedirectRequestParser, get_http_post_request_deserializer,
     get_http_redirect_request_deserializer,
@@ -570,10 +569,6 @@ class IdpServer(object):
                     if user_id is not None:
                         # setup response
                         identity = user['attrs'].copy()
-                        # AUTHN = {
-                        #     "class_ref": spid_level,
-                        #     "authn_auth": spid_level
-                        # }
                         self.app.logger.debug(
                             'Unfiltered data: {}'.format(identity)
                         )
@@ -586,48 +581,28 @@ class IdpServer(object):
                         if atcs_idx:
                             # TODO: Remove this pysaml2 dependency
                             attrs = self.server.wants(sp_id, atcs_idx)
-                            required = [
-                                Attribute(
-                                    name=el.get('name'),
-                                    friendly_name=None,
-                                    name_format=NAME_FORMAT_BASIC
-                                ) for el in attrs.get('required')
-                            ]
-                            optional = [
-                                Attribute(
-                                    name=el.get('name'),
-                                    friendly_name=None,
-                                    name_format=NAME_FORMAT_BASIC
-                                ) for el in attrs.get('optional')
-                            ]
-                            acs = ac_factory(
-                                './testenv/attributemaps',
-                                **{'override_types': self._all_attributes}
-                            )
-                            rava = list_to_local(acs, required)
-                            oava = list_to_local(acs, optional)
+                            required = [el.get('name') for el in attrs.get('required')]
+                            optional = [el.get('name') for el in attrs.get('optional')]
                         else:
-                            rava = {}
-                            oava = {}
-                        self.app.logger.debug(
-                            'Required attributes: {}'.format(rava)
-                        )
-                        self.app.logger.debug(
-                            'Optional attributes: {}'.format(oava)
-                        )
-                        identity = filter_on_demands(
-                            identity, rava, oava
-                        )
-                        self.app.logger.debug(
-                            'Filtered data: {}'.format(identity)
-                        )
+                            required = []
+                            optional = []
 
-                        for k,v in identity.items():
+                        for k, v in identity.items():
                             if k in self._spid_main_fields:
                                 _type = self._spid_attributes['primary'][k]
                             else:
                                 _type = self._spid_attributes['secondary'][k]
                             identity[k] = (_type, v)
+
+                        _identity = {}
+                        for _key in required:
+                            _identity[_key] = identity[_key]
+                        for _key in optional:
+                            _identity[_key] = identity[_key]
+
+                        self.app.logger.debug(
+                            'Filtered data: {}'.format(_identity)
+                        )
 
                         response_xmlstr = create_response(
                             {
@@ -664,7 +639,7 @@ class IdpServer(object):
                             {
                                 'status_code': STATUS_SUCCESS
                             },
-                            identity.copy()
+                            _identity.copy()
                         ).to_xml()
                         key_file = self.server.config.key_file
                         cert_file = self.server.config.cert_file
@@ -693,7 +668,7 @@ class IdpServer(object):
                                 'lines': escape(
                                     response_xmlstr.decode('ascii')
                                 ).splitlines(),
-                                'attrs': identity.keys(),
+                                'attrs': _identity.keys(),
                                 'action': '/continue-response',
                                 'request_key': key
                             }
