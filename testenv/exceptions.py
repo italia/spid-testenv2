@@ -47,3 +47,7 @@ class StopValidation(TestenvError):
 
 class SignatureVerificationError(TestenvError):
     pass
+
+
+class UnknownEntityIDError(TestenvError):
+    pass

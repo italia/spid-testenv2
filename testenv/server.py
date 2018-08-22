@@ -21,7 +21,7 @@ from saml2.saml import Attribute
 from saml2.server import Server
 
 from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect
-from testenv.exceptions import BadConfiguration, DeserializationError, RequestParserError, SignatureVerificationError
+from testenv.exceptions import BadConfiguration, DeserializationError, RequestParserError, SignatureVerificationError, UnknownEntityIDError
 from testenv.parser import (
     HTTPPostRequestParser, HTTPRedirectRequestParser, get_http_post_request_deserializer,
     get_http_redirect_request_deserializer,
@@ -407,15 +407,11 @@ class IdpServer(object):
 
         :param request: Flask request object
         """
-        # TODO: handle errors in FE
         try:
             spid_request = self._parse_message(action='login')
             self.app.logger.debug(
                 'AuthnRequest: \n{}'.format(spid_request.data.saml_request)
             )
-            issuer_name = spid_request.saml_tree.issuer.text
-            if issuer_name and issuer_name not in self.server.metadata.service_providers():
-                self._raise_error('entity ID {} non registrato'.format(issuer_name))
             # Perform login
             key = self._store_request(spid_request.saml_tree)
             session['request_key'] = key
@@ -424,6 +420,8 @@ class IdpServer(object):
         except RequestParserError as err:
             self._raise_error(str(err))
         except SignatureVerificationError as err:
+            self._raise_error(str(err))
+        except UnknownEntityIDError as err:
             self._raise_error(str(err))
         except DeserializationError as err:
             return self._handle_errors(err.initial_data, err.details)
@@ -503,7 +501,7 @@ class IdpServer(object):
         destination = None
         acs_index = getattr(req, 'assertion_consumer_service_index', None)
         protocol_binding = getattr(req, 'protocol_binding', None)
-        if acs_index is not None and protocol_binding is not None:
+        if acs_index is not None:
             acss = self.server.metadata.assertion_consumer_service(
                 sp_id, protocol_binding
             )
@@ -518,11 +516,12 @@ class IdpServer(object):
             )
         if destination is None:
             destination = getattr(req, 'assertion_consumer_service_url', None)
-            self.app.logger.debug(
-                'AssertionConsumerServiceURL: {}'.format(
-                    destination
+            if destination is not None and protocol_binding is not None:
+                self.app.logger.debug(
+                    'AssertionConsumerServiceURL: {}'.format(
+                        destination
+                    )
                 )
-            )
         return destination
 
     def login(self):
@@ -665,7 +664,7 @@ class IdpServer(object):
                             {
                                 'status_code': STATUS_SUCCESS
                             },
-                            identity
+                            identity.copy()
                         ).to_xml()
                         key_file = self.server.config.key_file
                         cert_file = self.server.config.cert_file
@@ -863,7 +862,10 @@ class IdpServer(object):
             cert = open(cert_file, 'rb').read()
             relay_state = spid_request.data.relay_state or ''
             if response_binding == BINDING_HTTP_POST:
-                response = sign_http_post(response, key, cert)
+                response = sign_http_post(
+                    response, key, cert,
+                    message=True, assertion=False
+                )
                 rendered_template = render_template(
                     'form_http_post.html',
                     **{
@@ -882,6 +884,8 @@ class IdpServer(object):
         except RequestParserError as err:
             self._raise_error(str(err))
         except SignatureVerificationError as err:
+            self._raise_error(str(err))
+        except UnknownEntityIDError as err:
             self._raise_error(str(err))
         except DeserializationError as err:
             return self._handle_errors(err.initial_data, err.details)

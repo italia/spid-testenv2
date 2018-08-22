@@ -480,7 +480,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertIn(
-            "12345 non corrisponde a nessuno dei valori contenuti in ['0']",
+            "12345 non corrisponde a nessuno dei valori contenuti in [&#39;0&#39;]",
             response_text
         )
 
@@ -731,8 +731,8 @@ class SpidTestenvTest(unittest.TestCase):
             self.assertEqual(len(self.idp_server.responses), 0)
 
     @freeze_time("2018-07-16T09:38:29Z")
-    @patch('testenv.parser.HTTPPostRequestParser._decode_saml_request', return_value=generate_logout_request())
-    @patch('testenv.crypto.HTTPPostSignatureVerifier.verify', return_value=True)
+    @patch('testenv.parser.HTTPRedirectRequestParser._decode_saml_request', return_value=generate_logout_request())
+    @patch('testenv.crypto.HTTPRedirectSignatureVerifier.verify', return_value=True)
     def test_logout_response_http_post(self, unravel, verified):
         # See: https://github.com/italia/spid-testenv2/issues/88
         with patch('testenv.server.IdpServer._sp_single_logout_service', return_value=_sp_single_logout_service(self.idp_server.server, 'https://spid.test:8000', BINDING_HTTP_POST)) as mocked:

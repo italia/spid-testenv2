@@ -9,7 +9,7 @@ from lxml import etree
 from voluptuous import ALLOW_EXTRA, All, In, Invalid, MultipleInvalid, Optional, Schema
 from voluptuous.validators import Equal
 
-from testenv.exceptions import SPIDValidationError, XMLFormatValidationError, XMLSchemaValidationError
+from testenv.exceptions import SPIDValidationError, UnknownEntityIDError, XMLFormatValidationError, XMLSchemaValidationError
 from testenv.settings import (
     BINDING_HTTP_POST, DEFAULT_LIST_VALUE_ERROR, DEFAULT_VALUE_ERROR, DS as SIGNATURE, NAMEID_FORMAT_ENTITY,
     NAMEID_FORMAT_TRANSIENT, SAML as ASSERTION, SAMLP as PROTOCOL, SPID_LEVELS, TIMEDELTA,
@@ -167,9 +167,13 @@ class SpidValidator(object):
             req_type = 'AuthnRequest'
         elif self._action == 'logout':
             req_type = 'LogoutRequest'
-        issuer = data.get('{urn:oasis:names:tc:SAML:2.0:protocol}%s' % (req_type)).get('children').get('{urn:oasis:names:tc:SAML:2.0:assertion}Issuer').get('text')
+        issuer_name = data.get('{urn:oasis:names:tc:SAML:2.0:protocol}%s' % (req_type)).get('children').get('{urn:oasis:names:tc:SAML:2.0:assertion}Issuer').get('text')
+        if issuer_name and issuer_name not in self._metadata.service_providers():
+            raise UnknownEntityIDError(
+                'entity ID {} non registrato'.format(issuer_name)
+            )
         for k, _md in self._metadata.items():
-            if k == issuer:
+            if k == issuer_name:
                 _srvs = _md.get('spsso_descriptor', [])
                 for _srv in _srvs:
                     for _acs in _srv.get(
@@ -177,7 +181,7 @@ class SpidValidator(object):
                     ):
                         atcss.append(_acs)
         try:
-            ascss = self._metadata.assertion_consumer_service(issuer)
+            ascss = self._metadata.assertion_consumer_service(issuer_name)
         except Exception:
             ascss = []
         except Exception:
@@ -192,10 +196,14 @@ class SpidValidator(object):
                 'Format': Equal(
                     NAMEID_FORMAT_ENTITY, msg=DEFAULT_VALUE_ERROR.format(NAMEID_FORMAT_ENTITY)
                 ),
-                'NameQualifier': issuer
+                'NameQualifier': Equal(
+                        issuer_name, msg=DEFAULT_VALUE_ERROR.format(issuer_name)
+                    ),
             },
             'children': {},
-            'text': issuer
+            'text': Equal(
+                    issuer_name, msg=DEFAULT_VALUE_ERROR.format(issuer_name)
+                ),
             }
         )
 
@@ -344,7 +352,7 @@ class SpidValidator(object):
                     },
                     'children': {
                         '{%s}Issuer' % (ASSERTION): issuer,
-                        '{%s}NameID' % (ASSERTION): str
+                        '{%s}NameID' % (ASSERTION): name_id
                     },
                     'text': None
                 }

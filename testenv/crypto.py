@@ -117,10 +117,10 @@ def sign_http_post(xmlstr, key, cert, message=False, assertion=True):
     return base64.b64encode(response).decode('ascii')
 
 
-def sign_http_redirect(xmlstr, key, relay_state=None):
+def sign_http_redirect(xmlstr, key, relay_state=None, req_type='SAMLResponse'):
     encoded_message = deflate_and_base64_encode(xmlstr)
     args = {
-        'SAMLRequest': encoded_message,
+        req_type: encoded_message,
         'SigAlg': SIG_RSA_SHA256,
     }
     if relay_state is not None:
