@@ -14,10 +14,9 @@ from bs4 import BeautifulSoup as BS
 from freezegun import freeze_time
 from lxml import etree as ET
 from OpenSSL import crypto
-from saml2.sigver import REQ_ORDER, import_rsa_key_from_file
 from six.moves.urllib.parse import parse_qs, quote, urlencode, urlparse
 
-from testenv.crypto import decode_base64_and_inflate, deflate_and_base64_encode
+from testenv.crypto import decode_base64_and_inflate, deflate_and_base64_encode, sign_http_redirect
 from testenv.parser import SAMLTree
 from testenv.settings import (
     BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT, SIG_RSA_SHA1,
@@ -637,17 +636,8 @@ class SpidTestenvTest(unittest.TestCase):
     @freeze_time("2018-07-16T09:38:29Z")
     def test_authn_request_http_redirect_right_signature(self):
         xml_message = generate_authn_request()
-        encoded_message = deflate_and_base64_encode(xml_message)
-        args = {
-            'SAMLRequest': encoded_message,
-            'SigAlg': SIG_RSA_SHA256,
-        }
-        query_string = "&".join([urlencode({k: args[k]})
-                           for k in REQ_ORDER if k in args]).encode('ascii')
-        pkey = import_rsa_key_from_file(os.path.join(DATA_DIR, 'sp.key'))
-        signer = self.idp_server.server.sec.sec_backend.get_signer(SIG_RSA_SHA256, pkey)
-        args["Signature"] = base64.b64encode(signer.sign(query_string))
-        query_string = urlencode(args)
+        pkey = open(os.path.join(DATA_DIR, 'sp.key'), 'rb').read()
+        query_string = sign_http_redirect(xml_message, pkey, req_type='SAMLRequest')
         self.assertEqual(len(self.idp_server.ticket), 0)
         self.assertEqual(len(self.idp_server.responses), 0)
         response = self.test_client.get(
