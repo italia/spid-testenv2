@@ -11,7 +11,7 @@ from lxml import etree, objectify
 from testenv.exceptions import (
     DeserializationError, RequestParserError, StopValidation, ValidationError, XMLFormatValidationError,
 )
-from testenv.settings import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
+from testenv.settings import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, MULTIPLE_OCCURRENCES_TAGS
 from testenv.validators import AuthnRequestXMLSchemaValidator, SpidValidator, XMLFormatValidator
 
 try:
@@ -224,8 +224,9 @@ class HTTPRequestDeserializer(object):
 
 
 class SAMLTree(object):
-    def __init__(self, xml_doc):
+    def __init__(self, xml_doc, multi_occur_tags=None):
         self._xml_doc = xml_doc
+        self._multi_occur_tags = multi_occur_tags or MULTIPLE_OCCURRENCES_TAGS
         self.text = self._xml_doc.text
         self._bind_tag()
         self._bind_attributes()
@@ -248,15 +249,15 @@ class SAMLTree(object):
     def _bind_subtrees(self):
         for child in self._xml_doc.iterchildren():
             child_name = self._to_snake_case(etree.QName(child).localname)
-            subtree = SAMLTree(child)
-            if getattr(self, child_name, None):
+            subtree = SAMLTree(child, self._multi_occur_tags)
+            if child.tag in self._multi_occur_tags:
                 self._handle_as_list(child_name, subtree)
             else:
                 setattr(self, child_name, subtree)
 
     def _handle_as_list(self, child_name, subtree):
-        existing = getattr(self, child_name)
+        existing = getattr(self, child_name, None)
         if isinstance(existing, list):
             existing.append(subtree)
         else:
-            setattr(self, child_name, [existing, subtree])
+            setattr(self, child_name, [subtree])

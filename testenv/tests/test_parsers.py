@@ -205,7 +205,7 @@ class SAMLTreeTestCase(unittest.TestCase):
     </SpecialChild3>
 </root>"""
         xml_doc = objectify.fromstring(xml)
-        saml_tree = SAMLTree(xml_doc)
+        saml_tree = SAMLTree(xml_doc, multi_occur_tags={'Item'})
         self.assertEqual(saml_tree.child1.text, 'some data')
         self.assertEqual(saml_tree.child1.tag, 'child1')
         self.assertEqual(saml_tree.child2.an_attribute, 'more data')

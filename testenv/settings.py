@@ -86,3 +86,5 @@ SIGNED_PARAMS = ['SAMLRequest', 'RelayState', 'SigAlg']
 # Misc
 TIMEDELTA = 2 # minutes (used to verify and generate range limits for issue instant etc.)
 CHALLENGES_TIMEOUT = 30 # seconds (used to verify spid level >= 2 challenges)
+
+MULTIPLE_OCCURRENCES_TAGS = {}

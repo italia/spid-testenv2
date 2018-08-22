@@ -11,7 +11,7 @@ import lxml.etree as etree
 import yaml
 from lxml import objectify
 
-from testenv.settings import SPID_ERRORS
+from testenv.settings import MULTIPLE_OCCURRENCES_TAGS, SPID_ERRORS
 
 TIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 TIME_FORMAT_WITH_FRAGMENT = re.compile(
@@ -94,13 +94,25 @@ def saml_to_dict(xmlstr):
     root = objectify.fromstring(xmlstr)
 
     def _obj(elem):
+        children = {}
+        for child in elem.iterchildren():
+            subdict = _obj(child)
+
+            if child.tag in MULTIPLE_OCCURRENCES_TAGS:
+                existing = children.get(child.tag, None)
+                if isinstance(existing, list):
+                    existing.append(subdict)
+                else:
+                    children[child.tag] = [subdict]
+            else:
+                children[child.tag] = subdict
+
         return {
             'attrs': dict(elem.attrib),
-            'children': {
-                k.tag: _obj(k) for k in elem.iterchildren()
-            },
-            'text': elem.text
+            'children': children,
+            'text': elem.text,
         }
+
     return {
         root.tag: _obj(root)
     }
