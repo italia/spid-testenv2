@@ -14,7 +14,7 @@ from bs4 import BeautifulSoup as BS
 from freezegun import freeze_time
 from lxml import etree as ET
 from OpenSSL import crypto
-from six.moves.urllib.parse import parse_qs, quote, urlencode, urlparse
+from six.moves.urllib.parse import parse_qs, quote, urlparse
 
 from testenv.crypto import decode_base64_and_inflate, deflate_and_base64_encode, sign_http_redirect
 from testenv.parser import SAMLTree
