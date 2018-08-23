@@ -5,41 +5,43 @@ import os
 import os.path
 import random
 import string
+from collections import namedtuple
 from datetime import datetime
 from hashlib import sha1
 from logging.handlers import RotatingFileHandler
 
-from flask import (Response, abort, escape, redirect, render_template, request,
-                   session, url_for)
-from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
-from saml2.assertion import filter_on_demands
-from saml2.attribute_converter import list_to_local
-from saml2.authn_context import AuthnBroker, authn_context_class_ref
+from flask import Response, abort, escape, redirect, render_template, request, session, url_for
+# TODO: avoid the following pysaml2 dependencies
 from saml2.config import Config as Saml2Config
-from saml2.entity import UnknownBinding
 from saml2.metadata import create_metadata_string
-from saml2.response import IncorrectlySigned
-from saml2.s_utils import UnknownSystemEntity, UnsupportedBinding
-from saml2.saml import NAME_FORMAT_BASIC, NAMEID_FORMAT_TRANSIENT, Attribute
-from saml2.sigver import verify_redirect_signature
+from saml2.s_utils import UnsupportedBinding
+from saml2.server import Server
 
-from testenv.exceptions import BadConfiguration
-from testenv.parser import SpidParser
-from testenv.settings import (ALLOWED_SIG_ALGS, AUTH_NO_CONSENT, DIGEST_ALG,
-                              SIGN_ALG, SPID_LEVELS)
-from testenv.spid import SpidPolicy, SpidServer, ac_factory
+from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect
+from testenv.exceptions import (
+    BadConfiguration, DeserializationError, RequestParserError, SignatureVerificationError, UnknownEntityIDError,
+)
+from testenv.parser import (
+    HTTPPostRequestParser, HTTPRedirectRequestParser, get_http_post_request_deserializer,
+    get_http_redirect_request_deserializer,
+)
+from testenv.saml import create_error_response, create_logout_response, create_response
+from testenv.settings import (
+    AUTH_NO_CONSENT, BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, CHALLENGES_TIMEOUT, NAME_FORMAT_BASIC,
+    NAMEID_FORMAT_TRANSIENT, SPID_ATTRIBUTES, SPID_LEVELS, STATUS_SUCCESS,
+)
 from testenv.users import JsonUserManager
 from testenv.utils import get_spid_error, prettify_xml
 
-try:
-    from saml2.sigver import get_xmlsec_binary
-except ImportError:
-    get_xmlsec_binary = None
+######
 
-if get_xmlsec_binary:
-    xmlsec_path = get_xmlsec_binary(["/opt/local/bin"])
-else:
-    xmlsec_path = '/usr/bin/xmlsec1'
+
+# FIXME: move to a the parser.py module after metadata refactoring
+SPIDRequest = namedtuple('SPIDRequest', ['data', 'saml_tree'])
+
+
+def from_session(key):
+    return session[key] if key in session else None
 
 
 class IdpServer(object):
@@ -53,32 +55,9 @@ class IdpServer(object):
     }
     _endpoint_types = ['single_sign_on_service', 'single_logout_service']
     _spid_levels = SPID_LEVELS
-    _spid_attributes = {
-        'primary': {
-            'spidCode': 'xs:string',
-            'name': 'xs:string',
-            'familyName': 'xs:string',
-            'placeOfBirth': 'xs:string',
-            'countryOfBirth': 'xs:string',
-            'dateOfBirth': 'xs:date',
-            'gender': 'xs:string',
-            'companyName': 'xs:string',
-            'registeredOffice': 'xs:string',
-            'fiscalNumber': 'xs:string',
-            'ivaCode': 'xs:string',
-            'idCard': 'xs:string',
-        },
-        'secondary': {
-            'mobilePhone': 'xs:string',
-            'email': 'xs:string',
-            'address': 'xs:string',
-            'expirationDate': 'xs:date',
-            'digitalAddress': 'xs:string'
-        }
-    }
+    _spid_attributes = SPID_ATTRIBUTES.copy()
     # digitalAddress => PEC
-    CHALLENGES_TIMEOUT = 30  # seconds
-    SAML_VERSION = '2.0'
+    challenges_timeout = CHALLENGES_TIMEOUT
 
     def __init__(self, app, config, *args, **kwargs):
         """
@@ -98,7 +77,6 @@ class IdpServer(object):
         )
         self.app.logger.addHandler(handler)
         self._prepare_server()
-        self.spid_parser = SpidParser()
 
     @property
     def _mode(self):
@@ -237,45 +215,18 @@ class IdpServer(object):
             # as fallback for entityid use host:port string
             self._config['entityid'] = self.BASE
         self.idp_config.load(cnf=self._idp_config())
-        setattr(
-            self.idp_config,
-            'attribute_converters',
-            ac_factory(
-                'testenv/attributemaps',
-                **{'override_types': self._all_attributes}
-            )
-        )
-        self.server = SpidServer(config=self.idp_config)
+        self.server = Server(config=self.idp_config)
         self._setup_app_routes()
-        # setup custom methods in order to
-        # prepare the login form and verify the challenge (optional)
-        # for every spid level (1-2-3)
-        self.authn_broker = AuthnBroker()
-        for index, _level in enumerate(self._spid_levels):
-            self.authn_broker.add(
-                authn_context_class_ref(_level),
-                getattr(self, '_verify_spid_{}'.format(index + 1))
-            )
 
-    def _verify_spid_1(self, verify=False, **kwargs):
-        self.app.logger.debug('spid level 1 - verifica ({})'.format(verify))
-        return self._verify_spid(1, verify, **kwargs)
-
-    def _verify_spid_2(self, verify=False, **kwargs):
-        self.app.logger.debug('spid level 2 - verifica ({})'.format(verify))
-        return self._verify_spid(2, verify, **kwargs)
-
-    def _verify_spid_3(self, verify=False, **kwargs):
-        self.app.logger.debug('spid level 3 - verifica ({})'.format(verify))
-        return self._verify_spid(3, verify, **kwargs)
-
-    def _verify_spid(self, level=1, verify=False, **kwargs):
+    def _verify_spid(self, level, verify=False, **kwargs):
         """
         :param level: integer, SPID level
         :param verify: boolean, if True verify
             spid extra challenge (otp etc.), if False prepare the challenge
         :param kwargs: dictionary, extra arguments
         """
+        level = self._spid_levels.index(level)
+        self.app.logger.debug('spid level {} - verifica ({})'.format(level, verify))
         if verify:
             # Verify the challenge
             if level == 2:
@@ -288,7 +239,7 @@ class IdpServer(object):
                     datetime.now() - self.challenges[key][1]
                 ).total_seconds()
                 # Check that opt value is equal and not expired
-                _is_expired = total_seconds > self.CHALLENGES_TIMEOUT
+                _is_expired = total_seconds > self.challenges_timeout
                 if self.challenges[key][0] != otp or _is_expired:
                     del self.challenges[key]
                     return False
@@ -334,13 +285,6 @@ class IdpServer(object):
             )
         )
 
-    def _check_spid_restrictions(self, msg, action, binding, **kwargs):
-        parsed_msg, errors = self.spid_parser.parse(
-            msg, action, binding, **kwargs
-        )
-        self.app.logger.debug('parsed authn_request: {}'.format(parsed_msg))
-        return parsed_msg, errors
-
     def _store_request(self, authnreq):
         """
         Store authnrequest in a dictionary
@@ -348,113 +292,81 @@ class IdpServer(object):
         :param authnreq: authentication request string
         """
         self.app.logger.debug('store_request: {}'.format(authnreq))
-        key = sha1(authnreq.xmlstr).hexdigest()
+        # FIXME: improve this
+        from lxml.etree import tostring
+        key = sha1(tostring(authnreq._xml_doc)).hexdigest()
         # store the AuthnRequest
         self.ticket[key] = authnreq
         return key
 
-    def _handle_errors(self, xmlstr, errors={}):
-        _escaped_xml = escape(prettify_xml(xmlstr.decode()))
+    def _handle_errors(self, xmlstr, errors=None):
         rendered_error_response = render_template(
             'spid_error.html',
             **{
-                'lines': _escaped_xml.splitlines(),
-                'spid_errors': errors.get('spid_errors', []),
-                'validation_errors': errors.get('validation_errors', [])
+                'lines': xmlstr.splitlines(),
+                'errors': errors
                 }
             )
         return rendered_error_response
 
-    def _verify_redirect(self, saml_msg, issuer_name):
+    def _parse_message(self, action):
         """
-        Verify Http-Redirect signature
+        Parse an AuthnRequest or a LogoutRequest
 
-        :param saml_msg: request parameters
-        :param issuer_name: issuer name (Service Provider)
-        """
-        if "SigAlg" in saml_msg and "Signature" in saml_msg:
-            # Signed request
-            self.app.logger.debug('Messaggio SAML firmato.')
-            _sig_alg = saml_msg['SigAlg']
-            if _sig_alg not in ALLOWED_SIG_ALGS:
-                self._raise_error(
-                    'L\'Algoritmo {} non è supportato.'.format(_sig_alg)
-                )
-            try:
-                _certs = self.server.metadata.certs(
-                    issuer_name,
-                    "any",
-                    "signing"
-                )
-            except KeyError:
-                self._raise_error(
-                    'entity ID {} non registrato, impossibile ricavare'\
-                    ' un certificato valido.'.format(issuer_name)
-                )
-            verified_ok = False
-            for cert in _certs:
-                self.app.logger.debug(
-                    'security backend: {}'.format(
-                        self.server.sec.sec_backend.__class__.__name__
-                    )
-                )
-                # Check signature
-                if verify_redirect_signature(
-                    saml_msg,
-                    self.server.sec.sec_backend,
-                    cert
-                ):
-                    verified_ok = True
-                    break
-            if not verified_ok:
-                self._raise_error(
-                    'Verifica della firma del messaggio fallita.'
-                )
-        else:
-            self._raise_error(
-                'I parametri Signature e SigAlg sono entrambi'\
-                ' necessari per le richieste di tipo HTTP-REDIRECT'
-            )
-
-    def _parse_message(self, action='login'):
-        """
-        Parse an AuthnRequest or a LogoutRequest using pysaml2 API
-
-        :param saml_msg: request parameters
-        :param method: request method
         :param action: type of request
         """
         method = request.method
 
         if method == 'GET':
-            _binding = BINDING_HTTP_REDIRECT
-            saml_msg = self.unpack_args(request.args)
+            return self._handle_http_redirect(action)
         elif method == 'POST':
-            _binding = BINDING_HTTP_POST
-            saml_msg = self.unpack_args(request.form)
+            return self._handle_http_post(action)
         else:
             self._raise_error(
-                'I metodi consentiti sono'\
+                'I metodi consentiti sono'
                 ' GET (Http-Redirect) o POST (Http-Post)'
             )
-        if 'SAMLRequest' not in saml_msg:
-            self._raise_error('Parametro SAMLRequest assente.')
-        if action == 'login':
-            _func = 'parse_authn_request'
-        elif action == 'logout':
-            _func = 'parse_logout_request'
+
+    def _handle_http_redirect(self, action):
+        # FIXME: replace the following code with a call to a function
+        # in the parser.py module after metadata refactoring.
+        # The IdpServer class should not
+        # be responsible of request parsing, or know anything
+        # about request parsing *at all*.
+        saml_msg = self.unpack_args(request.args)
+        request_data = HTTPRedirectRequestParser(saml_msg).parse()
+        deserializer = get_http_redirect_request_deserializer(
+            request_data, action, self.server.metadata)
+        saml_tree = deserializer.deserialize()
+        certs = self._get_certificates_by_issuer(saml_tree.issuer.text)
+        for cert in certs:
+            HTTPRedirectSignatureVerifier(cert, request_data).verify()
+        return SPIDRequest(request_data, saml_tree)
+
+    def _handle_http_post(self, action):
+        # FIXME: replace the following code with a call to a function
+        # in the parser.py module after metadata refactoring.
+        # The IdpServer class should not
+        # be responsible of request parsing, or know anything
+        # about request parsing *at all*.
+        saml_msg = self.unpack_args(request.form)
+        request_data = HTTPPostRequestParser(saml_msg).parse()
+        deserializer = get_http_post_request_deserializer(
+            request_data, action, self.server.metadata)
+        saml_tree = deserializer.deserialize()
+        certs = self._get_certificates_by_issuer(saml_tree.issuer.text)
+        for cert in certs:
+            HTTPPostSignatureVerifier(cert, request_data).verify()
+        return SPIDRequest(request_data, saml_tree)
+
+    def _get_certificates_by_issuer(self, issuer):
         try:
-            req_info = getattr(
-                self.server, _func
-                )(
-                    saml_msg['SAMLRequest'], _binding
-                )
-        except IncorrectlySigned as err:
-            self.app.logger.debug(str(err))
+            return self.server.metadata.certs(issuer, 'any', 'signing')
+        except KeyError:
             self._raise_error(
-                'Messaggio corrotto o non firmato correttamente.'
+                'entity ID {} non registrato, impossibile ricavare'\
+                ' un certificato valido.'.format(issuer)
             )
-        return req_info, _binding
 
     def single_sign_on_service(self):
         """
@@ -462,79 +374,24 @@ class IdpServer(object):
 
         :param request: Flask request object
         """
-        # Unpack parameters
-        saml_msg = self.unpack_args(request.args)
         try:
-            req_info, binding = self._parse_message(action='login')
-            authn_req = req_info.message
+            spid_request = self._parse_message(action='login')
             self.app.logger.debug(
-                'AuthnRequest: \n{}'.format(prettify_xml(str(authn_req)))
+                'AuthnRequest: \n{}'.format(spid_request.data.saml_request)
             )
-            extra = {}
-            sp_id = authn_req.issuer.text
-            issuer_name = authn_req.issuer.text
-            if issuer_name and issuer_name not in self.server.metadata.service_providers():
-                raise UnknownSystemEntity
-            # TODO: refactor a bit fetching this kind of data from pysaml2
-            atcss = []
-            for k, _md in self.server.metadata.items():
-                if k == sp_id:
-                    _srvs = _md.get('spsso_descriptor', [])
-                    for _srv in _srvs:
-                        for _acs in _srv.get(
-                            'attribute_consuming_service', []
-                        ):
-                            atcss.append(_acs)
-            try:
-                ascss = self.server.metadata.assertion_consumer_service(sp_id)
-            except UnknownSystemEntity as err:
-                ascss = []
-            except UnsupportedBinding as err:
-                ascss = []
-            atcss_indexes = [str(el.get('index')) for el in atcss]
-            ascss_indexes = [str(el.get('index')) for el in ascss]
-            extra['issuer'] = issuer_name
-            extra['attribute_consuming_service_indexes'] = atcss_indexes
-            extra['assertion_consumer_service_indexes'] = ascss_indexes
-            extra['receivers'] = req_info.receiver_addrs
-            _, errors = self._check_spid_restrictions(
-                req_info, 'login', binding, **extra
-            )
-        except UnknownBinding as err:
-            self.app.logger.debug(str(err))
-            self._raise_error(
-                'Binding non supportato. Formati supportati ({}, {})'.format(
-                    BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
-                )
-            )
-        except UnknownSystemEntity as err:
-            self.app.logger.debug(str(err))
-            self._raise_error(
-                'entity ID {} non registrato.'.format(issuer_name)
-            )
-        except IncorrectlySigned as err:
-            self.app.logger.debug(str(err))
-            self._raise_error(
-                'Messaggio corrotto o non firmato correttamente.'.format(
-                    issuer_name
-                )
-            )
-
-        if errors:
-            return self._handle_errors(req_info.xmlstr, errors=errors)
-
-        if not req_info:
-            self._raise_error('Processo di parsing del messaggio fallito.')
-
-        # Check if it is signed
-        if binding == BINDING_HTTP_REDIRECT:
-            self._verify_redirect(saml_msg, issuer_name)
-        # Perform login
-        key = self._store_request(req_info)
-        relay_state = saml_msg.get('RelayState', '')
-        session['request_key'] = key
-        session['relay_state'] = relay_state
-        return redirect(url_for('login'))
+            # Perform login
+            key = self._store_request(spid_request.saml_tree)
+            session['request_key'] = key
+            session['relay_state'] = spid_request.data.relay_state or ''
+            return redirect(url_for('login'))
+        except RequestParserError as err:
+            self._raise_error(err.args[0])
+        except SignatureVerificationError as err:
+            self._raise_error(err.args[0])
+        except UnknownEntityIDError as err:
+            self._raise_error(err.args[0])
+        except DeserializationError as err:
+            return self._handle_errors(err.initial_data, err.details)
 
     @property
     def _spid_main_fields(self):
@@ -609,10 +466,11 @@ class IdpServer(object):
 
     def get_destination(self, req, sp_id):
         destination = None
-        acs_index = req.message.assertion_consumer_service_index
+        acs_index = getattr(req, 'assertion_consumer_service_index', None)
+        protocol_binding = getattr(req, 'protocol_binding', None)
         if acs_index is not None:
             acss = self.server.metadata.assertion_consumer_service(
-                sp_id, req.message.protocol_binding
+                sp_id, protocol_binding
             )
             for acs in acss:
                 if acs.get('index') == acs_index:
@@ -624,35 +482,32 @@ class IdpServer(object):
                 )
             )
         if destination is None:
-            destination = req.message.assertion_consumer_service_url
-            self.app.logger.debug(
-                'AssertionConsumerServiceURL: {}'.format(
-                    destination
+            destination = getattr(req, 'assertion_consumer_service_url', None)
+            if destination is not None and protocol_binding is not None:
+                self.app.logger.debug(
+                    'AssertionConsumerServiceURL: {}'.format(
+                        destination
+                    )
                 )
-            )
         return destination
 
     def login(self):
         """
         Login endpoint (verify user credentials)
         """
-        def from_session(key):
-            return session[key] if key in session else None
+
         key = from_session('request_key')
         relay_state = from_session('relay_state')
         self.app.logger.debug('Request key: {}'.format(key))
         if key and key in self.ticket:
             authn_request = self.ticket[key]
-            message = authn_request.message
-            sp_id = message.issuer.text
+            sp_id = authn_request.issuer.text
             destination = self.get_destination(authn_request, sp_id)
-            authn_context = message.requested_authn_context
-            spid_level = authn_context.authn_context_class_ref[0].text
-            authn_info = self.authn_broker.pick(authn_context)
-            callback, reference = authn_info[0]
+            authn_context = authn_request.requested_authn_context
+            spid_level = authn_context.authn_context_class_ref.text
             if request.method == 'GET':
                 # inject extra data in form login based on spid level
-                extra_challenge = callback(**{'key': key})
+                extra_challenge = self._verify_spid(level=spid_level, **{'key': key})
                 rendered_form = render_template(
                     'login.html',
                     **{
@@ -666,7 +521,8 @@ class IdpServer(object):
 
             if 'confirm' in request.form:
                 # verify optional challenge based on spid level
-                verified = callback(
+                verified = self._verify_spid(
+                    level=spid_level,
                     verify=True, **{
                         'key': key, 'data': request.form
                     }
@@ -681,159 +537,211 @@ class IdpServer(object):
                     if user_id is not None:
                         # setup response
                         identity = user['attrs'].copy()
-                        AUTHN = {
-                            "class_ref": spid_level,
-                            "authn_auth": spid_level
-                        }
                         self.app.logger.debug(
                             'Unfiltered data: {}'.format(identity)
                         )
-                        atcs_idx = message.attribute_consuming_service_index
+                        atcs_idx = getattr(authn_request, 'attribute_consuming_service_index', None)
                         self.app.logger.debug(
-                            'attribute_consuming_service_index: {}'.format(
+                            'AttributeConsumingServiceIndex: {}'.format(
                                 atcs_idx
                             )
                         )
                         if atcs_idx:
+                            # TODO: Remove this pysaml2 dependency
                             attrs = self.server.wants(sp_id, atcs_idx)
-                            required = [
-                                Attribute(
-                                    name=el.get('name'),
-                                    friendly_name=None,
-                                    name_format=NAME_FORMAT_BASIC
-                                ) for el in attrs.get('required')
-                            ]
-                            optional = [
-                                Attribute(
-                                    name=el.get('name'),
-                                    friendly_name=None,
-                                    name_format=NAME_FORMAT_BASIC
-                                ) for el in attrs.get('optional')
-                            ]
-                            acs = ac_factory(
-                                './testenv/attributemaps',
-                                **{'override_types': self._all_attributes}
-                            )
-                            rava = list_to_local(acs, required)
-                            oava = list_to_local(acs, optional)
+                            required = [el.get('name') for el in attrs.get('required')]
+                            optional = [el.get('name') for el in attrs.get('optional')]
                         else:
-                            rava = {}
-                            oava = {}
+                            required = []
+                            optional = []
+
+                        for k, v in identity.items():
+                            if k in self._spid_main_fields:
+                                _type = self._spid_attributes['primary'][k]
+                            else:
+                                _type = self._spid_attributes['secondary'][k]
+                            identity[k] = (_type, v)
+
+                        _identity = {}
+                        for _key in required:
+                            _identity[_key] = identity[_key]
+                        for _key in optional:
+                            _identity[_key] = identity[_key]
+
                         self.app.logger.debug(
-                            'Required attributes: {}'.format(rava)
+                            'Filtered data: {}'.format(_identity)
                         )
-                        self.app.logger.debug(
-                            'Optional attributes: {}'.format(oava)
-                        )
-                        identity = filter_on_demands(
-                            identity, rava, oava
-                        )
-                        self.app.logger.debug(
-                            'Filtered data: {}'.format(identity)
-                        )
-                        _data = dict(
-                            identity=identity, userid=user_id,
-                            in_response_to=message.id,
-                            destination=destination,
-                            sp_entity_id=sp_id,
-                            authn=AUTHN, issuer=self.server.config.entityid,
-                            sign_alg=SIGN_ALG,
-                            digest_alg=DIGEST_ALG,
-                            sign_assertion=True,
-                            release_policy=SpidPolicy(
-                                restrictions={
-                                    'default': {
-                                        'name_form': NAME_FORMAT_BASIC,
+
+                        response_xmlstr = create_response(
+                            {
+                                'response': {
+                                    'attrs': {
+                                        'in_response_to': authn_request.id,
+                                        'destination': destination
                                     }
                                 },
-                                index=atcs_idx
-                            )
-                        )
-                        response = self.server.create_authn_response(
-                            **_data
-                        )
+                                'issuer': {
+                                    'attrs': {
+                                        'name_qualifier': self.server.config.entityid,
+                                    },
+                                    'text': self.server.config.entityid
+                                },
+                                'name_id': {
+                                    'attrs': {
+                                        'name_qualifier': self.server.config.entityid,
+                                    }
+                                },
+
+                                'subject_confirmation_data': {
+                                    'attrs': {
+                                        'recipient': destination
+                                    }
+                                },
+                                'audience': {
+                                    'text': sp_id
+                                },
+                                'authn_context_class_ref': {
+                                    'text': spid_level
+                                }
+                            },
+                            {
+                                'status_code': STATUS_SUCCESS
+                            },
+                            _identity.copy()
+                        ).to_xml()
+                        key_file = self.server.config.key_file
+                        cert_file = self.server.config.cert_file
+
+                        pkey = open(key_file, 'rb').read()
+                        cert = open(cert_file, 'rb').read()
+                        response = sign_http_post(response_xmlstr, pkey, cert)
                         self.app.logger.debug(
                             'Response: \n{}'.format(response)
                         )
-                        http_args = self.server.apply_binding(
-                            BINDING_HTTP_POST,
-                            response,
-                            destination,
-                            response=True,
-                            sign=True,
-                            relay_state=relay_state
+                        rendered_template = render_template(
+                            'form_http_post.html',
+                            **{
+                                'action': destination,
+                                'relay_state': relay_state,
+                                'message': response,
+                                'message_type': 'SAMLResponse'
+                            }
                         )
+                        self.responses[key] = rendered_template
                         # Setup confirmation page data
-                        self.responses[key] = http_args['data']
                         rendered_response = render_template(
                             'confirm.html',
                             **{
                                 'destination_service': sp_id,
-                                'lines':  escape(
-                                    prettify_xml(response)
+                                'lines': escape(
+                                    response_xmlstr.decode('ascii')
                                 ).splitlines(),
-                                'attrs': identity.keys(),
+                                'attrs': _identity.keys(),
                                 'action': '/continue-response',
                                 'request_key': key
                             }
                         )
                         return rendered_response, 200
             elif 'delete' in request.form:
-                error_response = self.server.create_error_response(
-                    in_response_to=authn_request.message.id,
-                    destination=destination,
-                    info=get_spid_error(
-                        AUTH_NO_CONSENT
-                    )
+                error_info = get_spid_error(
+                    AUTH_NO_CONSENT
                 )
+                response = create_error_response(
+                    {
+                        'response': {
+                            'attrs': {
+                                'in_response_to': authn_request.id,
+                                'destination': destination
+                            }
+                        },
+                        'issuer': {
+                            'attrs': {
+                                'name_qualifier': self.server.config.entityid,
+                            },
+                            'text': self.server.config.entityid
+                        },
+                    },
+                    {
+                        'status_code': error_info[0],
+                        'status_message': error_info[1]
+                    }
+                ).to_xml()
                 self.app.logger.debug(
-                    'Error response: \n{}'.format(
-                        prettify_xml(str(error_response))
-                    )
+                    'Error response: \n{}'.format(response)
                 )
-                http_args = self.server.apply_binding(
-                    BINDING_HTTP_POST,
-                    error_response,
-                    destination,
-                    response=True,
-                    sign=True,
-                    relay_state=relay_state
-                )
+                key_file = self.server.config.key_file
+                cert_file = self.server.config.cert_file
+
+                pkey = open(key_file, 'rb').read()
+                cert = open(cert_file, 'rb').read()
+                response = sign_http_post(response, pkey, cert)
                 del self.ticket[key]
-                return http_args['data'], 200
+                rendered_template = render_template(
+                    'form_http_post.html',
+                    **{
+                        'action': destination,
+                        'relay_state': relay_state,
+                        'message': response,
+                        'message_type': 'SAMLResponse'
+                    }
+                )
+                return rendered_template, 200
         return render_template('403.html'), 403
 
     def continue_response(self):
         key = request.form['request_key']
-        if key and key in self.responses and key in self.responses:
+        relay_state = from_session('relay_state')
+        if key and key in self.responses:
             _response = self.responses.pop(key)
             auth_req = self.ticket.pop(key)
             if 'confirm' in request.form:
                 return _response, 200
             elif 'delete' in request.form:
                 destination = self.get_destination(
-                    auth_req, auth_req.message.issuer.text
+                    auth_req, auth_req.issuer.text
                 )
-                error_response = self.server.create_error_response(
-                    in_response_to=auth_req.message.id,
-                    destination=destination,
-                    info=get_spid_error(
+                error_info = get_spid_error(
                         AUTH_NO_CONSENT
                     )
-                )
+                response = create_error_response(
+                    {
+                        'response': {
+                            'attrs': {
+                                'in_response_to': auth_req.id,
+                                'destination': destination
+                            }
+                        },
+                        'issuer': {
+                            'attrs': {
+                                'name_qualifier': 'something',
+                            },
+                            'text': self.server.config.entityid
+                        },
+                    },
+                    {
+                        'status_code': error_info[0],
+                        'status_message': error_info[1]
+                    }
+                ).to_xml()
                 self.app.logger.debug(
-                    'Error response: \n{}'.format(
-                        prettify_xml(str(error_response))
-                    )
+                    'Error response: \n{}'.format(response)
                 )
-                http_args = self.server.apply_binding(
-                    BINDING_HTTP_POST,
-                    error_response,
-                    destination,
-                    response=True,
-                    sign=True,
+                key_file = self.server.config.key_file
+                cert_file = self.server.config.cert_file
+
+                pkey = open(key_file, 'rb').read()
+                cert = open(cert_file, 'rb').read()
+                response = sign_http_post(response, pkey, cert)
+                rendered_template = render_template(
+                    'form_http_post.html',
+                    **{
+                        'action': destination,
+                        'relay_state': relay_state,
+                        'message': response,
+                        'message_type': 'SAMLResponse'
+                    }
                 )
-                return http_args['data'], 200
+                return rendered_template, 200
         return render_template('403.html'), 403
 
     def _sp_single_logout_service(self, issuer_name):
@@ -853,104 +761,81 @@ class IdpServer(object):
         """
 
         self.app.logger.debug("req: '%s'", request)
-        saml_msg = self.unpack_args(request.args)
         try:
-            req_info, _binding = self._parse_message(action='logout')
-            msg = req_info.message
+            spid_request = self._parse_message(action='logout')
+            issuer_name = spid_request.saml_tree.issuer.text
+            # TODO: retrieve the following data from some custom structure
+            _slo = self._sp_single_logout_service(issuer_name)
+            if _slo is None:
+                self._raise_error(
+                    'Impossibile trovare un servizio di'\
+                    ' Single Logout per il service provider {}'.format(
+                        issuer_name
+                    )
+                )
+            response_binding = _slo[0].get('binding')
             self.app.logger.debug(
-                'LogoutRequest: \n{}'.format(
-                    prettify_xml(str(msg))
+                'Response binding: \n{}'.format(
+                    response_binding
                 )
             )
-            issuer_name = req_info.issuer.text
-            extra = {}
-            extra['receivers'] = req_info.receiver_addrs
-            _, errors = self._check_spid_restrictions(
-                req_info, 'logout', _binding, **extra
-            )
-        except UnknownBinding as err:
-            self.app.logger.debug(str(err))
-            self._raise_error(
-                'Binding non supportato. Formati supportati ({}, {})'.format(
-                    BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
+            destination = _slo[0].get('location')
+            response = create_logout_response(
+                {
+                    'logout_response': {
+                        'attrs': {
+                            'in_response_to': spid_request.saml_tree.id,
+                            'destination': destination
+                        }
+                    },
+                    'issuer': {
+                        'attrs': {
+                            'name_qualifier': 'something',
+                        },
+                        'text': self.server.config.entityid
+                    }
+                },
+                {
+                    'status_code': STATUS_SUCCESS
+                }
+            ).to_xml()
+            key_file = self.server.config.key_file
+            cert_file = self.server.config.cert_file
+            key = open(key_file, 'rb').read()
+            cert = open(cert_file, 'rb').read()
+            relay_state = spid_request.data.relay_state or ''
+            if response_binding == BINDING_HTTP_POST:
+                response = sign_http_post(
+                    response, key, cert,
+                    message=True, assertion=False
                 )
-            )
-        except UnknownSystemEntity as err:
-            self.app.logger.debug(str(err))
-            self._raise_error(
-                'entity ID {} non registrato.'.format(issuer_name)
-            )
-        except IncorrectlySigned as err:
-            self.app.logger.debug(str(err))
-            self._raise_error(
-                'Messaggio corrotto o non firmato correttamente.'
-            )
-
-        if errors:
-            return self._handle_errors(req_info.xmlstr, errors=errors)
-
-        # Check if it is signed
-        if _binding == BINDING_HTTP_REDIRECT:
-            self._verify_redirect(saml_msg, issuer_name)
-        _slo = self._sp_single_logout_service(issuer_name)
-        if _slo is None:
-            self._raise_error(
-                'Impossibile trovare un servizio di'\
-                ' Single Logout per il service provider {}'.format(
-                    issuer_name
+                rendered_template = render_template(
+                    'form_http_post.html',
+                    **{
+                        'action': destination,
+                        'relay_state': relay_state,
+                        'message': response,
+                        'message_type': 'SAMLResponse'
+                    }
                 )
-            )
-        response_binding = _slo[0].get('binding')
-        self.app.logger.debug(
-            'Response binding: \n{}'.format(
-                response_binding
-            )
-        )
-        _signing = True if response_binding == BINDING_HTTP_POST else False
-        self.app.logger.debug(
-            'Signature inside response: \n{}'.format(
-                _signing
-            )
-        )
-        response = self.server.create_logout_response(
-            msg, [response_binding],
-            sign_alg=SIGN_ALG,
-            digest_alg=DIGEST_ALG,
-            sign=_signing
-        )
-        self.app.logger.debug('Response: \n{}'.format(response))
-        binding, destination = self.server.pick_binding(
-            "single_logout_service",
-            [response_binding], "spsso",
-            req_info
-        )
-        self.app.logger.debug('Destination {}'.format(destination))
-        if response_binding == BINDING_HTTP_POST:
-            _sign = False
-            extra = {}
-        else:
-            _sign = True
-            extra = {'sigalg': SIGN_ALG}
-
-        relay_state = saml_msg.get('RelayState', '')
-        http_args = self.server.apply_binding(
-            binding,
-            "%s" % response, destination, response=True,
-            sign=_sign, relay_state=relay_state, **extra
-        )
-        if response_binding == BINDING_HTTP_POST:
-            self.app.logger.debug('Form post {}'.format(http_args['data']))
-            return http_args['data'], 200
-        elif response_binding == BINDING_HTTP_REDIRECT:
-            headers = dict(http_args['headers'])
-            self.app.logger.debug('Headers {}'.format(headers))
-            location = headers.get('Location')
-            self.app.logger.debug('Location {}'.format(location))
-            if location:
-                return redirect(location)
+                return rendered_template, 200
+            elif response_binding == BINDING_HTTP_REDIRECT:
+                query_string = sign_http_redirect(response, key, relay_state)
+                location = '{}?{}'.format(destination, query_string)
+                if location:
+                    return redirect(location)
+        except RequestParserError as err:
+            self._raise_error(err.args[0])
+        except SignatureVerificationError as err:
+            self._raise_error(err.args[0])
+        except UnknownEntityIDError as err:
+            self._raise_error(err.args[0])
+        except DeserializationError as err:
+            return self._handle_errors(err.initial_data, err.details)
         abort(400)
 
     def metadata(self):
+        # TODO: generate from some custom logic
         metadata = create_metadata_string(
             __file__,
             self.server.config,

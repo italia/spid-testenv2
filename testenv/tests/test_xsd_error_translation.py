@@ -2,7 +2,7 @@
 import unittest
 
 from testenv.translation import Libxml2Translator
-from testenv.utils import XMLError
+from testenv.validators import ValidationDetail
 
 
 class Libxml2ItalianTranslationTestCase(unittest.TestCase):
@@ -41,15 +41,15 @@ class Libxml2ItalianTranslationTestCase(unittest.TestCase):
         translator = Libxml2Translator()
         for input_data, it_message in self.samples.items():
             domain, type_, en_message = input_data
-            en_error = XMLError(1, 2, domain, type_, en_message, '')
+            en_error = ValidationDetail(None, 1, 2, domain, type_, en_message, '')
             it_error = translator.translate(en_error)
             self.assertEqual(it_error.message, it_message)
 
     def test_multiple_error_translation(self):
         translator = Libxml2Translator()
         errors = [
-            XMLError(1, 2, 'domain1', 'type1', 'an error occured', 'path1'),
-            XMLError(3, 4, 'domain2', 'type2', 'another error occured', 'path2')
+            ValidationDetail(None, 1, 2, 'domain1', 'type1', 'an error occured', 'path1'),
+            ValidationDetail(None, 3, 4, 'domain2', 'type2', 'another error occured', 'path2')
         ]
         actual = translator.translate_many(errors)
         self.assertEqual(actual, errors)

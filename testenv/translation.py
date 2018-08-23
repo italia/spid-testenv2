@@ -1,8 +1,6 @@
 # coding: utf-8
 import re
 
-from testenv.utils import XMLError
-
 _c = re.compile
 
 
@@ -44,8 +42,9 @@ class Libxml2Translator(object):
 
     def translate(self, error):
         message = self._get_replacement_message(error)
-        return XMLError(
-            error.line, error.column, error.domain_name,
+        from testenv.validators import ValidationDetail
+        return ValidationDetail(
+            None, error.line, error.column, error.domain_name,
             error.type_name, message, error.path,
         )
 

@@ -1,0 +1,25 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    </head>
+    <body onload="document.forms[0].submit()">
+        <noscript>
+            <p>
+                <strong>Note:</strong> Il tuo browser non supporta JavaScript,
+                premi il tasto Continua per procedere.
+            </p>
+        </noscript>
+        <form action="{{action}}" method="post">
+            <div>
+                <input type="hidden" name="RelayState" value="{{relay_state}}"/>
+                <input type="hidden" name="{{message_type}}" value="{{message}}"/>
+            </div>
+            <noscript>
+                <div>
+                    <input type="submit" value="Continua"/>
+                </div>
+            </noscript>
+        </form>
+            </body>
+</html

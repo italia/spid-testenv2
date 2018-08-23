@@ -1,548 +1,263 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from datetime import datetime, timedelta
-from functools import reduce
+import re
+import zlib
+from base64 import b64decode
+from collections import namedtuple
 
-import importlib_resources
-from flask import escape
-from lxml import etree
-from saml2 import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT
-from saml2.saml import NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT
+from lxml import etree, objectify
 
-from testenv.settings import COMPARISONS, SPID_LEVELS, TIMEDELTA, XML_SCHEMAS
-from testenv.spid import Observer
-from testenv.translation import Libxml2Translator
-from testenv.utils import XMLError, check_url, check_utc_date, str_to_time
+from testenv.exceptions import (
+    DeserializationError, RequestParserError, StopValidation, ValidationError, XMLFormatValidationError,
+)
+from testenv.settings import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, MULTIPLE_OCCURRENCES_TAGS
+from testenv.validators import AuthnRequestXMLSchemaValidator, SpidValidator, XMLFormatValidator
 
-
-class Attr(object):
-    """
-    Define an attribute for a SAML2 element
-    """
-
-    MANDATORY_ERROR = 'L\'attributo è obbligatorio'
-    NO_WANT_ERROR = 'L\'attributo non è richiesto'
-    DEFAULT_VALUE_ERROR = '{} è diverso dal valore di riferimento {}'
-    DEFAULT_LIST_VALUE_ERROR = '{} non corrisponde a nessuno'\
-    ' dei valori contenuti in {}'
-    LIMITS_VALUE_ERROR = '{} non è compreso tra {} e {}'
-
-    def __init__(
-        self, name, absent=False, required=True, default=None, limits=None,
-        func=None, val_converter=None, *args, **kwargs
-    ):
-        """
-        :param name: attribute name
-        :param absent: flag to indicate if the attribute
-            is not allowed (False by default)
-        :param required: flag to indicate if the attribute
-            is mandatory (True by default)
-        :param default: default value (or list of values,
-            to be compared with the provided value to the 'validate' method)
-        :param limits: tuple containing lower limit and upper limit
-        :param func: optional additional function to perform
-            a validation on the value passed to 'validate' method
-        :param val_converter: optional additional function to perform
-            a conversion on the value passed to 'validate' method
-        """
-        self._name = name
-        self._absent = absent
-        self._required = required
-        self._errors = {}
-        self._default = default
-        self._func = func
-        self._limits = limits
-        self._val_converter = val_converter
-
-    def validate(self, value=None):
-        """
-        :param value: attribute value
-        """
-        if self._absent and value is not None:
-            self._errors['no_want_error'] = self.NO_WANT_ERROR
-        else:
-            if self._required and value is None:
-                self._errors['required_error'] = self.MANDATORY_ERROR
-            if self._default is not None and value is not None:
-                if isinstance(self._default, list) and\
-                 value not in self._default:
-                    val_error = self.DEFAULT_LIST_VALUE_ERROR.format(
-                        value,
-                        self._default
-                    )
-                    self._errors['value_error'] = val_error
-                elif isinstance(self._default, str) and self._default != value:
-                    val_error = self.DEFAULT_VALUE_ERROR.format(
-                        value, self._default
-                    )
-                    self._errors['value_error'] = val_error
-            if self._limits is not None and value is not None:
-                if self._val_converter:
-                    value = self._val_converter(value)
-                lower, upper = self._limits
-                if value > upper or value < lower:
-                    err_msg = self.LIMITS_VALUE_ERROR
-                    self._errors['limits_error'] = err_msg.format(
-                        value, lower, upper
-                    )
-            if self._func is not None and value is not None:
-                if not self._func(value):
-                    self._errors['validation_error'] = self._func.error_msg
-        return {
-            'value': value if not self._errors else None,
-            'errors': self._errors
-        }
-
-    @property
-    def real_name(self):
-        if self._name == 'id':
-            return 'ID'
-        else:
-            parsed_elements = []
-            for el in self._name.split('_'):
-                _new_element = el[0].upper() + el[1:]
-                parsed_elements.append(_new_element)
-            return ''.join(parsed_elements)
+try:
+    from urllib import urlencode
+except ImportError:
+    from urllib.parse import urlencode
 
 
-class MultiAttr(object):
-    def __init__(self, *attrs):
-        self._attrs = []
-        for attr in attrs:
-            self._attrs.append(attr)
-
-    @property
-    def real_name(self):
-        return '[{}]'.format(', '.join([attr.real_name for attr in self._attrs]))
+SIGNED_PARAMS = ['SAMLRequest', 'RelayState', 'SigAlg']
 
 
-class And(MultiAttr):
-
-    def validate(self, obj):
-        _validations = {}
-        _validations_secondary = {}
-        _errors = {}
-        _validation_matrix = []
-        for attr in self._attrs:
-            if isinstance(attr, MultiAttr):
-                _vals, _err = attr.validate(obj)
-                _validations_secondary.update(_vals)
-                if not _err:
-                    _validation_matrix.append(True)
-                else:
-                    _validation_matrix.append(False)
-            else:
-                _elem = getattr(obj, attr._name)
-                _validations[attr.real_name] = attr.validate(_elem)
-                if _elem is not None:
-                    _validation_matrix.append(True)
-                else:
-                    _validation_matrix.append(False)
-        _reduced = reduce((lambda x, y: x or y), _validation_matrix)
-        if not all(_validation_matrix) and not _reduced:
-            error_msg = 'Tutti gli attributi o gruppi di attributi' \
-            ' devono essere presenti: [{}]'
-            _errors['required_error'] = error_msg.format(
-                ', '.join([a.real_name for a in self._attrs])
-            )
-        _validations.update(_validations_secondary)
-        return _validations, _errors
+HTTPRedirectRequest = namedtuple(
+    'HTTPRedirectRequest',
+    ['saml_request', 'relay_state', 'sig_alg', 'signature', 'signed_data'],
+)
 
 
-class Or(MultiAttr):
-
-    def validate(self, obj):
-        _validations = {}
-        _validations_secondary = {}
-        _errors = {}
-        _validation_matrix = []
-        for attr in self._attrs:
-            if isinstance(attr, MultiAttr):
-                _vals, _err = attr.validate(obj)
-                _validations_secondary.update(_vals)
-                if not _err:
-                    _validation_matrix.append(True)
-                else:
-                    _validation_matrix.append(False)
-            else:
-                _elem = getattr(obj, attr._name)
-                _validations[attr.real_name] = attr.validate(_elem)
-                if _elem is not None:
-                    _validation_matrix.append(True)
-                else:
-                    _validation_matrix.append(False)
-        if not reduce((lambda x, y: x ^ y), _validation_matrix):
-            error_msg = 'Uno e uno solo uno tra gli attributi o' \
-            ' gruppi di attributi devono essere presenti: [{}]'
-            _errors['required_error'] = error_msg.format(
-                ', '.join([a.real_name for a in self._attrs])
-            )
-        _validations.update(_validations_secondary)
-        return _validations, _errors
+HTTPPostRequest = namedtuple('HTTPPostRequest', ['saml_request', 'relay_state'])
 
 
-class TimestampAttr(Attr):
-
-    RANGE_TIME_ERROR = '{} non è compreso tra {} e {}'
-
-    def validate(self, value=None):
-        validation = super(TimestampAttr, self).validate(value)
-        value = self._val_converter(value)
-        now = datetime.utcnow()
-        lower = now - timedelta(minutes=TIMEDELTA)
-        upper = now + timedelta(minutes=TIMEDELTA)
-        if value < lower or value > upper:
-            error_msg = self.RANGE_TIME_ERROR.format(
-                value, lower, upper
-            )
-            validation['errors']['range_time_error'] = error_msg
-        return validation
+def _get_deserializer(request, action, binding, metadata):
+    validators = [
+        XMLFormatValidator(),
+        AuthnRequestXMLSchemaValidator(),
+        SpidValidator(action, binding, metadata),
+    ]
+    return HTTPRequestDeserializer(request, validators)
 
 
-class Elem(object):
-    """
-    Define a SAML2 element
-    """
-
-    MANDATORY_ERROR = 'L\'elemento è obbligatorio'
-    NO_WANT_ERROR = 'L\'elemento non è richiesto'
-
-    def __init__(
-        self, name, tag, absent=False, required=True, attributes=[],
-        children=[], example='', *args, **kwargs
-    ):
-        """
-        :param name: element name
-        :param tag: element 'namespace:tag_name'
-        :param required: flag to indicate if the element
-            is mandatory (True by default)
-        :param attributes: list of Attr objects (element attributes)
-        :param children: list of Elem objects (nested elements)
-        :param example: string to explain
-            how the missing element need to be implemented
-        """
-        self._name = name
-        self._required = required
-        self._absent = absent
-        self._attributes = attributes
-        self._children = children
-        self._errors = {}
-        self._tag = tag
-        self._example = example
-
-    def validate(self, data):
-        """
-        :param data: (nested) object returned by pysaml2
-        """
-        res = {'attrs': {}, 'children': {}, 'errors': {}}
-        if self._absent and data is not None:
-            res['errors']['no_want_error'] = self.NO_WANT_ERROR
-            self._errors.update(res['errors'])
-        else:
-            if self._required and data is None:
-                # check if the element is required, if not provide and example
-                _error_msg = self.MANDATORY_ERROR
-                if self._example:
-                    _example = '<br>Esempio:<br>'
-                    lines = self._example.splitlines()
-                    for line in lines:
-                        _example = '{}<pre>{}</pre>'.format(_example, escape(line))
-                else:
-                    _example = ''
-                _error_msg = '{} {}'.format(_error_msg, _example)
-                res['errors']['required_error'] = _error_msg
-                self._errors.update(res['errors'])
-            if data:
-                if isinstance(data, list):
-                    # TODO: handle list elements in a clean way
-                    data = data[0]
-                for attribute in self._attributes:
-                    if isinstance(attribute, MultiAttr):
-                        _validations, _err = attribute.validate(data)
-                        for k, v in _validations.items():
-                            if v['errors']:
-                                self._errors.update({k: v['errors']})
-                        res['attrs'].update(_validations)
-                        if _err:
-                            res['errors']['multi_attribute_error'] = _err
-                            self._errors.update(res['errors'])
-                    else:
-                        _validated_attributes = attribute.validate(
-                            getattr(data, attribute._name)
-                        )
-                        attr_real_name = attribute.real_name
-                        res['attrs'][attr_real_name] = _validated_attributes
-                        if _validated_attributes['errors']:
-                            _validation_errors = {
-                                attr_real_name: _validated_attributes['errors']
-                            }
-                            self._errors.update(
-                                _validation_errors
-                            )
-                for child in self._children:
-                    res['children'][child._name] = child.validate(
-                        getattr(data, child._name)
-                    )
-        return res
+def get_http_redirect_request_deserializer(request, action, metadata):
+    return _get_deserializer(request, action, BINDING_HTTP_REDIRECT, metadata)
 
 
-class SpidParser(object):
-    """
-    Parser for spid messages
-    """
-
-    def __init__(self, *args, **kwargs):
-        from testenv.parser import XMLValidator
-        self.xml_validator = XMLValidator()
-        self.schema = None
-
-    def get_schema(self, action, binding, **kwargs):
-        """
-        :param binding:
-        """
-        _schema = None
-        receivers = kwargs.get('receivers')
-        issuer = kwargs.get('issuer')
-        if action == 'login':
-            required_signature = False
-            if binding == BINDING_HTTP_POST:
-                required_signature = True
-            elif binding == BINDING_HTTP_REDIRECT:
-                required_signature = False
-            attribute_consuming_service_indexes = kwargs.get(
-                'attribute_consuming_service_indexes'
-            )
-            assertion_consumer_service_indexes = kwargs.get(
-                'assertion_consumer_service_indexes'
-            )
-            _schema = Elem(
-                name='auth_request',
-                tag='samlp:AuthnRequest',
-                attributes=[
-                    Attr('id'),
-                    Attr('version', default='2.0'),
-                    TimestampAttr(
-                        'issue_instant',
-                        func=check_utc_date,
-                        val_converter=str_to_time
-                    ),
-                    Attr('destination', default=receivers),
-                    Attr('force_authn', required=False),
-                    Attr(
-                        'attribute_consuming_service_index',
-                        default=attribute_consuming_service_indexes,
-                        required=False
-                    ),
-                    Or(
-                        Attr(
-                            'assertion_consumer_service_index',
-                            default=assertion_consumer_service_indexes,
-                            required=False
-                        ),
-                        And(
-                            Attr(
-                                'assertion_consumer_service_url',
-                                required=False
-                            ),
-                            Attr(
-                                'protocol_binding',
-                                default=BINDING_HTTP_POST,
-                                required=False
-                            )
-                        )
-                    )
-                ],
-                children=[
-                    Elem(
-                        'subject',
-                        tag='saml:Subject',
-                        required=False,
-                        attributes=[
-                            Attr('format', default=NAMEID_FORMAT_ENTITY),
-                            Attr('name_qualifier')
-                        ]
-                    ),
-                    Elem(
-                        'issuer',
-                        tag='saml:Issuer',
-                        attributes=[
-                            Attr('format', default=NAMEID_FORMAT_ENTITY),
-                            Attr('name_qualifier', default=issuer),
-                            Attr('text', default=issuer)
-                        ],
-                    ),
-                    Elem(
-                        'name_id_policy',
-                        tag='samlp:NameIDPolicy',
-                        attributes=[
-                            Attr('allow_create', absent=True, required=False),
-                            Attr('format', default=NAMEID_FORMAT_TRANSIENT)
-                        ]
-                    ),
-                    Elem(
-                        'conditions',
-                        tag='saml:Conditions',
-                        required=False,
-                        attributes=[
-                            Attr('not_before', func=check_utc_date),
-                            Attr('not_on_or_after', func=check_utc_date)
-                        ]
-                    ),
-                    Elem(
-                        'requested_authn_context',
-                        tag='saml:RequestedAuthnContext',
-                        attributes=[
-                            Attr('comparison', default=COMPARISONS),
-                        ],
-                        children=[
-                            Elem(
-                                'authn_context_class_ref',
-                                tag='saml:AuthnContextClassRef',
-                                attributes=[
-                                    Attr('text', default=SPID_LEVELS)
-                                ]
-                            )
-                        ]
-                    ),
-                    Elem(
-                        'signature',
-                        tag='ds:Signature',
-                        required=required_signature,
-                    ),
-                    Elem(
-                        'scoping',
-                        tag='saml2p:Scoping',
-                        required=False,
-                        attributes=[
-                            Attr('proxy_count', default=[0])
-                        ]
-                    ),
-                ]
-            )
-        elif action == 'logout':
-            _schema = Elem(
-                name='logout_request',
-                tag='samlp:LogoutRequest',
-                attributes=[
-                    Attr('id'),
-                    Attr('version', default='2.0'),
-                    Attr('issue_instant', func=check_utc_date),
-                    Attr('destination', default=receivers),
-                ],
-                children=[
-                    Elem(
-                        'issuer',
-                        tag='saml:Issuer',
-                        attributes=[
-                            Attr('format', default=NAMEID_FORMAT_ENTITY),
-                            Attr('name_qualifier', default=issuer),
-                            Attr('text', default=issuer)
-                        ],
-                    ),
-                    Elem(
-                        'name_id',
-                        tag='saml:NameID',
-                        attributes=[
-                            Attr('name_qualifier'),
-                            Attr('format', default=NAMEID_FORMAT_TRANSIENT)
-                        ]
-                    ),
-                    Elem(
-                        'session_index',
-                        tag='samlp:SessionIndex',
-                    ),
-                ]
-            )
-        return _schema
-
-    def parse(self, obj, action, binding, schema=None, **kwargs):
-        """
-        :param obj: pysaml2 object
-        :param binding:
-        :param schema: custom schema (None by default)
-        """
-
-        errors = {}
-        # Validate xml against its XSD schema
-        validation_errors = self.xml_validator.validate_request(obj.xmlstr)
-        if validation_errors:
-            errors['validation_errors'] = validation_errors
-        # Validate xml against SPID rules
-        _schema = self.get_schema(action, binding, **kwargs)\
-            if schema is None else schema
-        self.observer = Observer()
-        self.observer.attach(_schema)
-        validated = _schema.validate(obj.message)
-        spid_errors = self.observer.evaluate()
-        if spid_errors:
-            errors['spid_errors'] = spid_errors
-        return validated, errors
+def get_http_post_request_deserializer(request, action, metadata):
+    return _get_deserializer(request, action, BINDING_HTTP_POST, metadata)
 
 
-class XMLSchemaFileLoader(object):
-    """
-    Load XML Schema instances from the filesystem.
-    """
+class HTTPRedirectRequestParser(object):
+    def __init__(self, querystring, request_class=None):
+        self._querystring = querystring
+        self._request_class = request_class or HTTPRedirectRequest
+        self._saml_request = None
+        self._relay_state = None
+        self._sig_alg = None
+        self._signature = None
+        self._signed_data = None
 
-    def __init__(self, import_path=None):
-        self._import_path = import_path or 'testenv.xsd'
+    def parse(self):
+        self._saml_request = self._parse_saml_request()
+        self._relay_state = self._parse_relay_state()
+        self._sig_alg = self._parse_sig_alg()
+        self._signature = self._parse_signature()
+        self._signed_data = self._build_signed_data()
+        return self._build_request()
 
-    def load(self, name):
-        with importlib_resources.path(self._import_path, name) as path:
-            xmlschema_doc = etree.parse(str(path))
-            return etree.XMLSchema(xmlschema_doc)
+    def _parse_saml_request(self):
+        saml_request = self._extract('SAMLRequest')
+        return self._decode_saml_request(saml_request)
 
-
-class XMLValidator(object):
-    """
-    Validate XML fragments against XML Schema (XSD).
-    """
-
-    def __init__(self, schema_loader=None, parser=None, translator=None):
-        self._schema_loader = schema_loader or XMLSchemaFileLoader()
-        self._parser = parser or etree.XMLParser()
-        self._translator = translator or Libxml2Translator()
-        self._load_schemas()
-
-    def _load_schemas(self):
-        self._schemas = {
-            type_: self._schema_loader.load(name)
-            for type_, name in XML_SCHEMAS.items()
-        }
-
-    def validate_request(self, xml):
-        return self._run(xml, 'protocol')
-
-    def _run(self, xml, schema_type):
-        xml_doc, parsing_errors = self._parse_xml(xml)
-        if parsing_errors:
-            return parsing_errors
-        return self._validate_xml(xml_doc, schema_type)
-
-    def _parse_xml(self, xml):
-        xml_doc, errors = None, []
+    def _extract(self, key):
         try:
-            xml_doc = etree.fromstring(xml, parser=self._parser)
-        except SyntaxError:
-            error_log = self._parser.error_log
-            errors = self._handle_errors(error_log)
-        return xml_doc, errors
+            return self._querystring[key]
+        except KeyError as e:
+            self._fail("Dato mancante nella request: '{}'".format(e.args[0]))
 
-    def _validate_xml(self, xml_doc, schema_type):
-        schema = self._schemas[schema_type]
-        errors = []
+    @staticmethod
+    def _fail(message):
+        raise RequestParserError(message)
+
+    def _decode_saml_request(self, saml_request):
         try:
-            schema.assertValid(xml_doc)
+            return self._convert_saml_request(saml_request)
+        except Exception:  # FIXME detail exceptions
+            self._fail("Impossibile decodificare l'elemento 'SAMLRequest'")
+
+    @staticmethod
+    def _convert_saml_request(saml_request):
+        saml_request = b64decode(saml_request)
+        saml_request = zlib.decompress(saml_request, -15)
+        return saml_request.decode('utf-8')
+
+    def _parse_relay_state(self):
+        try:
+            return self._extract('RelayState')
+        except RequestParserError:
+            return None
+
+    def _parse_sig_alg(self):
+        return self._extract('SigAlg')
+
+    def _parse_signature(self):
+        signature = self._extract('Signature')
+        return self._decode_signature(signature)
+
+    def _decode_signature(self, signature):
+        try:
+            return b64decode(signature)
         except Exception:
-            error_log = schema.error_log
-            errors = self._handle_errors(error_log)
-        return errors
+            self._fail("Impossibile decodificare l'elemento 'Signature'")
 
-    def _handle_errors(self, errors):
-        original_errors = [
-            XMLError(err.line, err.column, err.domain_name,
-                     err.type_name, err.message, err.path)
-            for err in errors
-        ]
-        return self._translator.translate_many(original_errors)
+    def _build_signed_data(self):
+        signed_data = '&'.join(
+            [urlencode({k: self._querystring[k]})
+             for k in SIGNED_PARAMS
+             if k in self._querystring],
+        )
+        return signed_data.encode('ascii')
+
+    def _build_request(self):
+        return self._request_class(
+            self._saml_request,
+            self._relay_state,
+            self._sig_alg,
+            self._signature,
+            self._signed_data,
+        )
+
+
+class HTTPPostRequestParser(object):
+    def __init__(self, form, request_class=None):
+        self._form = form
+        self._request_class = request_class or HTTPPostRequest
+        self._saml_request = None
+        self._relay_state = None
+
+    def parse(self):
+        self._saml_request = self._parse_saml_request()
+        self._relay_state = self._parse_relay_state()
+        return self._build_request()
+
+    def _parse_saml_request(self):
+        saml_request = self._extract('SAMLRequest')
+        return self._decode_saml_request(saml_request)
+
+    def _extract(self, key):
+        try:
+            return self._form[key]
+        except KeyError as e:
+            self._fail("Dato mancante nella request: '{}'".format(e.args[0]))
+
+    @staticmethod
+    def _fail(message):
+        raise RequestParserError(message)
+
+    def _decode_saml_request(self, saml_request):
+        try:
+            return self._convert_saml_request(saml_request)
+        except Exception:  # FIXME detail exceptions
+            self._fail("Impossibile decodificare l'elemento 'SAMLRequest'")
+
+    @staticmethod
+    def _convert_saml_request(saml_request):
+        saml_request = b64decode(saml_request)
+        return saml_request.decode('utf-8')
+
+    def _parse_relay_state(self):
+        try:
+            return self._extract('RelayState')
+        except RequestParserError:
+            return None
+
+    def _build_request(self):
+        return self._request_class(self._saml_request, self._relay_state)
+
+
+class HTTPRequestDeserializer(object):
+    def __init__(self, request, validators, saml_class=None):
+        self._request = request
+        self._validators = validators
+        self._saml_class = saml_class or SAMLTree
+        self._validation_errors = []
+
+    def deserialize(self):
+        self._validate()
+        if self._validation_errors:
+            raise DeserializationError(
+                self._request.saml_request,
+                self._validation_errors,
+            )
+        return self._deserialize()
+
+    def _validate(self):
+        try:
+            self._run_validators()
+        except StopValidation:
+            pass
+
+    def _run_validators(self):
+        for validator in self._validators:
+            self._run_validator(validator)
+
+    def _run_validator(self, validator):
+        try:
+            validator.validate(self._request)
+        except XMLFormatValidationError as e:
+            self._handle_blocking_error(e)
+        except ValidationError as e:
+            self._handle_nonblocking_error(e)
+
+    def _handle_blocking_error(self, error):
+        self._handle_nonblocking_error(error)
+        raise StopValidation
+
+    def _handle_nonblocking_error(self, error):
+        self._validation_errors += error.details
+
+    def _deserialize(self):
+        xml_doc = objectify.fromstring(self._request.saml_request)
+        return self._saml_class(xml_doc)
+
+
+class SAMLTree(object):
+    def __init__(self, xml_doc, multi_occur_tags=None):
+        self._xml_doc = xml_doc
+        self._multi_occur_tags = multi_occur_tags or MULTIPLE_OCCURRENCES_TAGS
+        self.text = self._xml_doc.text
+        self._bind_tag()
+        self._bind_attributes()
+        self._bind_subtrees()
+
+    def _bind_tag(self):
+        tag = etree.QName(self._xml_doc).localname
+        self.tag = self._to_snake_case(tag)
+
+    @staticmethod
+    def _to_snake_case(child_name):
+        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', child_name)
+        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
+    def _bind_attributes(self):
+        for attr_name, attr_val in self._xml_doc.attrib.items():
+            attr_name = self._to_snake_case(attr_name)
+            setattr(self, attr_name, attr_val)
+
+    def _bind_subtrees(self):
+        for child in self._xml_doc.iterchildren():
+            child_name = self._to_snake_case(etree.QName(child).localname)
+            subtree = SAMLTree(child, self._multi_occur_tags)
+            if child.tag in self._multi_occur_tags:
+                self._handle_as_list(child_name, subtree)
+            else:
+                setattr(self, child_name, subtree)
+
+    def _handle_as_list(self, child_name, subtree):
+        existing = getattr(self, child_name, None)
+        if isinstance(existing, list):
+            existing.append(subtree)
+        else:
+            setattr(self, child_name, [subtree])
