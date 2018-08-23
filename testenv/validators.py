@@ -387,13 +387,15 @@ class SpidValidator(object):
             {
                 '{%s}LogoutRequest' % (PROTOCOL): {
                     'attrs': {
+                    'ID': str,
                     'Version': Equal('2.0', msg=DEFAULT_VALUE_ERROR.format('2.0')),
                     'IssueInstant': All(str, self._check_utc_date, self._check_date_in_range),
                     'Destination': In(receivers, msg=DEFAULT_LIST_VALUE_ERROR.format(receivers)),
                     },
                     'children': {
                         '{%s}Issuer' % (ASSERTION): issuer,
-                        '{%s}NameID' % (ASSERTION): name_id
+                        '{%s}NameID' % (ASSERTION): name_id,
+                        '{%s}SessionIndex' % (PROTOCOL): dict,
                     },
                     'text': None
                 }
