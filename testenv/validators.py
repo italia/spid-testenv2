@@ -136,10 +136,11 @@ class AuthnRequestXMLSchemaValidator(BaseXMLSchemaValidator):
 
 class SpidValidator(object):
 
-    def __init__(self, action, binding, metadata):
+    def __init__(self, action, binding, metadata, config):
         self._action = action
         self._binding = binding
         self._metadata = metadata
+        self._config = config
 
     def _check_utc_date(self, date):
         try:
@@ -167,8 +168,10 @@ class SpidValidator(object):
         atcss = []
         if self._action == 'login':
             req_type = 'AuthnRequest'
+            service = 'single_sign_on_service'
         elif self._action == 'logout':
             req_type = 'LogoutRequest'
+            service = 'single_logout_service'
         issuer_name = data.get('{urn:oasis:names:tc:SAML:2.0:protocol}%s' % (req_type)).get('children').get('{urn:oasis:names:tc:SAML:2.0:assertion}Issuer').get('text')
         if issuer_name and issuer_name not in self._metadata.service_providers():
             raise UnknownEntityIDError(
@@ -190,7 +193,7 @@ class SpidValidator(object):
             ascss = []
         attribute_consuming_service_indexes = [str(el.get('index')) for el in atcss]
         assertion_consumer_service_indexes = [str(el.get('index')) for el in ascss]
-        receivers = data.get('{urn:oasis:names:tc:SAML:2.0:protocol}%s' % (req_type)).get('attrs').get('Destination')
+        receivers = self._config.endpoint(service, self._binding, 'idp')
 
         issuer = Schema(
             {

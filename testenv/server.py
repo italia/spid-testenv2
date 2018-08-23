@@ -336,7 +336,7 @@ class IdpServer(object):
         saml_msg = self.unpack_args(request.args)
         request_data = HTTPRedirectRequestParser(saml_msg).parse()
         deserializer = get_http_redirect_request_deserializer(
-            request_data, action, self.server.metadata)
+            request_data, action, self.server.metadata, self.server.config)
         saml_tree = deserializer.deserialize()
         certs = self._get_certificates_by_issuer(saml_tree.issuer.text)
         for cert in certs:
@@ -352,7 +352,7 @@ class IdpServer(object):
         saml_msg = self.unpack_args(request.form)
         request_data = HTTPPostRequestParser(saml_msg).parse()
         deserializer = get_http_post_request_deserializer(
-            request_data, action, self.server.metadata)
+            request_data, action, self.server.metadata, self.server.config)
         saml_tree = deserializer.deserialize()
         certs = self._get_certificates_by_issuer(saml_tree.issuer.text)
         for cert in certs:

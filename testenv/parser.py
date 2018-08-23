@@ -32,21 +32,21 @@ HTTPRedirectRequest = namedtuple(
 HTTPPostRequest = namedtuple('HTTPPostRequest', ['saml_request', 'relay_state'])
 
 
-def _get_deserializer(request, action, binding, metadata):
+def _get_deserializer(request, action, binding, metadata, config):
     validators = [
         XMLFormatValidator(),
         AuthnRequestXMLSchemaValidator(),
-        SpidValidator(action, binding, metadata),
+        SpidValidator(action, binding, metadata, config),
     ]
     return HTTPRequestDeserializer(request, validators)
 
 
-def get_http_redirect_request_deserializer(request, action, metadata):
-    return _get_deserializer(request, action, BINDING_HTTP_REDIRECT, metadata)
+def get_http_redirect_request_deserializer(request, action, metadata, config):
+    return _get_deserializer(request, action, BINDING_HTTP_REDIRECT, metadata, config)
 
 
-def get_http_post_request_deserializer(request, action, metadata):
-    return _get_deserializer(request, action, BINDING_HTTP_POST, metadata)
+def get_http_post_request_deserializer(request, action, metadata, config):
+    return _get_deserializer(request, action, BINDING_HTTP_POST, metadata, config)
 
 
 class HTTPRedirectRequestParser(object):
