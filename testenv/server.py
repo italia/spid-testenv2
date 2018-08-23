@@ -30,7 +30,6 @@ from testenv.settings import (
     AUTH_NO_CONSENT, BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, CHALLENGES_TIMEOUT, NAME_FORMAT_BASIC,
     NAMEID_FORMAT_TRANSIENT, SPID_LEVELS, STATUS_SUCCESS,
 )
-from testenv.spid import ac_factory
 from testenv.users import JsonUserManager
 from testenv.utils import get_spid_error, prettify_xml
 
@@ -238,15 +237,6 @@ class IdpServer(object):
             # as fallback for entityid use host:port string
             self._config['entityid'] = self.BASE
         self.idp_config.load(cnf=self._idp_config())
-        # TODO: remove this
-        setattr(
-            self.idp_config,
-            'attribute_converters',
-            ac_factory(
-                'testenv/attributemaps',
-                **{'override_types': self._all_attributes}
-            )
-        )
         self.server = Server(config=self.idp_config)
         self._setup_app_routes()
 
