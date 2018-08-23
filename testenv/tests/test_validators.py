@@ -4,11 +4,13 @@ from __future__ import unicode_literals
 import unittest
 
 import pytest
+from freezegun import freeze_time
 
-from testenv.exceptions import XMLFormatValidationError, XMLSchemaValidationError
+from testenv import settings
+from testenv.exceptions import SPIDValidationError, XMLFormatValidationError, XMLSchemaValidationError
 from testenv.tests.data import sample_saml_requests as sample_requests
 from testenv.tests.utils import FakeRequest
-from testenv.validators import AuthnRequestXMLSchemaValidator, XMLFormatValidator
+from testenv.validators import AuthnRequestXMLSchemaValidator, SpidValidator, XMLFormatValidator
 
 
 class FakeTranslator(object):
@@ -146,3 +148,17 @@ class AuthnRequestXMLSchemaValidatorTestCase(unittest.TestCase):
             "'invalid' is not a valid value of the atomic type",
             exc.details[1].message
         )
+
+
+class SPIDValidatorTestCase(unittest.TestCase):
+
+    @freeze_time('2018-08-18T06:55:22Z')
+    def test_missing_issuer(self):
+        # https://github.com/italia/spid-testenv2/issues/133
+        request = FakeRequest(sample_requests.missing_issuer)
+        for binding in [settings.BINDING_HTTP_POST, settings.BINDING_HTTP_REDIRECT]:
+            validator = SpidValidator('login', binding, {})
+            with pytest.raises(SPIDValidationError) as excinfo:
+                validator.validate(request)
+            exc = excinfo.value
+            self.assertEqual('required key not provided', exc.details[0].message)
