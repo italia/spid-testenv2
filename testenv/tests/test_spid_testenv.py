@@ -51,7 +51,7 @@ def generate_authn_request(data={}, acs_level=0, sign=False):
     destination = data.get('destination') if data.get('destination') else 'http://spid-testenv:8088'
     protocol_binding = data.get('protocol_binding') if data.get('protocol_binding') else BINDING_HTTP_POST
     acsi = data.get('assertion_consumer_service_index') if data.get('assertion_consumer_service_index') else '1'
-    acsu = data.get('assertion_consumer_service_url') if data.get('assertion_consumer_service_url') else 'https://spid.test:8000/acs-test'
+    acsu = data.get('assertion_consumer_service_url') if data.get('assertion_consumer_service_url') else 'http://127.0.0.1:8000/acs-test'
     issuer__format = data.get('issuer__format') if data.get('issuer__format') else NAMEID_FORMAT_ENTITY
     issuer_url = data.get('issuer__url') if data.get('issuer__url') else 'https://spid.test:8000'
     issuer__namequalifier = data.get('issuer__namequalifier') if data.get('issuer__namequalifier') else issuer_url
@@ -804,6 +804,24 @@ class SpidTestenvTest(unittest.TestCase):
         fiscal_number = users['testusr'].get('attrs', {}).get('fiscalNumber', {})
         self.assertTrue(fiscal_number.startswith('TINIT-'))
         self.assertEqual(fiscal_number, 'TINIT-abc123')
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('testenv.parser.HTTPRedirectRequestParser._decode_saml_request', return_value=generate_authn_request(data={'assertion_consumer_service_url': 'someacs'}))
+    @patch('testenv.crypto.HTTPRedirectSignatureVerifier.verify', return_value=True)
+    def test_wrong_assertion_consumer_service_url(self, unravel, verified):
+        # See: https://github.com/italia/spid-testenv2/issues/122
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(self.idp_server.ticket), 0)
+        self.assertEqual(len(self.idp_server.responses), 0)
+        response_text = response.get_data(as_text=True)
+        self.assertIn(
+            'someacs è diverso dal valore di riferimento [&#39;http://127.0.0.1:8000/acs-test&#39;]',
+            response_text
+        )
 
 if __name__ == '__main__':
     unittest.main()
