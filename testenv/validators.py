@@ -308,9 +308,37 @@ class SpidValidator(object):
 
         # LOGIN
 
-        authnrequest_schema = {
-            '{%s}AuthnRequest' % (PROTOCOL): {
-                'attrs': {
+        def check_assertion_consumer_service(attrs):
+            keys = attrs.keys()
+            if (
+                'AssertionConsumerServiceURL' in keys
+                and 'ProtocolBinding' in keys
+                and 'AssertionConsumerServiceIndex' not in keys
+            ):
+                if attrs['ProtocolBinding'] != BINDING_HTTP_POST:
+                    raise Invalid(
+                        DEFAULT_VALUE_ERROR.format(BINDING_HTTP_POST), path=['ProtocolBinding'])
+                return attrs
+
+            elif (
+                'AssertionConsumerServiceURL' not in keys
+                and 'ProtocolBinding' not in keys
+                and 'AssertionConsumerServiceIndex' in keys
+            ):
+                if attrs['AssertionConsumerServiceIndex'] not in assertion_consumer_service_indexes:
+                    raise Invalid(
+                        DEFAULT_LIST_VALUE_ERROR.format(assertion_consumer_service_indexes),
+                        path=['AssertionConsumerServiceIndex'])
+                return attrs
+
+            else:
+                raise Invalid('Uno e uno solo uno tra gli attributi o gruppi di attributi devono essere presenti: '
+                              '[AssertionConsumerServiceIndex, [AssertionConsumerServiceUrl, ProtocolBinding]]')
+
+        authnrequest_attr_schema = Schema(
+            All(
+                {
+                    'ID': str,
                     'Version': Equal('2.0', msg=DEFAULT_VALUE_ERROR.format('2.0')),
                     'IssueInstant': All(str, self._check_utc_date, self._check_date_in_range),
                     'Destination': In(receivers, msg=DEFAULT_LIST_VALUE_ERROR.format(receivers)),
@@ -319,16 +347,18 @@ class SpidValidator(object):
                         attribute_consuming_service_indexes,
                         msg=DEFAULT_LIST_VALUE_ERROR.format(attribute_consuming_service_indexes)
                     ),
-                    Optional('AssertionConsumerServiceIndex'): In(
-                        assertion_consumer_service_indexes,
-                        msg=DEFAULT_LIST_VALUE_ERROR.format(assertion_consumer_service_indexes)
-                    ),
+                    Optional('AssertionConsumerServiceIndex'): str,
                     Optional('AssertionConsumerServiceURL'): str,
-                    Optional('ProtocolBinding'): Equal(
-                        BINDING_HTTP_POST,
-                        msg=DEFAULT_VALUE_ERROR.format( BINDING_HTTP_POST)
-                    )
+                    Optional('ProtocolBinding'): str,
                 },
+                check_assertion_consumer_service,
+            ),
+            required=True
+        )
+
+        authnrequest_schema = {
+            '{%s}AuthnRequest' % (PROTOCOL): {
+                'attrs': authnrequest_attr_schema,
                 'children': Schema(
                     {
                         Optional('{%s}Subject' % (ASSERTION)): subject,
@@ -391,7 +421,10 @@ class SpidValidator(object):
                 for idx, _path in enumerate(err.path):
                     if _path != 'children':
                         if _path == 'attrs':
-                            _attr = err.path[(idx + 1)]
+                            try:
+                                _attr = err.path[(idx + 1)]
+                            except IndexError:
+                                _attr = ''
                             break
                         _paths.append(_path)
                 path = '/'.join(_paths)
