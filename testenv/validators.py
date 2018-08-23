@@ -206,7 +206,8 @@ class SpidValidator(object):
             'text': Equal(
                     issuer_name, msg=DEFAULT_VALUE_ERROR.format(issuer_name)
                 ),
-            }
+            },
+            required=True,
         )
 
         name_id = Schema(
@@ -219,7 +220,8 @@ class SpidValidator(object):
                 },
                 'children': {},
                 'text': str
-            }
+            },
+            required=True,
         )
 
         name_id_policy = Schema(
@@ -232,6 +234,7 @@ class SpidValidator(object):
             'children': {},
             'text': None,
             },
+            required=True,
         )
 
 
@@ -244,6 +247,7 @@ class SpidValidator(object):
             'children': {},
             'text': None,
             },
+            required=True,
         )
 
         authn_context_class_ref = Schema(
@@ -251,7 +255,8 @@ class SpidValidator(object):
                 'attrs': {},
                 'children': {},
                 'text': All(str, In(SPID_LEVELS, msg=DEFAULT_LIST_VALUE_ERROR.format(SPID_LEVELS)))
-            }
+            },
+            required=True,
         )
 
         requested_authn_context = Schema(
@@ -263,7 +268,8 @@ class SpidValidator(object):
                     '{%s}AuthnContextClassRef' % (ASSERTION): authn_context_class_ref
                 },
                 'text': None
-            }
+            },
+            required=True,
         )
 
         scoping = Schema(
@@ -273,7 +279,8 @@ class SpidValidator(object):
                 },
                 'children': {},
                 'text': None
-            }
+            },
+            required=True,
         )
 
         signature = Schema(
@@ -281,7 +288,8 @@ class SpidValidator(object):
                 'attrs': dict,
                 'children': dict,
                 'text': None
-            }
+            },
+            required=True,
         )
 
         subject = Schema(
@@ -294,7 +302,8 @@ class SpidValidator(object):
                 },
                 'children': {},
                 'text': None
-            }
+            },
+            required=True,
         )
 
         # LOGIN
@@ -328,7 +337,8 @@ class SpidValidator(object):
                         Optional('{%s}Conditions' % (ASSERTION)): conditions,
                         '{%s}RequestedAuthnContext' % (PROTOCOL): requested_authn_context,
                         Optional('{%s}Scoping' % (PROTOCOL)): scoping,
-                    }
+                    },
+                    required=True,
                 ),
                 'text': None
             }
@@ -339,7 +349,8 @@ class SpidValidator(object):
 
         authn_request = Schema(
             authnrequest_schema,
-            extra=ALLOW_EXTRA
+            extra=ALLOW_EXTRA,
+            required=True,
         )
 
         # LOGOUT
@@ -359,7 +370,8 @@ class SpidValidator(object):
                     'text': None
                 }
             },
-            extra=ALLOW_EXTRA
+            extra=ALLOW_EXTRA,
+            required=True,
         )
 
 
