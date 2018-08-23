@@ -212,9 +212,7 @@ class SpidValidator(object):
                         ),
                 },
                 'children': {},
-                'text': Equal(
-                        issuer_name, msg=DEFAULT_VALUE_ERROR.format(issuer_name)
-                    ),
+                'text': str,
             },
             required=True,
         )
