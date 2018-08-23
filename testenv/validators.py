@@ -194,18 +194,18 @@ class SpidValidator(object):
 
         issuer = Schema(
             {
-            'attrs': {
-                'Format': Equal(
-                    NAMEID_FORMAT_ENTITY, msg=DEFAULT_VALUE_ERROR.format(NAMEID_FORMAT_ENTITY)
-                ),
-                'NameQualifier': Equal(
+                'attrs': {
+                    'Format': Equal(
+                        NAMEID_FORMAT_ENTITY, msg=DEFAULT_VALUE_ERROR.format(NAMEID_FORMAT_ENTITY)
+                    ),
+                    'NameQualifier': Equal(
+                            issuer_name, msg=DEFAULT_VALUE_ERROR.format(issuer_name)
+                        ),
+                },
+                'children': {},
+                'text': Equal(
                         issuer_name, msg=DEFAULT_VALUE_ERROR.format(issuer_name)
                     ),
-            },
-            'children': {},
-            'text': Equal(
-                    issuer_name, msg=DEFAULT_VALUE_ERROR.format(issuer_name)
-                ),
             },
             required=True,
         )
@@ -226,26 +226,25 @@ class SpidValidator(object):
 
         name_id_policy = Schema(
             {
-            'attrs': {
-                'Format': Equal(
-                    NAMEID_FORMAT_TRANSIENT, msg=DEFAULT_VALUE_ERROR.format(NAMEID_FORMAT_TRANSIENT)
-                ),
-            },
-            'children': {},
-            'text': None,
+                'attrs': {
+                    'Format': Equal(
+                        NAMEID_FORMAT_TRANSIENT, msg=DEFAULT_VALUE_ERROR.format(NAMEID_FORMAT_TRANSIENT)
+                    ),
+                },
+                'children': {},
+                'text': None,
             },
             required=True,
         )
 
-
         conditions = Schema(
             {
-            'attrs': {
-                'NotBefore': All(str, self._check_utc_date),
-                'NotOnOrAfter': All(str, self._check_utc_date),
-            },
-            'children': {},
-            'text': None,
+                'attrs': {
+                    'NotBefore': All(str, self._check_utc_date),
+                    'NotOnOrAfter': All(str, self._check_utc_date),
+                },
+                'children': {},
+                'text': None,
             },
             required=True,
         )
@@ -401,7 +400,6 @@ class SpidValidator(object):
             },
             required=True,
         )
-
 
         saml_schema = None
         if self._action == 'login':
