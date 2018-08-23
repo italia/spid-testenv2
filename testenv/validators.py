@@ -379,7 +379,6 @@ class SpidValidator(object):
 
         authn_request = Schema(
             authnrequest_schema,
-            extra=ALLOW_EXTRA,
             required=True,
         )
 
@@ -400,7 +399,6 @@ class SpidValidator(object):
                     'text': None
                 }
             },
-            extra=ALLOW_EXTRA,
             required=True,
         )
 
