@@ -28,7 +28,7 @@ from testenv.parser import (
 from testenv.saml import create_error_response, create_logout_response, create_response
 from testenv.settings import (
     AUTH_NO_CONSENT, BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, CHALLENGES_TIMEOUT, NAME_FORMAT_BASIC,
-    NAMEID_FORMAT_TRANSIENT, SPID_LEVELS, STATUS_SUCCESS,
+    NAMEID_FORMAT_TRANSIENT, SPID_ATTRIBUTES, SPID_LEVELS, STATUS_SUCCESS,
 )
 from testenv.users import JsonUserManager
 from testenv.utils import get_spid_error, prettify_xml
@@ -55,29 +55,7 @@ class IdpServer(object):
     }
     _endpoint_types = ['single_sign_on_service', 'single_logout_service']
     _spid_levels = SPID_LEVELS
-    _spid_attributes = {
-        'primary': {
-            'spidCode': 'string',
-            'name': 'string',
-            'familyName': 'string',
-            'placeOfBirth': 'string',
-            'countryOfBirth': 'string',
-            'dateOfBirth': 'date',
-            'gender': 'string',
-            'companyName': 'string',
-            'registeredOffice': 'string',
-            'fiscalNumber': 'string',
-            'ivaCode': 'string',
-            'idCard': 'string',
-        },
-        'secondary': {
-            'mobilePhone': 'string',
-            'email': 'string',
-            'address': 'string',
-            'expirationDate': 'date',
-            'digitalAddress': 'string'
-        }
-    }
+    _spid_attributes = SPID_ATTRIBUTES.copy()
     # digitalAddress => PEC
     challenges_timeout = CHALLENGES_TIMEOUT
 

@@ -9,6 +9,31 @@ SPID_LEVELS = [
     'https://www.spid.gov.it/SpidL3'
 ]
 
+SPID_ATTRIBUTES = {
+    'primary': {
+        'spidCode': 'string',
+        'name': 'string',
+        'familyName': 'string',
+        'placeOfBirth': 'string',
+        'countryOfBirth': 'string',
+        'dateOfBirth': 'date',
+        'gender': 'string',
+        'companyName': 'string',
+        'registeredOffice': 'string',
+        'fiscalNumber': 'string',
+        'ivaCode': 'string',
+        'idCard': 'string',
+    },
+    'secondary': {
+        'mobilePhone': 'string',
+        'email': 'string',
+        'address': 'string',
+        'expirationDate': 'date',
+        'digitalAddress': 'string'
+    }
+}
+
+
 #######
 
 # SAML2
