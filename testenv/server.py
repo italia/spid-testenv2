@@ -407,11 +407,11 @@ class IdpServer(object):
             session['relay_state'] = spid_request.data.relay_state or ''
             return redirect(url_for('login'))
         except RequestParserError as err:
-            self._raise_error(str(err))
+            self._raise_error(err.args[0])
         except SignatureVerificationError as err:
-            self._raise_error(str(err))
+            self._raise_error(err.args[0])
         except UnknownEntityIDError as err:
-            self._raise_error(str(err))
+            self._raise_error(err.args[0])
         except DeserializationError as err:
             return self._handle_errors(err.initial_data, err.details)
 
@@ -847,11 +847,11 @@ class IdpServer(object):
                 if location:
                     return redirect(location)
         except RequestParserError as err:
-            self._raise_error(str(err))
+            self._raise_error(err.args[0])
         except SignatureVerificationError as err:
-            self._raise_error(str(err))
+            self._raise_error(err.args[0])
         except UnknownEntityIDError as err:
-            self._raise_error(str(err))
+            self._raise_error(err.args[0])
         except DeserializationError as err:
             return self._handle_errors(err.initial_data, err.details)
         abort(400)
