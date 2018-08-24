@@ -24,7 +24,8 @@ class Libxml2Translator(object):
             ],
             'SCHEMAV_CVC_DATATYPE_VALID_1_2_1': [
                 (_c(r"Element '(?P<element>.*)', attribute 'ID': '.*' is not a valid value of the atomic type 'xs:ID'."),
-                 "Elemento '{element}', attributo 'ID': Il valore dell'attributo 'ID' può iniziare solo con una lettera o con un underscore."),
+                 "Elemento '{element}', attributo 'ID': Il valore dell'attributo ID può iniziare solo con una lettera "
+                 "o con un underscore, e può contenere solo lettere, numeri, underscore, trattini e punti."),
                 (_c(r"Element '(?P<element>.*)', attribute '(?P<attribute>.*)': '(?P<value>.*)' is not a valid value of the atomic type '(?P<type>.*)'."),
                  "Elemento '{element}', attributo '{attribute}': '{value}' non è un valore valido di tipo atomico '{type}'.")
             ],
