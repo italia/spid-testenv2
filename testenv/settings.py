@@ -3,10 +3,15 @@ from __future__ import unicode_literals
 
 # SPID
 
+SPID_LEVEL_1 = 'https://www.spid.gov.it/SpidL1'
+SPID_LEVEL_2 = 'https://www.spid.gov.it/SpidL2'
+SPID_LEVEL_3 = 'https://www.spid.gov.it/SpidL3'
+
+
 SPID_LEVELS = [
-    'https://www.spid.gov.it/SpidL1',
-    'https://www.spid.gov.it/SpidL2',
-    'https://www.spid.gov.it/SpidL3'
+    SPID_LEVEL_1,
+    SPID_LEVEL_2,
+    SPID_LEVEL_3
 ]
 
 SPID_ATTRIBUTES = {
