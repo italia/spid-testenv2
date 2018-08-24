@@ -172,7 +172,13 @@ class SpidValidator(object):
         elif self._action == 'logout':
             req_type = 'LogoutRequest'
             service = 'single_logout_service'
-        issuer_name = data.get('{urn:oasis:names:tc:SAML:2.0:protocol}%s' % (req_type)).get('children').get('{urn:oasis:names:tc:SAML:2.0:assertion}Issuer').get('text')
+        issuer_name = data.get(
+            '{urn:oasis:names:tc:SAML:2.0:protocol}%s' % (req_type), {}
+        ).get(
+            'children', {}
+        ).get(
+            '{urn:oasis:names:tc:SAML:2.0:assertion}Issuer', {}
+        ).get('text')
         if issuer_name and issuer_name not in self._metadata.service_providers():
             raise UnknownEntityIDError(
                 'entity ID {} non registrato'.format(issuer_name)
@@ -206,9 +212,7 @@ class SpidValidator(object):
                         ),
                 },
                 'children': {},
-                'text': Equal(
-                        issuer_name, msg=DEFAULT_VALUE_ERROR.format(issuer_name)
-                    ),
+                'text': str,
             },
             required=True,
         )
