@@ -23,13 +23,13 @@ from testenv.parser import (
     HTTPPostRequestParser, HTTPRedirectRequestParser, get_http_post_request_deserializer,
     get_http_redirect_request_deserializer,
 )
-from testenv.saml import create_error_response, create_logout_response, create_response
+from testenv.saml import create_error_response, create_idp_metadata, create_logout_response, create_response
 from testenv.settings import (
     AUTH_NO_CONSENT, BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, CHALLENGES_TIMEOUT, SPID_ATTRIBUTES, SPID_LEVELS,
     STATUS_SUCCESS,
 )
 from testenv.users import JsonUserManager
-from testenv.utils import get_spid_error
+from testenv.utils import Key, Slo, Sso, get_spid_error, prettify_xml
 
 ######
 
@@ -741,11 +741,22 @@ class IdpServer(object):
         abort(400)
 
     def metadata(self):
-        # TODO: generate from some custom logic
-        metadata = create_metadata_string(
-            __file__,
-            self.server.config,
-        )
+        cert_file = self.server.config.cert_file
+        with open(cert_file, 'r') as fp:
+            cert = fp.readlines()[1:-1]
+            cert = ''.join(cert)
+        endpoints = getattr(self.server.config, '_idp_endpoints')
+        sso = endpoints.get('single_sign_on_service')
+        slo = endpoints.get('single_logout_service')
+        sso = [Sso(*_sso) for _sso in sso]
+        slo = [Slo(*_slo) for _slo in slo]
+        metadata = create_idp_metadata(
+            entity_id=self.server.config.entityid,
+            want_authn_requests_signed='true',
+            keys=[Key(use='signing', value=cert)],
+            single_sign_on_services=sso,
+            single_logout_services=slo
+        ).to_xml()
         return Response(metadata, mimetype='text/xml')
 
     @property

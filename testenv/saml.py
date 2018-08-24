@@ -10,8 +10,8 @@ from lxml.builder import ElementMaker
 from lxml.etree import tostring
 
 from testenv.settings import (
-    DS, NAME_FORMAT_BASIC, NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT, NSMAP, SAML, SAMLP, SCM_BEARER, TIMEDELTA,
-    VERSION, XS, XSI,
+    BINDING_HTTP_POST, DS, MD, NAME_FORMAT_BASIC, NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT, NSMAP, SAML, SAMLP,
+    SCM_BEARER, SPID_ATTRIBUTES, TIMEDELTA, VERSION, XS, XSI,
 )
 
 samlp_maker = ElementMaker(
@@ -26,13 +26,19 @@ saml_maker = ElementMaker(
 
 ds_maker = ElementMaker(
     namespace=DS,
-    nsmap=dict(saml=DS),
+    nsmap=dict(ds=DS),
+)
+
+md_maker = ElementMaker(
+    namespace=MD,
+    nsmap=dict(md=MD)
 )
 
 MAKERS = {
     'saml': saml_maker,
     'samlp': samlp_maker,
     'ds': ds_maker,
+    'md': md_maker
 }
 
 
@@ -399,3 +405,245 @@ def create_error_response(data, response_status):
     )
     response.append(issuer)
     return response
+
+
+# Metadata
+
+class EntityDescriptor(SamlMixin):
+    saml_type = 'md'
+
+
+class IDPSSODescriptor(SamlMixin):
+    saml_type = 'md'
+    defaults = {
+        'protocolSupportEnumeration': SAML,
+    }
+
+
+class SPSSODescriptor(SamlMixin):
+    saml_type = 'md'
+    defaults = {
+        'protocolSupportEnumeration': SAML,
+    }
+
+
+class NameIDFormat(SamlMixin):
+    saml_type = 'md'
+
+
+class KeyDescriptor(SamlMixin):
+    saml_type = 'md'
+
+
+class KeyInfo(SamlMixin):
+    saml_type = 'ds'
+
+
+class X509Data(SamlMixin):
+    saml_type = 'ds'
+
+
+class X509Certificate(SamlMixin):
+    saml_type = 'ds'
+
+
+class SingleSignOnService(SamlMixin):
+    saml_type = 'md'
+
+
+class SingleLogoutService(SamlMixin):
+    saml_type = 'md'
+
+
+class Organization(SamlMixin):
+    saml_type = 'md'
+
+
+class OrganizationName(SamlMixin):
+    saml_type = 'md'
+
+
+class OrganizationURL(SamlMixin):
+    saml_type = 'md'
+
+
+class AssertionConsumerService(SamlMixin):
+    saml_type = 'md'
+    defaults = {
+        'Binding': BINDING_HTTP_POST
+    }
+
+
+class AttributeConsumingService(SamlMixin):
+    saml_type = 'md'
+
+
+class ServiceName(SamlMixin):
+    saml_type = 'md'
+
+
+class RequestedAttribute(SamlMixin):
+    saml_type = 'md'
+
+
+
+def create_idp_metadata(
+    entity_id,
+    want_authn_requests_signed,
+    keys=None,
+    single_sign_on_services=None,
+    single_logout_services=None,
+    attributes=None,
+    org=None
+):
+    entity_descriptor = EntityDescriptor(
+        attrib=dict(
+            entityID=entity_id
+        )
+    )
+    # Setup idp sso descriptor
+    idp_sso_descriptor = IDPSSODescriptor(
+        attrib=dict(
+            WantAuthnRequestsSigned=want_authn_requests_signed
+        )
+    )
+    # Setup key descriptor(s)
+    if keys is not None:
+        for _key in keys:
+            key_descriptor = KeyDescriptor(
+                attrib=dict(
+                    use=_key.use
+                )
+            )
+            key_info = KeyInfo()
+            x509_data = X509Data()
+            x509_certificate = X509Certificate(
+                text=_key.value
+            )
+            x509_data.append(x509_certificate)
+            key_info.append(x509_data)
+            key_descriptor.append(key_info)
+            idp_sso_descriptor.append(key_descriptor)
+    # setup name id
+    name_id_format = NameIDFormat(
+        text=NAMEID_FORMAT_TRANSIENT
+    )
+    idp_sso_descriptor.append(name_id_format)
+    # setup single sign on service(s)
+    if single_sign_on_services is not None:
+        for _sso in single_sign_on_services:
+            single_sign_on_service = SingleSignOnService(
+                attrib=dict(
+                    Binding=_sso.binding,
+                    Location=_sso.location
+                )
+            )
+            idp_sso_descriptor.append(single_sign_on_service)
+    # setup single logout service(s)
+    if single_logout_services is not None:
+        for _slo in single_logout_services:
+            single_logout_service = SingleLogoutService(
+                attrib=dict(
+                    Binding=_slo.binding,
+                    Location=_slo.location
+                )
+            )
+            idp_sso_descriptor.append(single_logout_service)
+    # setup attributes
+    if not attributes:
+        attributes = list(SPID_ATTRIBUTES['primary'].keys())
+        attributes.extend(list(SPID_ATTRIBUTES['secondary'].keys()))
+    for attr_name in attributes:
+        if attr_name in SPID_ATTRIBUTES['primary']:
+            attr_type = SPID_ATTRIBUTES['primary'][attr_name]
+        elif attr_name in SPID_ATTRIBUTES['secondary']:
+            attr_type = SPID_ATTRIBUTES['secondary'][attr_name]
+        else:
+            continue
+        _attrib = {
+            'Name': attr_name,
+            '{%s}type' % (XSI): 'xs:' + attr_type
+        }
+        attribute = Attribute(
+            attrib=_attrib
+        )
+        idp_sso_descriptor.append(attribute)
+    entity_descriptor.append(idp_sso_descriptor)
+    if org is not None:
+        organization = Organization()
+        organization_name = OrganizationName(text=org.name)
+        organization.append(organization_name)
+        organization_url = OrganizationURL(text=org.url)
+        organization.append(organization_url)
+        entity_descriptor.append(organization)
+    return entity_descriptor
+
+
+def create_sp_metadata(
+    entity_id,
+    authn_request_signed,
+    keys=None,
+    assertion_consumer_services=None,
+    attribute_consuming_services=None
+):
+    entity_descriptor = EntityDescriptor(
+        attrib=dict(
+            entityID=entity_id
+        )
+    )
+    # Setup idp sso descriptor
+    sp_sso_descriptor = SPSSODescriptor(
+        attrib=dict(
+            AuthnRequestSigned=authn_request_signed
+        )
+    )
+    if keys is not None:
+        for _key in keys:
+            key_descriptor = KeyDescriptor(
+                attrib=dict(
+                    use=_key.use
+                )
+            )
+            key_info = KeyInfo()
+            x509_data = X509Data()
+            x509_certificate = X509Certificate(
+                text=_key.value
+            )
+            x509_data.append(x509_certificate)
+            key_info.append(x509_data)
+            key_descriptor.append(key_info)
+            sp_sso_descriptor.append(key_descriptor)
+    # Setup assertion consumer service(s)
+    if assertion_consumer_services is not None:
+        for idx, _ascs in enumerate(assertion_consumer_services):
+            _attrib = dict(
+                Location=ascs.location,
+                index=str(idx)
+            )
+            if idx == 0:
+                _attrib['isDefault'] = 'true'
+            assertion_consumer_service = AssertionConsumerService(
+                attrib=_attrib
+            )
+            sp_sso_descriptor.append(assertion_consumer_service)
+    # Setup attribute consuming service(s)
+    if attribute_consuming_services is not None:
+        for idx, _atcs in enumerate(attribute_consuming_services):
+            attribute_consuming_service = AttributeConsumingService(
+                attrib=dict(
+                    index=str(idx)
+                )
+            )
+            service_name = ServiceName(text=_atcs.service_name)
+            for attr_name in _atcs.attributes:
+                if attr_name in SPID_ATTRIBUTES['primary'] or attr_name in SPID_ATTRIBUTES['secondary']:
+                    requested_attribute = RequestedAttribute(
+                        attrib=dict(
+                            Name=attr_name
+                        )
+                    )
+                    service_name.append(requested_attribute)
+            attribute_consuming_service.append(service_name)
+            sp_sso_descriptor.append(attribute_consuming_service)
+    entity_descriptor.append(sp_sso_descriptor)
+    return entity_descriptor

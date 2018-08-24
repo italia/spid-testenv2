@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 import calendar
 import re
 import time
+from collections import namedtuple
 from datetime import datetime
 
 import lxml.etree as etree
@@ -103,3 +104,9 @@ def saml_to_dict(xmlstr):
     return {
         root.tag: _obj(root)
     }
+
+
+Org = namedtuple('Org', ['name', 'url'])
+Key = namedtuple('Key', ['use', 'value'])
+Sso = namedtuple('SingleSignOn', ['binding', 'location'])
+Slo = namedtuple('SingleLogout', ['binding', 'location'])
