@@ -19,6 +19,14 @@ class FakeTranslator(object):
         return errors
 
 
+class FakeConfig(object):
+    def __init__(self, endpoint):
+        self._endpoint = endpoint
+
+    def endpoint(self, *args, **kwargs):
+        return [self._endpoint]
+
+
 class XMLFormatValidatorTestCase(unittest.TestCase):
 
     def test_valid_request(self):
@@ -155,9 +163,10 @@ class SPIDValidatorTestCase(unittest.TestCase):
     @freeze_time('2018-08-18T06:55:22Z')
     def test_missing_issuer(self):
         # https://github.com/italia/spid-testenv2/issues/133
+        config = FakeConfig('http://localhost:8088/sso')
         request = FakeRequest(sample_requests.missing_issuer)
         for binding in [settings.BINDING_HTTP_POST, settings.BINDING_HTTP_REDIRECT]:
-            validator = SpidValidator('login', binding, {})
+            validator = SpidValidator('login', binding, {}, config)
             with pytest.raises(SPIDValidationError) as excinfo:
                 validator.validate(request)
             exc = excinfo.value
