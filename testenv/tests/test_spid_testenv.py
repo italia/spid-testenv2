@@ -741,6 +741,39 @@ class SpidTestenvTest(unittest.TestCase):
             self.assertEqual(len(self.idp_server.ticket), 0)
             self.assertEqual(len(self.idp_server.responses), 0)
 
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('testenv.parser.HTTPPostRequestParser._decode_saml_request', return_value=generate_authn_request())
+    @patch('testenv.crypto.HTTPPostSignatureVerifier.verify', return_value=True)
+    def test_relaystate_in_post_request_to_sp(self, verified, unravel):
+        # https://github.com/italia/spid-testenv2/issues/135
+        response = self.test_client.post(
+            '/sso-test',
+            data={
+                'SAMLRequest': 'whatever',
+                'RelayState': 'sp_relay_state_value',
+            },
+            follow_redirects=True,
+        )
+        response = self.test_client.post(
+            '/login',
+            data={
+                'confirm': 1,
+                'username': 'test',
+                'password': 'test'
+            },
+            follow_redirects=True
+        )
+        key = list(self.idp_server.ticket.keys())[0]
+        response = self.test_client.post(
+            '/continue-response',
+            data={
+                'confirm': 1,
+                'request_key': key
+            },
+            follow_redirects=False
+        )
+        response_text = response.get_data(as_text=True)
+        self.assertIn('sp_relay_state_value', response_text)
 
 if __name__ == '__main__':
     unittest.main()
