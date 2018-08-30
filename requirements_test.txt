@@ -1,6 +1,6 @@
 -rrequirements.txt
-mock
-freezegun
-pytest
-coverage
 BeautifulSoup4
+coverage
+freezegun
+mock
+pytest
