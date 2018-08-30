@@ -8,3 +8,4 @@ exrex==0.10.5
 voluptuous==0.11.5
 importlib-resources==1.0.1
 signxml==2.5.2
+pyOpenSSL==17.5.0
