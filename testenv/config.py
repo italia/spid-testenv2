@@ -244,17 +244,3 @@ def get_config(f_name, f_type='yaml'):
         raise BadConfiguration('Errore di sintassi nel file di configurazione: {}'.format(f_name))
     ConfigValidator(confdata).validate()
     return Config(confdata)
-
-
-def get_oldconfig(f_name, f_type='yaml'):  # FIXME remove
-    """
-    Read server configuration from a json file
-    """
-    try:
-        with open(f_name, 'r') as fp:
-            if f_type == 'yaml':
-                return yaml.load(fp)
-            elif f_type == 'json':
-                return json.loads(fp.read())
-    except OSError:
-        raise BadConfiguration('Impossibile accedere al file di configurazione: {}'.format(f_name))
