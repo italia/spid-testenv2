@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 import importlib_resources
 from lxml import etree
-from voluptuous import ALLOW_EXTRA, All, In, Invalid, MultipleInvalid, Optional, Schema
+from voluptuous import All, In, Invalid, MultipleInvalid, Optional, Schema
 from voluptuous.validators import Equal
 
 from testenv import config
