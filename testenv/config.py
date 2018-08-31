@@ -97,15 +97,14 @@ class Config(object):
 
     def _load_idp_key(self):
         try:
-            return self._parse_pem_file(self.idp_key_file_path)
+            return self._read_binary_file(self.idp_key_file_path)
         except Exception:
-            self._fail('Impossibile caricare la chiave privata dal file {}'.format(self.key_file_path))
+            self._fail('Impossibile ottenere la chiave privata dal file {}'.format(self.key_file_path))
 
     @staticmethod
-    def _parse_pem_file(path):
-        with open(path, 'r') as fp:
-            content = fp.read()
-        return ''.join(content.strip().split()[1:-1])
+    def _read_binary_file(path):
+        with open(path, 'rb') as fp:
+            return fp.read()
 
     @property
     def idp_key_file_path(self):
@@ -117,9 +116,9 @@ class Config(object):
 
     def _load_idp_certificate(self):
         try:
-            return self._parse_pem_file(self.idp_certificate_file_path)
+            return self._read_binary_file(self.idp_certificate_file_path)
         except Exception:
-            self._fail('Impossibile caricare il certificato dal file {}'.format(self.cert_file_path))
+            self._fail('Impossibile ottenere il certificato dal file {}'.format(self.cert_file_path))
 
     @property
     def idp_certificate_file_path(self):

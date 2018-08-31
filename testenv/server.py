@@ -516,12 +516,11 @@ class IdpServer(object):
                             },
                             _identity.copy()
                         ).to_xml()
-                        key_file = self._config.idp_key_file_path
-                        cert_file = self._config.idp_certificate_file_path
-
-                        pkey = open(key_file, 'rb').read()
-                        cert = open(cert_file, 'rb').read()
-                        response = sign_http_post(response_xmlstr, pkey, cert)
+                        response = sign_http_post(
+                            response_xmlstr,
+                            self._config.idp_key,
+                            self._config.idp_certificate,
+                        )
                         self.app.logger.debug(
                             'Response: \n{}'.format(response)
                         )
@@ -576,12 +575,11 @@ class IdpServer(object):
                 self.app.logger.debug(
                     'Error response: \n{}'.format(response)
                 )
-                key_file = self._config.idp_key_file_path
-                cert_file = self._config.idp_certificate_file_path
-
-                pkey = open(key_file, 'rb').read()
-                cert = open(cert_file, 'rb').read()
-                response = sign_http_post(response, pkey, cert)
+                response = sign_http_post(
+                    response,
+                    self._config.idp_key,
+                    self._config.idp_certificate,
+                )
                 del self.ticket[key]
                 rendered_template = render_template(
                     'form_http_post.html',
@@ -633,12 +631,11 @@ class IdpServer(object):
                 self.app.logger.debug(
                     'Error response: \n{}'.format(response)
                 )
-                key_file = self._config.idp_key_file_path
-                cert_file = self._config.idp_certificate_file_path
-
-                pkey = open(key_file, 'rb').read()
-                cert = open(cert_file, 'rb').read()
-                response = sign_http_post(response, pkey, cert)
+                response = sign_http_post(
+                    response,
+                    self._config.idp_key,
+                    self._config.idp_certificate,
+                )
                 rendered_template = render_template(
                     'form_http_post.html',
                     **{
@@ -706,14 +703,12 @@ class IdpServer(object):
                     'status_code': STATUS_SUCCESS
                 }
             ).to_xml()
-            key_file = self._config.idp_key_file_path
-            cert_file = self._config.idp_certificate_file_path
-            key = open(key_file, 'rb').read()
-            cert = open(cert_file, 'rb').read()
             relay_state = spid_request.data.relay_state or ''
             if response_binding == BINDING_HTTP_POST:
                 response = sign_http_post(
-                    response, key, cert,
+                    response,
+                    self._config.idp_key,
+                    self._config.idp_certificate,
                     message=True, assertion=False
                 )
                 rendered_template = render_template(
@@ -727,7 +722,11 @@ class IdpServer(object):
                 )
                 return rendered_template, 200
             elif response_binding == BINDING_HTTP_REDIRECT:
-                query_string = sign_http_redirect(response, key, relay_state)
+                query_string = sign_http_redirect(
+                    response,
+                    self._config.idp_key,
+                    relay_state,
+                )
                 location = '{}?{}'.format(destination, query_string)
                 if location:
                     return redirect(location)
