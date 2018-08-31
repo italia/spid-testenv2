@@ -35,7 +35,7 @@ class JsonUserManager(AbstractUserManager):
     """
     @property
     def _filename(self):
-        return self._config.get('users_file', 'conf/users.json')
+        return self._config.users_file_path
 
     def _load(self):
         try:

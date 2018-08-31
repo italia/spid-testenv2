@@ -28,6 +28,7 @@ class ConfigValidator(object):
             'https': bool,
             'https_cert_file': str,
             'https_key_file': str,
+            'users_file': str,
             'endpoints': {
                 'single_logout_service': str,
                 'single_sign_on_service': str,
@@ -174,6 +175,10 @@ class Config(object):
             for mdtype in ('local', 'remote')
         }
         return deepcopy(metadata)
+
+    @property
+    def users_file_path(self):
+        return self._confdata.get('users_file', 'conf/users.json')
 
     @property
     def pysaml2compat(self):
