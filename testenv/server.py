@@ -14,6 +14,7 @@ from saml2.metadata import create_metadata_string
 from saml2.s_utils import UnsupportedBinding
 from saml2.server import Server
 
+from testenv import config
 from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect
 from testenv.exceptions import (
     DeserializationError, RequestParserError, SignatureVerificationError, UnknownEntityIDError,
@@ -56,18 +57,18 @@ class IdpServer(object):
     # digitalAddress => PEC
     challenges_timeout = CHALLENGES_TIMEOUT
 
-    def __init__(self, app, config, *args, **kwargs):
+    def __init__(self, app, conf=None, *args, **kwargs):
         """
         :param app: Flask instance
-        :param config: config.Config instance
+        :param conf: config.Config instance
         :param args:
         :param kwargs:
         """
         # bind Flask app
         self.app = app
-        self.user_manager = JsonUserManager(config=config)
+        self.user_manager = JsonUserManager()
         # setup
-        self._config = config
+        self._config = conf or config.params
         self.app.secret_key = 'sosecret'
         handler = RotatingFileHandler(
             'spid.log', maxBytes=500000, backupCount=1
@@ -242,7 +243,7 @@ class IdpServer(object):
         saml_msg = self.unpack_args(request.args)
         request_data = HTTPRedirectRequestParser(saml_msg).parse()
         deserializer = get_http_redirect_request_deserializer(
-            request_data, action, self.server.metadata, self.server.config)
+            request_data, action, self.server.metadata)
         saml_tree = deserializer.deserialize()
         certs = self._get_certificates_by_issuer(saml_tree.issuer.text)
         for cert in certs:
@@ -258,7 +259,7 @@ class IdpServer(object):
         saml_msg = self.unpack_args(request.form)
         request_data = HTTPPostRequestParser(saml_msg).parse()
         deserializer = get_http_post_request_deserializer(
-            request_data, action, self.server.metadata, self.server.config)
+            request_data, action, self.server.metadata)
         saml_tree = deserializer.deserialize()
         certs = self._get_certificates_by_issuer(saml_tree.issuer.text)
         for cert in certs:

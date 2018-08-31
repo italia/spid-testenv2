@@ -228,10 +228,14 @@ class Config(object):
         }
 
 
-def get_config(f_name, f_type='yaml'):
+params = None
+
+
+def load(f_name, f_type='yaml'):
     """
-    Build configuration from a YAML or JSON file
+    Load configuration from a YAML or JSON file
     """
+    global params
     try:
         with open(f_name, 'r') as fp:
             if f_type == 'yaml':
@@ -243,4 +247,4 @@ def get_config(f_name, f_type='yaml'):
     except Exception:
         raise BadConfiguration('Errore di sintassi nel file di configurazione: {}'.format(f_name))
     ConfigValidator(confdata).validate()
-    return Config(confdata)
+    params = Config(confdata)
