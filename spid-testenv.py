@@ -7,9 +7,9 @@ import os.path
 
 from flask import Flask
 
+from testenv.config import get_config
 from testenv.exceptions import BadConfiguration
 from testenv.server import IdpServer
-from testenv.utils import get_config
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -23,13 +23,14 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
     # Init server
-    config = get_config(args.config, args.configuration_type)
     try:
+        config = get_config(args.config, args.configuration_type)
+    except BadConfiguration as e:
+        print(e)
+    else:
         os.environ['FLASK_ENV'] = 'development'
         server = IdpServer(
             app=Flask(__name__, static_url_path='/static'), config=config
         )
         # Start server
         server.start()
-    except BadConfiguration as e:
-        print(e)
