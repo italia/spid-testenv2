@@ -23,7 +23,7 @@ class FakeConfig(object):
     def __init__(self, endpoint):
         self._endpoint = endpoint
 
-    def endpoint(self, *args, **kwargs):
+    def receivers(self, *args, **kwargs):
         return [self._endpoint]
 
 
