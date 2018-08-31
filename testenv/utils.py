@@ -2,13 +2,11 @@
 from __future__ import unicode_literals
 
 import calendar
-import json
 import re
 import time
 from datetime import datetime
 
 import lxml.etree as etree
-import yaml
 from lxml import objectify
 
 from testenv.settings import MULTIPLE_OCCURRENCES_TAGS, SPID_ERRORS
@@ -16,17 +14,6 @@ from testenv.settings import MULTIPLE_OCCURRENCES_TAGS, SPID_ERRORS
 TIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 TIME_FORMAT_WITH_FRAGMENT = re.compile(
     '^(\d{4,4}-\d{2,2}-\d{2,2}T\d{2,2}:\d{2,2}:\d{2,2})(\.\d*)?Z?$')
-
-
-def get_config(f_name, f_type='yaml'):
-    """
-    Read server configuration from a json file
-    """
-    with open(f_name, 'r') as fp:
-        if f_type == 'yaml':
-            return yaml.load(fp)
-        elif f_type == 'json':
-            return json.loads(fp.read())
 
 
 def get_spid_error(code):
