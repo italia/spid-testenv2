@@ -489,13 +489,13 @@ class IdpServer(object):
                                 },
                                 'issuer': {
                                     'attrs': {
-                                        'name_qualifier': self.server.config.entityid,
+                                        'name_qualifier': self._config.entity_id,
                                     },
-                                    'text': self.server.config.entityid
+                                    'text': self._config.entity_id
                                 },
                                 'name_id': {
                                     'attrs': {
-                                        'name_qualifier': self.server.config.entityid,
+                                        'name_qualifier': self._config.entity_id,
                                     }
                                 },
 
@@ -516,8 +516,8 @@ class IdpServer(object):
                             },
                             _identity.copy()
                         ).to_xml()
-                        key_file = self.server.config.key_file
-                        cert_file = self.server.config.cert_file
+                        key_file = self._config.idp_key_file_path
+                        cert_file = self._config.idp_certificate_file_path
 
                         pkey = open(key_file, 'rb').read()
                         cert = open(cert_file, 'rb').read()
@@ -563,9 +563,9 @@ class IdpServer(object):
                         },
                         'issuer': {
                             'attrs': {
-                                'name_qualifier': self.server.config.entityid,
+                                'name_qualifier': self._config.entity_id,
                             },
-                            'text': self.server.config.entityid
+                            'text': self._config.entity_id
                         },
                     },
                     {
@@ -576,8 +576,8 @@ class IdpServer(object):
                 self.app.logger.debug(
                     'Error response: \n{}'.format(response)
                 )
-                key_file = self.server.config.key_file
-                cert_file = self.server.config.cert_file
+                key_file = self._config.idp_key_file_path
+                cert_file = self._config.idp_certificate_file_path
 
                 pkey = open(key_file, 'rb').read()
                 cert = open(cert_file, 'rb').read()
@@ -622,7 +622,7 @@ class IdpServer(object):
                             'attrs': {
                                 'name_qualifier': 'something',
                             },
-                            'text': self.server.config.entityid
+                            'text': self._config.entity_id
                         },
                     },
                     {
@@ -633,8 +633,8 @@ class IdpServer(object):
                 self.app.logger.debug(
                     'Error response: \n{}'.format(response)
                 )
-                key_file = self.server.config.key_file
-                cert_file = self.server.config.cert_file
+                key_file = self._config.idp_key_file_path
+                cert_file = self._config.idp_certificate_file_path
 
                 pkey = open(key_file, 'rb').read()
                 cert = open(cert_file, 'rb').read()
@@ -699,15 +699,15 @@ class IdpServer(object):
                         'attrs': {
                             'name_qualifier': 'something',
                         },
-                        'text': self.server.config.entityid
+                        'text': self._config.entity_id
                     }
                 },
                 {
                     'status_code': STATUS_SUCCESS
                 }
             ).to_xml()
-            key_file = self.server.config.key_file
-            cert_file = self.server.config.cert_file
+            key_file = self._config.idp_key_file_path
+            cert_file = self._config.idp_certificate_file_path
             key = open(key_file, 'rb').read()
             cert = open(cert_file, 'rb').read()
             relay_state = spid_request.data.relay_state or ''
