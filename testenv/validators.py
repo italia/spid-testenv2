@@ -200,7 +200,7 @@ class SpidValidator(object):
             ascss = []
         attribute_consuming_service_indexes = [str(el.get('index')) for el in atcss]
         assertion_consumer_service_indexes = [str(el.get('index')) for el in ascss]
-        receivers = self._config.endpoint(service, self._binding, 'idp')
+        receivers = self._config.receivers(service)
 
         issuer = Schema(
             {

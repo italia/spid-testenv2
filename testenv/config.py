@@ -227,6 +227,11 @@ class Config(object):
             }
         }
 
+    def receivers(self, service):
+        entity_id = self.entity_id.rstrip('/')
+        endpoint = self.endpoints[service].lstrip('/')
+        return ['{}/{}'.format(entity_id, endpoint)]
+
 
 params = None
 
