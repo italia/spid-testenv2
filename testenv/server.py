@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-import os
-import os.path
 import random
 import string
 from collections import namedtuple
@@ -12,14 +10,13 @@ from logging.handlers import RotatingFileHandler
 
 from flask import Response, abort, escape, redirect, render_template, request, session, url_for
 # TODO: avoid the following pysaml2 dependencies
-from saml2.config import Config as Saml2Config
 from saml2.metadata import create_metadata_string
 from saml2.s_utils import UnsupportedBinding
 from saml2.server import Server
 
 from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect
 from testenv.exceptions import (
-    BadConfiguration, DeserializationError, RequestParserError, SignatureVerificationError, UnknownEntityIDError,
+    DeserializationError, RequestParserError, SignatureVerificationError, UnknownEntityIDError,
 )
 from testenv.parser import (
     HTTPPostRequestParser, HTTPRedirectRequestParser, get_http_post_request_deserializer,
@@ -27,11 +24,11 @@ from testenv.parser import (
 )
 from testenv.saml import create_error_response, create_logout_response, create_response
 from testenv.settings import (
-    AUTH_NO_CONSENT, BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, CHALLENGES_TIMEOUT, NAME_FORMAT_BASIC,
-    NAMEID_FORMAT_TRANSIENT, SPID_ATTRIBUTES, SPID_LEVELS, STATUS_SUCCESS,
+    AUTH_NO_CONSENT, BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, CHALLENGES_TIMEOUT, SPID_ATTRIBUTES, SPID_LEVELS,
+    STATUS_SUCCESS,
 )
 from testenv.users import JsonUserManager
-from testenv.utils import get_spid_error, prettify_xml
+from testenv.utils import get_spid_error
 
 ######
 
@@ -62,7 +59,7 @@ class IdpServer(object):
     def __init__(self, app, config, *args, **kwargs):
         """
         :param app: Flask instance
-        :param config: dictionary containing the configuration
+        :param config: config.Config instance
         :param args:
         :param kwargs:
         """
@@ -80,106 +77,18 @@ class IdpServer(object):
 
     @property
     def _mode(self):
-        return 'https' if self._config.get('https', False) else 'http'
-
-    def _idp_config(self):
-        """
-        Process pysaml2 configuration
-        """
-        key_file_path = self._config.get('key_file')
-        cert_file_path = self._config.get('cert_file')
-        metadata = self._config.get('metadata')
-        metadata = metadata if metadata else []
-        if metadata:
-            for typ in ['local', 'remote']:
-                if metadata.get(typ) is None:
-                    metadata[typ] = []
-        existing_key = os.path.isfile(key_file_path) if key_file_path else None
-        existing_cert = os.path.isfile(cert_file_path) \
-            if cert_file_path else None
-        if not existing_key:
-            raise BadConfiguration(
-                'Chiave privata dell\'IdP di test non'\
-                ' trovata: {} non trovato'.format(key_file_path)
-            )
-        if not existing_cert:
-            raise BadConfiguration(
-                'Certificato dell\'IdP di test non'\
-                ' trovato: {} non trovato'.format(cert_file_path)
-            )
-        self.entity_id = self._config.get('base_url')
-        if not self.entity_id:
-            raise BadConfiguration(
-                'base_url non impostato!'
-            )
-        idp_conf = {
-            'entityid': self.entity_id,
-            'description': 'Spid Test IdP',
-            'service': {
-                'idp': {
-                    'name': 'Spid Testenv',
-                    'endpoints': {
-                        'single_sign_on_service': [
-                        ],
-                        'single_logout_service': [
-                        ],
-                    },
-                    'policy': {
-                        'default': {
-                            'name_form': NAME_FORMAT_BASIC,
-                        },
-                    },
-                    'name_id_format': [
-                        NAMEID_FORMAT_TRANSIENT,
-                    ]
-                },
-            },
-            'debug': 1,
-            'key_file': self._config.get('key_file'),
-            'cert_file': self._config.get('cert_file'),
-            'metadata': metadata,
-            'logger': {
-                'rotating': {
-                    'filename': 'idp.log',
-                    'maxBytes': 500000,
-                    'backupCount': 1,
-                },
-                'loglevel': 'debug',
-            }
-        }
-        # setup services url
-        for _service_type in self._endpoint_types:
-            endpoint = self._config['endpoints'][_service_type]
-            idp_conf['service']['idp']['endpoints'][_service_type].append(
-                (
-                    '{}{}'.format(self.entity_id, endpoint),
-                    BINDING_HTTP_REDIRECT
-                )
-            )
-            idp_conf['service']['idp']['endpoints'][_service_type].append(
-                (
-                    '{}{}'.format(self.entity_id, endpoint),
-                    BINDING_HTTP_POST
-                )
-            )
-        return idp_conf
+        return 'https' if self._config.https else 'http'
 
     def _setup_app_routes(self):
         """
         Setup Flask routes
         """
         # Setup SSO and SLO endpoints
-        endpoints = self._config.get('endpoints')
+        endpoints = self._config.endpoints
         if endpoints:
             for ep_type in self._endpoint_types:
                 _url = endpoints.get(ep_type)
                 if _url:
-                    if not _url.startswith('/'):
-                        raise BadConfiguration(
-                            'Errore nella configurazione delle url,'\
-                            ' i path devono essere relativi ed iniziare'\
-                            ' con "/" (slash) - url {}'.format(_url)
-                        )
                     for _binding in self._binding_mapping.keys():
                         self.app.add_url_rule(
                             _url,
@@ -207,15 +116,12 @@ class IdpServer(object):
         """
         Setup server
         """
+        # FIXME: remove after pysaml2 drop
+        from saml2.config import Config as Saml2Config
         self.idp_config = Saml2Config()
-        self.BASE = '{}://{}:{}'.format(
-            self._mode, self._config.get('host'), self._config.get('port')
-        )
-        if 'entityid' not in self._config:
-            # as fallback for entityid use host:port string
-            self._config['entityid'] = self.BASE
-        self.idp_config.load(cnf=self._idp_config())
+        self.idp_config.load(cnf=self._config.pysaml2compat)
         self.server = Server(config=self.idp_config)
+        #
         self._setup_app_routes()
 
     def _verify_spid(self, level, verify=False, **kwargs):
@@ -845,17 +751,13 @@ class IdpServer(object):
     @property
     def _wsgiconf(self):
         _cnf = {
-            'host': self._config.get('host', '0.0.0.0'),
-            'port': self._config.get('port', '8000'),
-            'debug': self._config.get('debug', True),
+            'host': self._config.host,
+            'port': self._config.port,
+            'debug': self._config.debug,
         }
-        if self._config.get('https', False):
-            key = self._config.get('https_key_file')
-            cert = self._config.get('https_cert_file')
-            if not key or not cert:
-                raise KeyError(
-                    'Errore modalità https: Chiave e/o certificato assenti!'
-                )
+        if self._config.https:
+            key = self._config.https_key_file_path
+            cert = self._config.https_certificate_file_path
             _cnf['ssl_context'] = (cert, key,)
         return _cnf
 
