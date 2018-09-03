@@ -232,6 +232,42 @@ class Config(object):
         return ['{}/{}'.format(entity_id, endpoint)]
 
 
+class BaseConfigParser(object):
+    def __init__(self, path):
+        self._path = path
+        self._fp = None
+
+    def parse(self):
+        try:
+            return self._parse()
+        except OSError:
+            raise BadConfiguration('Impossibile accedere al file di configurazione: {}'.format(self._path))
+        except Exception:
+            raise BadConfiguration('Errore di sintassi nel file di configurazione: {}'.format(self._path))
+
+    def _parse(self):
+        with open(self._path) as fp:
+            self._fp = fp
+            return self._deserialize()
+
+
+class YAMLConfigParser(BaseConfigParser):
+    def _deserialize(self):
+        return yaml.load(self._fp)
+
+
+class JSONConfigParser(BaseConfigParser):
+    def _deserialize(self):
+        return json.load(self._fp.read())
+
+
+def _get_parser_class(fileformat):
+    return {
+        'yaml': YAMLConfigParser,
+        'json': JSONConfigParser,
+    }[fileformat]
+
+
 params = None
 
 
@@ -240,15 +276,7 @@ def load(f_name, f_type='yaml'):
     Load configuration from a YAML or JSON file
     """
     global params
-    try:
-        with open(f_name, 'r') as fp:
-            if f_type == 'yaml':
-                confdata = yaml.load(fp)
-            elif f_type == 'json':
-                confdata = json.loads(fp.read())
-    except OSError:
-        raise BadConfiguration('Impossibile accedere al file di configurazione: {}'.format(f_name))
-    except Exception:
-        raise BadConfiguration('Errore di sintassi nel file di configurazione: {}'.format(f_name))
+    parser = _get_parser_class(f_type)(f_name)
+    confdata = parser.parse()
     ConfigValidator(confdata).validate()
     params = Config(confdata)
