@@ -246,7 +246,7 @@ class BaseConfigParser(object):
             raise BadConfiguration('Errore di sintassi nel file di configurazione: {}'.format(self._path))
 
     def _parse(self):
-        with open(self._path) as fp:
+        with open(self._path, 'r') as fp:
             self._fp = fp
             return self._deserialize()
 
