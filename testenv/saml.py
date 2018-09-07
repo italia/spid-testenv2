@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+from copy import deepcopy
 from datetime import datetime, timedelta
 from hashlib import sha1
 from uuid import uuid4
@@ -313,7 +314,7 @@ def create_response(data, response_status, attributes={}):
     )
     subject_confirmation.append(subject_confirmation_data)
     subject.append(subject_confirmation)
-    assertion.append(issuer)
+    assertion.append(deepcopy(issuer))
     assertion.append(subject)
     # Setup conditions data
     conditions = Conditions(
