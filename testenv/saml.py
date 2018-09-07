@@ -267,6 +267,17 @@ def create_response(data, response_status, attributes={}):
             InResponseTo=response_attrs.get('in_response_to')
         )
     )
+    
+    # Setup issuer data
+    issuer_attrs = data.get('issuer').get('attrs')
+    issuer = Issuer(
+        attrib=dict(
+            NameQualifier=issuer_attrs.get('name_qualifier'),
+        ),
+        text=data.get('issuer').get('text')
+    )
+    response.append(issuer)
+    
     # Setup status data
     status = Status()
     status_code_value = response_status.get('status_code')
@@ -277,15 +288,7 @@ def create_response(data, response_status, attributes={}):
     )
     status.append(status_code)
     response.append(status)
-    # Setup issuer data
-    issuer_attrs = data.get('issuer').get('attrs')
-    issuer = Issuer(
-        attrib=dict(
-            NameQualifier=issuer_attrs.get('name_qualifier'),
-        ),
-        text=data.get('issuer').get('text')
-    )
-    response.append(issuer)
+    
     # Create and setup the assertion
     assertion = Assertion(
         attrib=dict(
