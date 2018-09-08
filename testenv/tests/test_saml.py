@@ -8,6 +8,8 @@ from lxml import etree
 from testenv.saml import create_response
 from testenv.settings import SAML, SAMLP, SPID_LEVEL_1, STATUS_SUCCESS
 
+from .utils import validate_xml
+
 
 class SamlElementTestCase(unittest.TestCase):
 
@@ -99,3 +101,6 @@ class SamlElementTestCase(unittest.TestCase):
             self.assertEqual(issuer.text, 'http://test_id.entity')
         self.assertEqual(issuers[0].getparent().tag, '{%s}Response' % SAMLP)
         self.assertEqual(issuers[1].getparent().tag, '{%s}Assertion' % SAML)
+
+        self.assertTrue(validate_xml(response.to_xml(), 'testenv/xsd/saml-schema-protocol-2.0.xsd'),
+                        "The resulting XML is invalid")
