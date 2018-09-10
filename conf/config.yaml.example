@@ -22,7 +22,7 @@ metadata:
 #  local:
 #  - "./conf/sp_metadata.xml"
 #  remote:
-#  - url: "http://spid-sp/metadata
+#  - url: "http://spid-sp/metadata"
 #    cert: "./conf/spid-sp.cert"
 
 
