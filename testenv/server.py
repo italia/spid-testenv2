@@ -355,7 +355,9 @@ class IdpServer(object):
                 spid_value = request.form.get(spid_field)
                 if spid_value:
                     extra[spid_field] = spid_value
-            self.user_manager.add(username, password, sp, extra)
+            if 'fiscalNumber' in extra:
+                extra['fiscalNumber'] = 'TINIT-{}'.format(extra['fiscalNumber'])
+            self.user_manager.add(username, password, sp, extra.copy())
         return redirect(url_for('users'))
 
     def index(self):
