@@ -16,13 +16,13 @@ from lxml import etree as ET
 from OpenSSL import crypto
 from six.moves.urllib.parse import parse_qs, quote, urlparse
 
+from testenv import config
 from testenv.crypto import decode_base64_and_inflate, deflate_and_base64_encode, sign_http_redirect
 from testenv.parser import SAMLTree
 from testenv.settings import (
     BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT, SIG_RSA_SHA1,
     SIG_RSA_SHA256,
 )
-from testenv.utils import get_config
 
 sys.path.insert(0, '../')
 spid_testenv = __import__("spid-testenv")
@@ -164,7 +164,6 @@ class SpidTestenvTest(unittest.TestCase):
 
     maxDiff = None
 
-
     @classmethod
     def setUpClass(cls):
         generate_certificate(fname='idp')
@@ -183,8 +182,8 @@ class SpidTestenvTest(unittest.TestCase):
                 cert.text = cert_value
         xml.write(tmp_metadata)
         app = flask.Flask(spid_testenv.__name__, static_url_path='/static')
-        _config = get_config('testenv/tests/data/config.yaml')
-        cls.idp_server = spid_testenv.IdpServer(app=app, config=_config)
+        config.load('testenv/tests/data/config.yaml')
+        cls.idp_server = spid_testenv.IdpServer(app=app)
         cls.idp_server.app.testing = True
         cls.test_client = cls.idp_server.app.test_client()
 

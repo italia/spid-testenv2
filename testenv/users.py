@@ -6,6 +6,8 @@ import json
 import exrex
 from faker import Faker
 
+from testenv import config
+
 FAKER = Faker('it_IT')
 
 try:
@@ -19,8 +21,8 @@ class AbstractUserManager(object):
     """
     Base User manager class to handling user objects
     """
-    def __init__(self, config):
-        self._config = config
+    def __init__(self, conf=None):
+        self._config = conf or config.params
 
     def get(self, uid, pwd, sp_id):
         raise NotImplementedError
@@ -35,7 +37,7 @@ class JsonUserManager(AbstractUserManager):
     """
     @property
     def _filename(self):
-        return self._config.get('users_file', 'conf/users.json')
+        return self._config.users_file_path
 
     def _load(self):
         try:

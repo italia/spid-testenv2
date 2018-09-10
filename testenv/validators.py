@@ -6,9 +6,10 @@ from datetime import datetime, timedelta
 
 import importlib_resources
 from lxml import etree
-from voluptuous import ALLOW_EXTRA, All, In, Invalid, MultipleInvalid, Optional, Schema
+from voluptuous import All, In, Invalid, MultipleInvalid, Optional, Schema
 from voluptuous.validators import Equal
 
+from testenv import config
 from testenv.exceptions import (
     SPIDValidationError, UnknownEntityIDError, XMLFormatValidationError, XMLSchemaValidationError,
 )
@@ -136,11 +137,11 @@ class AuthnRequestXMLSchemaValidator(BaseXMLSchemaValidator):
 
 class SpidValidator(object):
 
-    def __init__(self, action, binding, metadata, config):
+    def __init__(self, action, binding, metadata, conf=None):
         self._action = action
         self._binding = binding
         self._metadata = metadata
-        self._config = config
+        self._config = conf or config.params
 
     def _check_utc_date(self, date):
         try:
@@ -199,7 +200,7 @@ class SpidValidator(object):
             ascss = []
         attribute_consuming_service_indexes = [str(el.get('index')) for el in atcss]
         assertion_consumer_service_indexes = [str(el.get('index')) for el in ascss]
-        receivers = self._config.endpoint(service, self._binding, 'idp')
+        receivers = self._config.receivers(service)
 
         issuer = Schema(
             {
