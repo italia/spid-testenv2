@@ -66,8 +66,9 @@ SAMLP = 'urn:oasis:names:tc:SAML:2.0:protocol'
 DS = 'http://www.w3.org/2000/09/xmldsig#'
 XSI = 'http://www.w3.org/2001/XMLSchema-instance'
 XS = 'http://www.w3.org/2001/XMLSchema'
+MD = 'urn:oasis:names:tc:SAML:2.0:metadata'
 
-NSMAP = { 'saml':  SAML, 'samlp': SAMLP, 'ds': DS}
+NSMAP = { 'saml':  SAML, 'samlp': SAMLP, 'ds': DS, 'md': MD}
 NAME_FORMAT_BASIC = 'urn:oasis:names:tc:SAML:2.0:attrname-format:basic'
 NAMEID_FORMAT_TRANSIENT = 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient'
 NAMEID_FORMAT_ENTITY = 'urn:oasis:names:tc:SAML:2.0:nameid-format:entity'
