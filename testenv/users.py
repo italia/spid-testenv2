@@ -63,7 +63,7 @@ class JsonUserManager(AbstractUserManager):
                         'dateOfBirth': FAKER.date(),
                         'companyName': FAKER.company(),
                         'registeredOffice': FAKER.address(),
-                        'fiscalNumber': fiscal_number,
+                        'fiscalNumber': 'TINIT-{}'.format(fiscal_number),
                         'email': FAKER.email()
                     },
                     'pwd': 'test',
@@ -87,7 +87,7 @@ class JsonUserManager(AbstractUserManager):
                 return user, self.users[user]
         return None, None
 
-    def add(self, uid, pwd, sp_id=None, extra={}):
+    def add(self, uid, pwd, sp_id=None, extra=None):
         if uid not in self.users:
             self.users[uid] = {
                 'pwd': pwd,

@@ -774,5 +774,23 @@ class SpidTestenvTest(unittest.TestCase):
         response_text = response.get_data(as_text=True)
         self.assertIn('sp_relay_state_value', response_text)
 
+    def test_fiscal_number_prefix(self):
+        # https://github.com/italia/spid-testenv2/issues/150
+        response = self.test_client.post(
+            '/users',
+            data={
+                'username': 'testusr',
+                'password': 'testpwd',
+                'service_provider': 'sptest',
+                'fiscalNumber': 'abc123'
+            },
+            follow_redirects=True,
+        )
+        users = self.idp_server.user_manager.all()
+        self.assertIn('testusr', users)
+        fiscal_number = users['testusr'].get('attrs', {}).get('fiscalNumber', {})
+        self.assertTrue(fiscal_number.startswith('TINIT-'))
+        self.assertEqual(fiscal_number, 'TINIT-abc123')
+
 if __name__ == '__main__':
     unittest.main()
