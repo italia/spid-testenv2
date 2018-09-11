@@ -108,6 +108,52 @@ class SamlElementTestCase(unittest.TestCase):
         self.assertTrue(validate_xml(response.to_xml(), 'testenv/xsd/saml-schema-protocol-2.0.xsd'),
                         "The resulting XML is invalid")
 
+    def test_session_index_in_response(self):
+        # https://github.com/italia/spid-testenv2/issues/160
+        response = create_response(
+            {
+                'response': {
+                    'attrs': {
+                        'in_response_to': 'test_8989',
+                        'destination': 'http://des.nation'
+                    }
+                },
+                'issuer': {
+                    'attrs': {
+                        'name_qualifier': 'http://test_id2.entity',
+                    },
+                    'text': 'http://test_id2.entity'
+                },
+                'name_id': {
+                    'attrs': {
+                        'name_qualifier': 'http://test_id2.entity',
+                    }
+                },
+
+                'subject_confirmation_data': {
+                    'attrs': {
+                        'recipient': 'http://test_id2.entity',
+                    }
+                },
+                'audience': {
+                    'text': 'http://test_sp_id2.entity',
+                },
+                'authn_context_class_ref': {
+                    'text': SPID_LEVEL_1
+                }
+            },
+            {
+                'status_code': STATUS_SUCCESS
+            },
+            {}
+        )
+        authn_statements = response._element.findall('.//{%s}AuthnStatement' % SAML)
+        self.assertEqual(len(authn_statements), 1)
+        authn_statement = authn_statements[0]
+        self.assertTrue(authn_statement.get('SessionIndex', False))
+        self.assertTrue(validate_xml(response.to_xml(), 'testenv/xsd/saml-schema-protocol-2.0.xsd'),
+                        "The resulting XML is invalid")
+
     def test_idp_metadata(self):
         ssos = [Sso(binding=BINDING_HTTP_POST, location='http://sso.sso')]
         slos = [Slo(binding=BINDING_HTTP_REDIRECT, location='http://slo.slo')]

@@ -338,9 +338,11 @@ def create_response(data, response_status, attributes={}):
     conditions.append(audience_restriction)
     assertion.append(conditions)
     # Setup authn statement data
+    # FIXME: handle SessionIndex for real
     authn_statement = AuthnStatement(
         attrib=dict(
-            AuthnInstant=issue_instant
+            AuthnInstant=issue_instant,
+            SessionIndex=generate_unique_id()
         )
     )
     authn_context = AuthnContext()
