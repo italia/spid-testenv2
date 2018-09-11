@@ -41,6 +41,10 @@ class XMLSchemaValidationError(ValidationError):
     pass
 
 
+class GroupValidationError(ValidationError):
+    pass
+
+
 class StopValidation(TestenvError):
     pass
 
@@ -50,4 +54,17 @@ class SignatureVerificationError(TestenvError):
 
 
 class UnknownEntityIDError(TestenvError):
+    pass
+
+
+class MetadataNotFoundError(TestenvError):
+    def __init__(self, entity_id):
+        self.entity_id = entity_id
+
+
+class MetadataLoadError(TestenvError):
+    pass
+
+
+class NoCertificateError(TestenvError):
     pass

@@ -4,6 +4,7 @@
 #
 #    pip-compile --output-file requirements.txt requirements.in
 #
+--extra-index-url https://devpi.iast.it/nephila/dev/+simple/
 --extra-index-url https://devpi.iast.it/nephila/dev/+simple
 
 asn1crypto==0.24.0        # via cryptography, signxml
@@ -11,14 +12,14 @@ certifi==2018.8.24        # via requests, signxml
 cffi==1.11.5              # via cryptography
 chardet==3.0.4            # via requests
 click==6.7                # via flask
-cryptography==2.3.1       # via pyopenssl, pysaml2, signxml
-defusedxml==0.5.0         # via pysaml2, signxml
+cryptography==2.3.1       # via pyopenssl, signxml
+defusedxml==0.5.0         # via signxml
 eight==0.4.2              # via signxml
 enum34==1.1.6             # via cryptography, signxml
 exrex==0.10.5
 faker==0.8.16
 flask==1.0.2
-future==0.16.0            # via eight, pysaml2
+future==0.16.0            # via eight
 idna==2.7                 # via cryptography, requests
 importlib-resources==1.0.1
 ipaddress==1.0.22         # via cryptography, faker
@@ -28,15 +29,13 @@ lxml==4.2.3
 markupsafe==1.0           # via jinja2
 pathlib2==2.3.2           # via importlib-resources
 pycparser==2.18           # via cffi
-pyopenssl==17.5.0         # via pysaml2, signxml
-pysaml2==4.5.0
-python-dateutil==2.7.3    # via faker, pysaml2
-pytz==2018.5              # via pysaml2
+pyopenssl==17.5.0         # via signxml
+python-dateutil==2.7.3    # via faker
 pyyaml==3.12
-requests==2.19.1          # via pysaml2
+requests==2.19.1
 scandir==1.9.0            # via pathlib2
 signxml==2.5.2
-six==1.11.0
+six==1.11.0               # via cryptography, faker, pathlib2, pyopenssl, python-dateutil
 text-unidecode==1.2       # via faker
 typing==3.6.6             # via importlib-resources
 urllib3==1.23             # via requests

@@ -14,6 +14,7 @@ from testenv.exceptions import (
 )
 from testenv.parser import HTTPPostRequestParser, HTTPRedirectRequestParser, HTTPRequestDeserializer, SAMLTree
 from testenv.tests.utils import FakeRequest
+from testenv.validators import ValidatorGroup
 
 try:
     from urllib import urlencode
@@ -147,10 +148,10 @@ class HTTPPostRequestParserTestCase(unittest.TestCase):
 class HTTPRequestDeserializerTestCase(unittest.TestCase):
 
     def test_successful_deserialization(self):
-        validators = [SuccessValidator(), SuccessValidator()]
+        validator = ValidatorGroup([SuccessValidator(), SuccessValidator()])
         request = FakeRequest('<xml></xml>')
         deserializer = HTTPRequestDeserializer(
-            request, validators=validators, saml_class=FakeSAMLClass)
+            request, validator=validator, saml_class=FakeSAMLClass)
         deserialized = deserializer.deserialize()
         self.assertIsInstance(deserialized, FakeSAMLClass)
 
@@ -160,10 +161,10 @@ class HTTPRequestDeserializerTestCase(unittest.TestCase):
             XMLFormatValidationError(['blocking error']))
         nonblocking_validator = FailValidator(
             XMLSchemaValidationError(['nonblocking error']))
-        validators = [blocking_validator, nonblocking_validator]
+        validator = ValidatorGroup([blocking_validator, nonblocking_validator])
         request = FakeRequest(xml)
         deserializer = HTTPRequestDeserializer(
-            request, validators=validators, saml_class=FakeSAMLClass)
+            request, validator=validator, saml_class=FakeSAMLClass)
         with pytest.raises(DeserializationError) as excinfo:
             deserializer.deserialize()
         exc = excinfo.value
@@ -177,13 +178,13 @@ class HTTPRequestDeserializerTestCase(unittest.TestCase):
             XMLSchemaValidationError(['a nonblocking error']))
         second_nonblocking_validator = FailValidator(
             SPIDValidationError(['another nonblocking error']))
-        validators = [
+        validator = ValidatorGroup([
             first_nonblocking_validator,
             second_nonblocking_validator,
-        ]
+        ])
         request = FakeRequest(xml)
         deserializer = HTTPRequestDeserializer(
-            request, validators=validators, saml_class=FakeSAMLClass)
+            request, validator=validator, saml_class=FakeSAMLClass)
         with pytest.raises(DeserializationError) as excinfo:
             deserializer.deserialize()
         exc = excinfo.value

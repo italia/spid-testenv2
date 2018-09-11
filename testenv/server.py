@@ -9,15 +9,11 @@ from hashlib import sha1
 from logging.handlers import RotatingFileHandler
 
 from flask import Response, abort, escape, redirect, render_template, request, session, url_for
-# TODO: avoid the following pysaml2 dependencies
-from saml2.metadata import create_metadata_string
-from saml2.s_utils import UnsupportedBinding
-from saml2.server import Server
 
-from testenv import config
+from testenv import config, spmetadata
 from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect
 from testenv.exceptions import (
-    DeserializationError, RequestParserError, SignatureVerificationError, UnknownEntityIDError,
+    DeserializationError, NoCertificateError, RequestParserError, SignatureVerificationError, UnknownEntityIDError,
 )
 from testenv.parser import (
     HTTPPostRequestParser, HTTPRedirectRequestParser, get_http_post_request_deserializer,
@@ -29,10 +25,7 @@ from testenv.settings import (
     STATUS_SUCCESS,
 )
 from testenv.users import JsonUserManager
-from testenv.utils import Key, Slo, Sso, get_spid_error, prettify_xml
-
-######
-
+from testenv.utils import Key, Slo, Sso, get_spid_error
 
 # FIXME: move to a the parser.py module after metadata refactoring
 SPIDRequest = namedtuple('SPIDRequest', ['data', 'saml_tree'])
@@ -57,7 +50,7 @@ class IdpServer(object):
     # digitalAddress => PEC
     challenges_timeout = CHALLENGES_TIMEOUT
 
-    def __init__(self, app, conf=None, *args, **kwargs):
+    def __init__(self, app, conf=None, registry=None, *args, **kwargs):
         """
         :param app: Flask instance
         :param conf: config.Config instance
@@ -69,6 +62,7 @@ class IdpServer(object):
         self.user_manager = JsonUserManager()
         # setup
         self._config = conf or config.params
+        self._registry = registry or spmetadata.registry
         self.app.secret_key = 'sosecret'
         handler = RotatingFileHandler(
             'spid.log', maxBytes=500000, backupCount=1
@@ -118,10 +112,10 @@ class IdpServer(object):
         Setup server
         """
         # FIXME: remove after pysaml2 drop
-        from saml2.config import Config as Saml2Config
-        self.idp_config = Saml2Config()
-        self.idp_config.load(cnf=self._config.pysaml2compat)
-        self.server = Server(config=self.idp_config)
+        # from saml2.config import Config as Saml2Config
+        # self.idp_config = Saml2Config()
+        # self.idp_config.load(cnf=self._config.pysaml2compat)
+        # self.server = Server(config=self.idp_config)
         #
         self._setup_app_routes()
 
@@ -242,10 +236,11 @@ class IdpServer(object):
         # about request parsing *at all*.
         saml_msg = self.unpack_args(request.args)
         request_data = HTTPRedirectRequestParser(saml_msg).parse()
-        deserializer = get_http_redirect_request_deserializer(
-            request_data, action, self.server.metadata)
+        deserializer = get_http_redirect_request_deserializer(request_data, action)
         saml_tree = deserializer.deserialize()
         certs = self._get_certificates_by_issuer(saml_tree.issuer.text)
+        if not certs:
+            raise NoCertificateError
         for cert in certs:
             HTTPRedirectSignatureVerifier(cert, request_data).verify()
         return SPIDRequest(request_data, saml_tree)
@@ -258,21 +253,27 @@ class IdpServer(object):
         # about request parsing *at all*.
         saml_msg = self.unpack_args(request.form)
         request_data = HTTPPostRequestParser(saml_msg).parse()
-        deserializer = get_http_post_request_deserializer(
-            request_data, action, self.server.metadata)
+        deserializer = get_http_post_request_deserializer(request_data, action)
         saml_tree = deserializer.deserialize()
         certs = self._get_certificates_by_issuer(saml_tree.issuer.text)
+        if not certs:
+            raise NoCertificateError
         for cert in certs:
             HTTPPostSignatureVerifier(cert, request_data).verify()
         return SPIDRequest(request_data, saml_tree)
 
     def _get_certificates_by_issuer(self, issuer):
         try:
-            return self.server.metadata.certs(issuer, 'any', 'signing')
+            return self._registry.get(issuer).certs()
         except KeyError:
             self._raise_error(
                 'entity ID {} non registrato, impossibile ricavare'\
                 ' un certificato valido.'.format(issuer)
+            )
+        except NoCertificateError:
+            self._raise_error(
+                'Errore, il metadata associato al Service provider non'\
+                ' non è provvisto di certificati validi'.format(issuer)
             )
 
     def single_sign_on_service(self):
@@ -333,7 +334,7 @@ class IdpServer(object):
                 'primary_attributes': spid_main_fields,
                 'secondary_attributes': spid_secondary_fields,
                 'users': self.user_manager.all(),
-                'sp_list': self.server.metadata.service_providers()
+                'sp_list': self._registry.service_providers,
             }
         )
         if request.method == 'GET':
@@ -367,7 +368,7 @@ class IdpServer(object):
                 'sp_list': [
                     {
                         "name": sp, "spId": sp
-                    } for sp in self.server.metadata.service_providers()
+                    } for sp in self._registry.service_providers
                 ],
             }
         )
@@ -378,13 +379,9 @@ class IdpServer(object):
         acs_index = getattr(req, 'assertion_consumer_service_index', None)
         protocol_binding = getattr(req, 'protocol_binding', None)
         if acs_index is not None:
-            acss = self.server.metadata.assertion_consumer_service(
-                sp_id, protocol_binding
-            )
-            for acs in acss:
-                if acs.get('index') == acs_index:
-                    destination = acs.get('location')
-                    break
+            acss = self._registry.get(sp_id).assertion_consumer_service(index=acs_index)
+            if acss:
+                destination = acss[0].get('Location')
             self.app.logger.debug(
                 'AssertionConsumerServiceIndex Location: {}'.format(
                     destination
@@ -462,14 +459,13 @@ class IdpServer(object):
                                 atcs_idx
                             )
                         )
-                        if atcs_idx:
-                            # TODO: Remove this pysaml2 dependency
-                            attrs = self.server.wants(sp_id, atcs_idx)
-                            required = [el.get('name') for el in attrs.get('required')]
-                            optional = [el.get('name') for el in attrs.get('optional')]
-                        else:
-                            required = []
-                            optional = []
+                        sp_metadata = self._registry.get(sp_id)
+                        required = []
+                        optional = []
+                        if atcs_idx and sp_metadata:
+                            attrs = sp_metadata.attributes(atcs_idx)
+                            required = [el for el in attrs.get('required')]
+                            optional = [el for el in attrs.get('optional')]
 
                         for attr_name, val in identity.items():
                             _type = self._attribute_type(attr_name)
@@ -665,10 +661,8 @@ class IdpServer(object):
         _slo = None
         for binding in [BINDING_HTTP_POST, BINDING_HTTP_REDIRECT]:
             try:
-                _slo = self.server.metadata.single_logout_service(
-                    issuer_name, binding=binding, typ='spsso'
-                )
-            except UnsupportedBinding:
+                _slo = self._registry.get(issuer_name).single_logout_services[0]
+            except Exception:
                 pass
         return _slo
 
@@ -681,7 +675,6 @@ class IdpServer(object):
         try:
             spid_request = self._parse_message(action='logout')
             issuer_name = spid_request.saml_tree.issuer.text
-            # TODO: retrieve the following data from some custom structure
             _slo = self._sp_single_logout_service(issuer_name)
             if _slo is None:
                 self._raise_error(
@@ -690,13 +683,13 @@ class IdpServer(object):
                         issuer_name
                     )
                 )
-            response_binding = _slo[0].get('binding')
+            response_binding = _slo[0].get('Binding')
             self.app.logger.debug(
                 'Response binding: \n{}'.format(
                     response_binding
                 )
             )
-            destination = _slo[0].get('location')
+            destination = _slo[0].get('Location')
             response = create_logout_response(
                 {
                     'logout_response': {
@@ -754,21 +747,47 @@ class IdpServer(object):
         abort(400)
 
     def metadata(self):
-        cert_file = self.server.config.cert_file
+        cert_file = self._config.idp_certificate_file_path
         with open(cert_file, 'r') as fp:
             cert = fp.readlines()[1:-1]
             cert = ''.join(cert)
-        endpoints = getattr(self.server.config, '_idp_endpoints')
+        endpoints = self._config.endpoints
         sso = endpoints.get('single_sign_on_service')
         slo = endpoints.get('single_logout_service')
-        sso = [Sso(location=_sso[0], binding=_sso[1]) for _sso in sso]
-        slo = [Slo(location=_slo[0], binding=_slo[1]) for _slo in slo]
+        sso_list = []
+        slo_list = []
+        for _sso in sso:
+            sso_list.append(
+                Sso(
+                    binding=BINDING_HTTP_POST,
+                    location=_sso
+                )
+            )
+            sso_list.append(
+                Sso(
+                    binding=BINDING_HTTP_REDIRECT,
+                    location=_sso
+                )
+            )
+        for _slo in slo:
+            slo_list.append(
+                Slo(
+                    binding=BINDING_HTTP_POST,
+                    location=_slo
+                )
+            )
+            slo_list.append(
+                Slo(
+                    binding=BINDING_HTTP_REDIRECT,
+                    location=_slo
+                )
+            )
         metadata = create_idp_metadata(
-            entity_id=self.server.config.entityid,
+            entity_id=self._config.entity_id,
             want_authn_requests_signed='true',
             keys=[Key(use='signing', value=cert)],
-            single_sign_on_services=sso,
-            single_logout_services=slo
+            single_sign_on_services=sso_list,
+            single_logout_services=slo_list
         ).to_xml()
         return Response(metadata, mimetype='text/xml')
 
