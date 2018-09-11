@@ -750,8 +750,8 @@ class IdpServer(object):
         endpoints = getattr(self.server.config, '_idp_endpoints')
         sso = endpoints.get('single_sign_on_service')
         slo = endpoints.get('single_logout_service')
-        sso = [Sso(*_sso) for _sso in sso]
-        slo = [Slo(*_slo) for _slo in slo]
+        sso = [Sso(location=_sso[0], binding=_sso[1]) for _sso in sso]
+        slo = [Slo(location=_slo[0], binding=_slo[1]) for _slo in slo]
         metadata = create_idp_metadata(
             entity_id=self.server.config.entityid,
             want_authn_requests_signed='true',
