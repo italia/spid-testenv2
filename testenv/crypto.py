@@ -98,9 +98,13 @@ RSA_SIGNERS = {
 
 
 def sign_http_post(xmlstr, key, cert, message=False, assertion=True):
+    # We have to use xml-exc-c14n# because when we isolate the Assertion
+    # element below, a superfluous xmlns:samlp attribute gets added by etree.tostring()
+    # which is not removed by xml-c14n11 (thus generating a wrong digest).
     signer = XMLSigner(
         signature_algorithm='rsa-sha256',
         digest_algorithm='sha256',
+        c14n_algorithm='http://www.w3.org/2001/10/xml-exc-c14n#',
     )
     root = fromstring(xmlstr)
     if message:
