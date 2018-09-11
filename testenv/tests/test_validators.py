@@ -20,11 +20,24 @@ class FakeTranslator(object):
 
 
 class FakeConfig(object):
-    def __init__(self, endpoint):
+    def __init__(self, endpoint, entity_id):
         self._endpoint = endpoint
+        self._entity_id = entity_id
 
     def receivers(self, *args, **kwargs):
         return [self._endpoint]
+
+    @property
+    def entity_id(self, *args, **kwargs):
+        return self._entity_id
+
+
+class FakeMetadata(dict):
+    def __init__(self, service_providers):
+        self._service_providers = service_providers
+
+    def service_providers(self):
+        return self._service_providers
 
 
 class XMLFormatValidatorTestCase(unittest.TestCase):
@@ -163,7 +176,7 @@ class SPIDValidatorTestCase(unittest.TestCase):
     @freeze_time('2018-08-18T06:55:22Z')
     def test_missing_issuer(self):
         # https://github.com/italia/spid-testenv2/issues/133
-        config = FakeConfig('http://localhost:8088/sso')
+        config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
         request = FakeRequest(sample_requests.missing_issuer)
         for binding in [settings.BINDING_HTTP_POST, settings.BINDING_HTTP_REDIRECT]:
             validator = SpidValidator('login', binding, {}, config)
@@ -171,3 +184,16 @@ class SPIDValidatorTestCase(unittest.TestCase):
                 validator.validate(request)
             exc = excinfo.value
             self.assertEqual('required key not provided', exc.details[0].message)
+
+    @freeze_time('2018-08-18T06:55:22Z')
+    def test_wrong_destination(self):
+        # https://github.com/italia/spid-testenv2/issues/158
+        config = FakeConfig('http://localhost:9999/sso', 'http://localhost:9999/')
+        request = FakeRequest(sample_requests.wrong_destination)
+        metadata = FakeMetadata(['https://localhost:8088/'])
+        for binding in [settings.BINDING_HTTP_POST, settings.BINDING_HTTP_REDIRECT]:
+            validator = SpidValidator('login', binding, metadata, config)
+            with pytest.raises(SPIDValidationError) as excinfo:
+                validator.validate(request)
+            exc = excinfo.value
+            self.assertEqual('è diverso dal valore di riferimento http://localhost:9999/', exc.details[0].message)
