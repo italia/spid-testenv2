@@ -169,10 +169,8 @@ class SpidValidator(object):
         atcss = []
         if self._action == 'login':
             req_type = 'AuthnRequest'
-            service = 'single_sign_on_service'
         elif self._action == 'logout':
             req_type = 'LogoutRequest'
-            service = 'single_logout_service'
         issuer_name = data.get(
             '{urn:oasis:names:tc:SAML:2.0:protocol}%s' % (req_type), {}
         ).get(
@@ -200,7 +198,7 @@ class SpidValidator(object):
             ascss = []
         attribute_consuming_service_indexes = [str(el.get('index')) for el in atcss]
         assertion_consumer_service_indexes = [str(el.get('index')) for el in ascss]
-        receivers = self._config.receivers(service)
+        entity_id = self._config.entity_id
 
         issuer = Schema(
             {
@@ -348,7 +346,9 @@ class SpidValidator(object):
                     'ID': str,
                     'Version': Equal('2.0', msg=DEFAULT_VALUE_ERROR.format('2.0')),
                     'IssueInstant': All(str, self._check_utc_date, self._check_date_in_range),
-                    'Destination': In(receivers, msg=DEFAULT_LIST_VALUE_ERROR.format(receivers)),
+                    'Destination': Equal(
+                        entity_id, msg=DEFAULT_VALUE_ERROR.format(entity_id)
+                    ),
                     Optional('ForceAuthn'): str,
                     Optional('AttributeConsumingServiceIndex'): In(
                         attribute_consuming_service_indexes,
@@ -398,7 +398,9 @@ class SpidValidator(object):
                         'ID': str,
                         'Version': Equal('2.0', msg=DEFAULT_VALUE_ERROR.format('2.0')),
                         'IssueInstant': All(str, self._check_utc_date, self._check_date_in_range),
-                        'Destination': In(receivers, msg=DEFAULT_LIST_VALUE_ERROR.format(receivers)),
+                        'Destination': Equal(
+                            entity_id, msg=DEFAULT_VALUE_ERROR.format(entity_id)
+                        ),
                     },
                     'children': {
                         '{%s}Issuer' % (ASSERTION): issuer,

@@ -62,7 +62,7 @@ def generate_authn_request(data={}, acs_level=0):
     _id = data.get('id') if data.get('id') else 'test_123456'
     version = data.get('version') if data.get('version') else '2.0'
     issue_instant = data.get('issue_instant') if data.get('issue_instant') else '2018-07-16T09:38:29Z'
-    destination = data.get('destination') if data.get('destination') else 'http://spid-testenv:8088/sso-test'
+    destination = data.get('destination') if data.get('destination') else 'http://spid-testenv:8088'
     protocol_binding = data.get('protocol_binding') if data.get('protocol_binding') else BINDING_HTTP_POST
     acsi = data.get('assertion_consumer_service_index') if data.get('assertion_consumer_service_index') else '1'
     acsu = data.get('assertion_consumer_service_url') if data.get('assertion_consumer_service_url') else 'https://spid.test:8000/acs-test'
@@ -125,7 +125,7 @@ def generate_logout_request(data={}):
     _id = data.get('id') if data.get('id') else 'test_123456'
     version = data.get('version') if data.get('version') else '2.0'
     issue_instant = data.get('issue_instant') if data.get('issue_instant') else '2018-07-16T09:38:29Z'
-    destination = data.get('destination') if data.get('destination') else 'http://spid-testenv:8088/slo-test'
+    destination = data.get('destination') if data.get('destination') else 'http://spid-testenv:8088'
     issuer__format = data.get('issuer__format') if data.get('issuer__format') else NAMEID_FORMAT_ENTITY
     issuer_url = data.get('issuer__url') if data.get('issuer__url') else 'https://spid.test:8000'
     issuer__namequalifier = data.get('issuer__namequalifier') if data.get('issuer__namequalifier') else issuer_url
