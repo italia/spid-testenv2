@@ -109,7 +109,7 @@ KEY_INFO = '{}KeyInfo'.format(SIG_NS)
 X509_DATA = '{}X509Data'.format(SIG_NS)
 X509_CERTIFICATE = '{}X509Certificate'.format(SIG_NS)
 
-SIGNED_PARAMS = ['SAMLRequest', 'RelayState', 'SigAlg']
+SIGNED_PARAMS = ['SAMLRequest', 'SAMLResponse', 'RelayState', 'SigAlg']
 
 ########
 

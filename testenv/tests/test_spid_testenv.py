@@ -13,7 +13,6 @@ import flask
 from bs4 import BeautifulSoup as BS
 from freezegun import freeze_time
 from lxml import etree as ET
-from OpenSSL import crypto
 from six.moves.urllib.parse import parse_qs, quote, urlparse
 
 from testenv import config
@@ -23,6 +22,8 @@ from testenv.settings import (
     BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT, SIG_RSA_SHA1,
     SIG_RSA_SHA256,
 )
+
+from .utils import generate_certificate
 
 sys.path.insert(0, '../')
 spid_testenv = __import__("spid-testenv")
@@ -41,21 +42,6 @@ def _sp_single_logout_service(server, issuer_name, binding):
         issuer_name, binding=binding, typ='spsso'
     )
     return _slo
-
-
-def generate_certificate(fname, path=DATA_DIR):
-    key = crypto.PKey()
-    key.generate_key(crypto.TYPE_RSA, 2048)
-    cert = crypto.X509()
-    cert.get_subject().C = 'IT'
-    cert.gmtime_adj_notBefore(0)
-    cert.gmtime_adj_notAfter(10 * 365 * 24 * 60 * 60)
-    cert.set_pubkey(key)
-    cert.sign(key, str('sha256'))
-    open(os.path.join(path, '{}.crt'.format(fname)), "wb").write(
-        crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
-    open(os.path.join(path, '{}.key'.format(fname)), "wb").write(
-        crypto.dump_privatekey(crypto.FILETYPE_PEM, key))
 
 
 def generate_authn_request(data={}, acs_level=0):
@@ -166,8 +152,8 @@ class SpidTestenvTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        generate_certificate(fname='idp')
-        generate_certificate(fname='sp')
+        generate_certificate(fname='idp', path=DATA_DIR)
+        generate_certificate(fname='sp', path=DATA_DIR)
         example_metadata = os.path.join(DATA_DIR, 'sp-metadata.xml.example')
         sp_cert = os.path.join(DATA_DIR, 'sp.crt')
         tmp_metadata = os.path.join(DATA_DIR, 'sp-metadata.xml')
