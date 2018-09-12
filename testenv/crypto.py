@@ -127,7 +127,7 @@ def sign_http_redirect(xmlstr, key, relay_state=None, req_type='SAMLResponse'):
         req_type: encoded_message,
         'SigAlg': SIG_RSA_SHA256,
     }
-    if relay_state is not None:
+    if relay_state is not None and relay_state.strip() != '':
         args['RelayState'] = relay_state
     query_string = '&'.join(
         [urlencode({k: args[k]})

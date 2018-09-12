@@ -1,13 +1,34 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import os
+import os.path
 import unittest
+from base64 import b64decode
 
 import pytest
+from cryptography.hazmat.backends import default_backend
+from cryptography.x509 import load_pem_x509_certificate
+from lxml import etree
+from signxml import XMLVerifier
+from signxml.exceptions import InvalidInput
+from six.moves.urllib.parse import parse_qs
 
-from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier
+from testenv.crypto import (
+    RSA_VERIFIERS, HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect,
+)
 from testenv.exceptions import SignatureVerificationError
 from testenv.parser import HTTPPostRequest, HTTPRedirectRequest
+from testenv.saml import create_response
+from testenv.settings import SIG_RSA_SHA256, SPID_LEVEL_1, STATUS_SUCCESS
+
+from .utils import generate_certificate
+
+try:
+    from urllib import urlencode
+except ImportError:
+    from urllib.parse import urlencode
+
 
 CERTIFICATE = """\
 MIICqDCCAhGgAwIBAgIBADANBgkqhkiG9w0BAQ0FADBxMQswCQYDVQQGEwJpdDEL
@@ -33,6 +54,9 @@ SUPPORTED_SIG_ALG = [
     'http://www.w3.org/2001/04/xmldsig-more#rsa-sha384',
     'http://www.w3.org/2001/04/xmldsig-more#rsa-sha512',
 ]
+
+
+DATA_DIR = 'testenv/tests/data/'
 
 
 class HTTPRedirectSignatureVerifierTestCase(unittest.TestCase):
@@ -261,3 +285,286 @@ class HTTPPostSignatureVerifierTestCase(unittest.TestCase):
             verifier.verify()
         exc = excinfo.value
         self.assertEqual('Verifica della firma fallita.', exc.args[0])
+
+
+class SignedResponseTestCase(unittest.TestCase):
+
+    def setUp(cls):
+        generate_certificate(fname='test', path=DATA_DIR)
+
+    def tearDown(self):
+        to_remove = ['test.key', 'test.crt',]
+        for f in to_remove:
+            os.remove(os.path.join(DATA_DIR, f))
+
+    def test_sign_http_post(self):
+        # https://github.com/italia/spid-testenv2/issues/169
+        response_xmlstr = create_response(
+            {
+                'response': {
+                    'attrs': {
+                        'in_response_to': 'test_12345',
+                        'destination': 'http://post'
+                    }
+                },
+                'issuer': {
+                    'attrs': {
+                        'name_qualifier': 'http://test_id.entity',
+                    },
+                    'text': 'http://test_id.entity'
+                },
+                'name_id': {
+                    'attrs': {
+                        'name_qualifier': 'http://test_id.entity',
+                    }
+                },
+
+                'subject_confirmation_data': {
+                    'attrs': {
+                        'recipient': 'http://test_id.entity',
+                    }
+                },
+                'audience': {
+                    'text': 'http://test_sp_id.entity',
+                },
+                'authn_context_class_ref': {
+                    'text': SPID_LEVEL_1
+                }
+            },
+            {
+                'status_code': STATUS_SUCCESS
+            },
+            {}
+        ).to_xml()
+        with open(
+            os.path.join(DATA_DIR, 'test.key'), 'r'
+        ) as fp, open(
+            os.path.join(DATA_DIR, 'test.crt'), 'r'
+        ) as fp2:
+            pkey = fp.read().encode('utf-8')
+            cert = fp2.read().encode('utf-8')
+            # No signature at all
+            response = sign_http_post(
+                response_xmlstr,
+                pkey,
+                cert,
+                message=False,
+                assertion=False
+            )
+            decoded_response = b64decode(response)
+            tree = etree.fromstring(decoded_response)
+            signature_values = tree.findall('.//{http://www.w3.org/2000/09/xmldsig#}SignatureValue')
+            digest_values = tree.findall('.//{http://www.w3.org/2000/09/xmldsig#}DigestValue')
+            self.assertEqual(len(signature_values), 0)
+            self.assertEqual(len(digest_values), 0)
+            with pytest.raises(InvalidInput) as excinfo:
+                XMLVerifier().verify(tree, x509_cert=cert)
+            # Signed response
+            response = sign_http_post(
+                response_xmlstr,
+                pkey,
+                cert,
+                message=True,
+                assertion=False
+            )
+            decoded_response = b64decode(response)
+            tree = etree.fromstring(decoded_response)
+            signature_values = tree.findall('.//{http://www.w3.org/2000/09/xmldsig#}SignatureValue')
+            digest_values = tree.findall('.//{http://www.w3.org/2000/09/xmldsig#}DigestValue')
+            self.assertEqual(len(signature_values), 1)
+            self.assertEqual(len(digest_values), 1)
+            XMLVerifier().verify(tree, x509_cert=cert)
+            # Signed assertion
+            response = sign_http_post(
+                response_xmlstr,
+                pkey,
+                cert,
+                message=False,
+                assertion=True
+            )
+            decoded_response = b64decode(response)
+            tree = etree.fromstring(decoded_response)
+            signature_values = tree.findall('.//{http://www.w3.org/2000/09/xmldsig#}SignatureValue')
+            digest_values = tree.findall('.//{http://www.w3.org/2000/09/xmldsig#}DigestValue')
+            self.assertEqual(len(signature_values), 1)
+            self.assertEqual(len(digest_values), 1)
+            XMLVerifier().verify(tree, x509_cert=cert)
+            # Signed response and assertion together
+            response = sign_http_post(
+                response_xmlstr,
+                pkey,
+                cert,
+                message=True,
+                assertion=True
+            )
+            decoded_response = b64decode(response)
+            tree = etree.fromstring(decoded_response)
+            signature_values = tree.findall('.//{http://www.w3.org/2000/09/xmldsig#}SignatureValue')
+            digest_values = tree.findall('.//{http://www.w3.org/2000/09/xmldsig#}DigestValue')
+            self.assertEqual(len(signature_values), 2)
+            self.assertEqual(len(digest_values), 2)
+            XMLVerifier().verify(tree, x509_cert=cert)
+
+    def test_sign_http_redirect(self):
+        # https://github.com/italia/spid-testenv2/issues/175
+        response_xmlstr = create_response(
+            {
+                'response': {
+                    'attrs': {
+                        'in_response_to': 'test_3210',
+                        'destination': 'http://redirect'
+                    }
+                },
+                'issuer': {
+                    'attrs': {
+                        'name_qualifier': 'http://test_id.entity',
+                    },
+                    'text': 'http://test_id.entity'
+                },
+                'name_id': {
+                    'attrs': {
+                        'name_qualifier': 'http://test_id.entity',
+                    }
+                },
+
+                'subject_confirmation_data': {
+                    'attrs': {
+                        'recipient': 'http://test_id.entity',
+                    }
+                },
+                'audience': {
+                    'text': 'http://test_sp_id.entity',
+                },
+                'authn_context_class_ref': {
+                    'text': SPID_LEVEL_1
+                }
+            },
+            {
+                'status_code': STATUS_SUCCESS
+            },
+            {}
+        ).to_xml()
+        with open(
+            os.path.join(DATA_DIR, 'test.key'), 'r'
+        ) as fp, open(
+            os.path.join(DATA_DIR, 'test.crt'), 'r'
+        ) as fp2:
+            pkey = fp.read().encode('utf-8')
+            cert = fp2.read().encode('utf-8')
+            verifier = RSA_VERIFIERS[SIG_RSA_SHA256]
+            # No relay state
+            url = sign_http_redirect(
+                response_xmlstr,
+                pkey,
+                relay_state=None
+            )
+            query = parse_qs(url)
+            self.assertIn(
+                'Signature',
+                query
+            )
+            self.assertIn(
+                'SigAlg',
+                query
+            )
+            self.assertNotIn(
+                'RelayState',
+                query
+            )
+            self.assertIn(
+                'SAMLResponse',
+                query
+            )
+            saml_response = query.get('SAMLResponse')[0]
+            sig_alg = query.get('SigAlg')[0]
+            signature = query.get('Signature')[0]
+            signature = b64decode(signature)
+            signed_data = '&'.join([
+                urlencode({'SAMLResponse': saml_response}),
+                urlencode({'SigAlg': sig_alg})
+            ])
+            signed_data = signed_data.encode('ascii')
+            verified = verifier.verify(
+                load_pem_x509_certificate(cert, backend=default_backend()).public_key(),
+                bytes(signed_data),
+                bytes(signature)
+            )
+            self.assertTrue(verified)
+            # No relay state (2)
+            url = sign_http_redirect(
+                response_xmlstr,
+                pkey,
+                relay_state=''
+            )
+            query = parse_qs(url)
+            self.assertIn(
+                'Signature',
+                query
+            )
+            self.assertIn(
+                'SigAlg',
+                query
+            )
+            self.assertNotIn(
+                'RelayState',
+                query
+            )
+            self.assertIn(
+                'SAMLResponse',
+                query
+            )
+            saml_response = query.get('SAMLResponse')[0]
+            sig_alg = query.get('SigAlg')[0]
+            signature = query.get('Signature')[0]
+            signature = b64decode(signature)
+            signed_data = '&'.join([
+                urlencode({'SAMLResponse': saml_response}),
+                urlencode({'SigAlg': sig_alg})
+            ])
+            signed_data = signed_data.encode('ascii')
+            verified = verifier.verify(
+                load_pem_x509_certificate(cert, backend=default_backend()).public_key(),
+                bytes(signed_data),
+                bytes(signature)
+            )
+            self.assertTrue(verified)
+            # with relay state
+            url = sign_http_redirect(
+                response_xmlstr,
+                pkey,
+                relay_state='somevalue'
+            )
+            query = parse_qs(url)
+            self.assertIn(
+                'Signature',
+                query
+            )
+            self.assertIn(
+                'SigAlg',
+                query
+            )
+            self.assertIn(
+                'RelayState',
+                query
+            )
+            self.assertIn(
+                'SAMLResponse',
+                query
+            )
+            saml_response = query.get('SAMLResponse')[0]
+            sig_alg = query.get('SigAlg')[0]
+            signature = query.get('Signature')[0]
+            relay_state = query.get('RelayState')[0]
+            signature = b64decode(signature)
+            signed_data = '&'.join([
+                urlencode({'SAMLResponse': saml_response}),
+                urlencode({'RelayState': relay_state}),
+                urlencode({'SigAlg': sig_alg})
+            ])
+            signed_data = signed_data.encode('ascii')
+            verified = verifier.verify(
+                load_pem_x509_certificate(cert, backend=default_backend()).public_key(),
+                bytes(signed_data),
+                bytes(signature)
+            )
+            self.assertTrue(verified)
