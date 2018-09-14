@@ -199,6 +199,7 @@ class SpidValidator(object):
         attribute_consuming_service_indexes = [str(el.get('index')) for el in atcss]
         assertion_consumer_service_indexes = [str(el.get('index')) for el in ascss]
         entity_id = self._config.entity_id
+        assertion_consumer_service_urls = [str(el.get('location')) for el in ascss]
 
         issuer = Schema(
             {
@@ -320,9 +321,20 @@ class SpidValidator(object):
                 and 'ProtocolBinding' in keys
                 and 'AssertionConsumerServiceIndex' not in keys
             ):
+                _errors = []
                 if attrs['ProtocolBinding'] != BINDING_HTTP_POST:
-                    raise Invalid(
-                        DEFAULT_VALUE_ERROR.format(BINDING_HTTP_POST), path=['ProtocolBinding'])
+                    _errors.append(
+                    Invalid(
+                        DEFAULT_VALUE_ERROR.format(BINDING_HTTP_POST), path=['ProtocolBinding']
+                    )
+                    )
+                if attrs['AssertionConsumerServiceURL'] not in assertion_consumer_service_urls:
+                    _errors.append(
+                        Invalid(
+                        DEFAULT_VALUE_ERROR.format(assertion_consumer_service_urls), path=['AssertionConsumerServiceURL'])
+                    )
+                if _errors:
+                    raise MultipleInvalid(errors=_errors)
                 return attrs
 
             elif (

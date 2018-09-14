@@ -33,11 +33,15 @@ class FakeConfig(object):
 
 
 class FakeMetadata(dict):
-    def __init__(self, service_providers):
+    def __init__(self, service_providers, assertion_consumer_services):
         self._service_providers = service_providers
+        self._assertion_consumer_services = assertion_consumer_services
 
     def service_providers(self):
         return self._service_providers
+
+    def assertion_consumer_service(self, assertion_consumer_service):
+        return self._assertion_consumer_services
 
 
 class XMLFormatValidatorTestCase(unittest.TestCase):
@@ -179,9 +183,10 @@ class SPIDValidatorTestCase(unittest.TestCase):
     def test_missing_issuer(self):
         # https://github.com/italia/spid-testenv2/issues/133
         config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
+        metadata = FakeMetadata(['https://localhost:8088/'], [{'index': 0, 'location': 'http://localhost:3000/spid-sso'}])
         for binding, val in {settings.BINDING_HTTP_POST: sample_requests.fake_signature, settings.BINDING_HTTP_REDIRECT: ''}.items():
             request = FakeRequest(sample_requests.missing_issuer)
-            validator = SpidValidator('login', binding, {}, config)
+            validator = SpidValidator('login', binding, metadata, config)
             with pytest.raises(SPIDValidationError) as excinfo:
                 request.saml_request = request.saml_request % (val)
                 validator.validate(request)
@@ -192,8 +197,11 @@ class SPIDValidatorTestCase(unittest.TestCase):
     def test_wrong_destination(self):
         # https://github.com/italia/spid-testenv2/issues/158
         config = FakeConfig('http://localhost:9999/sso', 'http://localhost:9999/')
-        metadata = FakeMetadata(['https://localhost:8088/'])
-        for binding, val in {settings.BINDING_HTTP_POST: sample_requests.fake_signature, settings.BINDING_HTTP_REDIRECT: ''}.items():
+        metadata = FakeMetadata(['https://localhost:8088/'], [{'index': 0, 'location': 'http://localhost:3000/spid-sso'}])
+        for binding, val in {
+            settings.BINDING_HTTP_POST: sample_requests.fake_signature,
+            settings.BINDING_HTTP_REDIRECT: ''
+        }.items():
             validator = SpidValidator('login', binding, metadata, config)
             request = FakeRequest(sample_requests.wrong_destination)
             with pytest.raises(SPIDValidationError) as excinfo:
@@ -208,7 +216,7 @@ class SPIDValidatorTestCase(unittest.TestCase):
         # https://github.com/italia/spid-testenv2/issues/165
         config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
         request = FakeRequest(sample_requests.no_signature % (''))
-        metadata = FakeMetadata(['https://localhost:8088/'])
+        metadata = FakeMetadata(['https://localhost:8088/'], [{'index': 0, 'location': 'http://localhost:3000/spid-sso'}])
         validator = SpidValidator('login', settings.BINDING_HTTP_POST, metadata, config)
         with pytest.raises(SPIDValidationError) as excinfo:
             validator.validate(request)
@@ -225,7 +233,7 @@ class SPIDValidatorTestCase(unittest.TestCase):
         # https://github.com/italia/spid-testenv2/issues/165
         config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
         request = FakeRequest(sample_requests.no_signature % (sample_requests.fake_signature))
-        metadata = FakeMetadata(['https://localhost:8088/'])
+        metadata = FakeMetadata(['https://localhost:8088/'], [{'index': 0, 'location': 'http://localhost:3000/spid-sso'}])
         validator = SpidValidator('login', settings.BINDING_HTTP_POST, metadata, config)
         validator.validate(request)
 
@@ -235,7 +243,7 @@ class SPIDValidatorTestCase(unittest.TestCase):
         # https://github.com/italia/spid-testenv2/issues/165
         config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
         request = FakeRequest(sample_requests.no_signature % (sample_requests.fake_signature))
-        metadata = FakeMetadata(['https://localhost:8088/'])
+        metadata = FakeMetadata(['https://localhost:8088/'], [{'index': 0, 'location': 'http://localhost:3000/spid-sso'}])
         validator = SpidValidator('login', settings.BINDING_HTTP_REDIRECT, metadata, config)
         with pytest.raises(SPIDValidationError) as excinfo:
             validator.validate(request)
@@ -252,6 +260,6 @@ class SPIDValidatorTestCase(unittest.TestCase):
         # https://github.com/italia/spid-testenv2/issues/165
         config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
         request = FakeRequest(sample_requests.no_signature % (''))
-        metadata = FakeMetadata(['https://localhost:8088/'])
+        metadata = FakeMetadata(['https://localhost:8088/'], [{'index': 0, 'location': 'http://localhost:3000/spid-sso'}])
         validator = SpidValidator('login', settings.BINDING_HTTP_REDIRECT, metadata, config)
         validator.validate(request)
