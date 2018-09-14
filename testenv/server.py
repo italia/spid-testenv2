@@ -400,6 +400,13 @@ class IdpServer(object):
                 )
         return destination
 
+    def _attribute_type(self, attribute_name):
+        if attribute_name in self._spid_main_fields:
+            _type = self._spid_attributes['primary'][attribute_name]
+        else:
+            _type = self._spid_attributes['secondary'][attribute_name]
+        return _type
+
     def login(self):
         """
         Login endpoint (verify user credentials)
@@ -464,18 +471,22 @@ class IdpServer(object):
                             required = []
                             optional = []
 
-                        for k, v in identity.items():
-                            if k in self._spid_main_fields:
-                                _type = self._spid_attributes['primary'][k]
-                            else:
-                                _type = self._spid_attributes['secondary'][k]
-                            identity[k] = (_type, v)
+                        for attr_name, val in identity.items():
+                            _type = self._attribute_type(attr_name)
+                            identity[attr_name] = (_type, val)
 
                         _identity = {}
+                        # TODO: refactor a bit the following snippet
                         for _key in required:
-                            _identity[_key] = identity[_key]
+                            try:
+                                _identity[_key] = identity[_key]
+                            except KeyError:
+                                _identity[_key] = ('', self._attribute_type(_key))
                         for _key in optional:
-                            _identity[_key] = identity[_key]
+                            try:
+                                _identity[_key] = identity[_key]
+                            except KeyError:
+                                _identity[_key] = ('', self._attribute_type(_key))
 
                         self.app.logger.debug(
                             'Filtered data: {}'.format(_identity)

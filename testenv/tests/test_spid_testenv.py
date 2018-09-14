@@ -45,19 +45,20 @@ def _sp_single_logout_service(server, issuer_name, binding):
 
 
 def generate_authn_request(data={}, acs_level=0, sign=False):
-    _id = data.get('id') if data.get('id') else 'test_123456'
-    version = data.get('version') if data.get('version') else '2.0'
-    issue_instant = data.get('issue_instant') if data.get('issue_instant') else '2018-07-16T09:38:29Z'
-    destination = data.get('destination') if data.get('destination') else 'http://spid-testenv:8088'
-    protocol_binding = data.get('protocol_binding') if data.get('protocol_binding') else BINDING_HTTP_POST
-    acsi = data.get('assertion_consumer_service_index') if data.get('assertion_consumer_service_index') else '1'
-    acsu = data.get('assertion_consumer_service_url') if data.get('assertion_consumer_service_url') else 'http://127.0.0.1:8000/acs-test'
-    issuer__format = data.get('issuer__format') if data.get('issuer__format') else NAMEID_FORMAT_ENTITY
-    issuer_url = data.get('issuer__url') if data.get('issuer__url') else 'https://spid.test:8000'
-    issuer__namequalifier = data.get('issuer__namequalifier') if data.get('issuer__namequalifier') else issuer_url
-    name_id_policy__format = data.get('name_id_policy__format') if data.get('name_id_policy__format') else NAMEID_FORMAT_TRANSIENT
-    requested_authn_context__comparison = data.get('requested_authn_context__comparison') if data.get('requested_authn_context__comparison') else 'exact'
-    requested_authn_context__authn_context_class_ref = data.get('requested_authn_context__authn_context_class_ref') if data.get('requested_authn_context__authn_context_class_ref') else 'https://www.spid.gov.it/SpidL1'
+    _id = data.get('id', 'test_123456')
+    version = data.get('version', '2.0')
+    issue_instant = data.get('issue_instant', '2018-07-16T09:38:29Z')
+    destination = data.get('destination', 'http://spid-testenv:8088')
+    protocol_binding = data.get('protocol_binding', BINDING_HTTP_POST)
+    acsi = data.get('assertion_consumer_service_index', '1')
+    acsu = data.get('assertion_consumer_service_url', 'http://127.0.0.1:8000/acs-test')
+    issuer__format = data.get('issuer__format', NAMEID_FORMAT_ENTITY)
+    issuer_url = data.get('issuer__url', 'https://spid.test:8000')
+    issuer__namequalifier = data.get('issuer__namequalifier', issuer_url)
+    name_id_policy__format = data.get('name_id_policy__format', NAMEID_FORMAT_TRANSIENT)
+    requested_authn_context__comparison = data.get('requested_authn_context__comparison', 'exact')
+    requested_authn_context__authn_context_class_ref = data.get('requested_authn_context__authn_context_class_ref', 'https://www.spid.gov.it/SpidL1')
+    attribute_consuming_service_index = data.get('attribute_consuming_service_index', '')
 
     if acs_level == 0:
         _acs = '''
@@ -76,6 +77,13 @@ def generate_authn_request(data={}, acs_level=0, sign=False):
         '''  % (protocol_binding, acsu, acsi)
     else:
         _acs = ''
+
+    if attribute_consuming_service_index:
+        _atcs = '''
+        AttributeConsumingServiceIndex="%s"
+        ''' % attribute_consuming_service_index
+    else:
+        _atcs = ''
 
     if sign:
         signature = '''<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
@@ -108,7 +116,7 @@ def generate_authn_request(data={}, acs_level=0, sign=False):
                     Version="%s"
                     IssueInstant="%s"
                     Destination="%s"
-                    %s>
+                    %s %s>
         <saml:Issuer Format="%s"
                     NameQualifier="%s">%s</saml:Issuer>
         %s
@@ -123,6 +131,7 @@ def generate_authn_request(data={}, acs_level=0, sign=False):
         issue_instant,
         destination,
         _acs,
+        _atcs,
         issuer__format,
         issuer__namequalifier,
         issuer_url,
@@ -821,6 +830,42 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertIn(
             'someacs è diverso dal valore di riferimento [&#39;http://127.0.0.1:8000/acs-test&#39;]',
             response_text
+        )
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch('testenv.parser.HTTPRedirectRequestParser._decode_saml_request', return_value=generate_authn_request(data={'attribute_consuming_service_index': 1}))
+    @patch('testenv.crypto.HTTPRedirectSignatureVerifier.verify', return_value=True)
+    def test_user_without_some_requested_attribute(self, verified, unravel):
+        # https://github.com/italia/spid-testenv2/issues/164
+        # https://github.com/italia/spid-testenv2/issues/144
+        self.idp_server.user_manager.add(
+            'noattr', 'noattr', None, {
+                'lastname': 'abc'
+            }
+        )
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
+            follow_redirects=True
+        )
+        response = self.test_client.post(
+            '/login',
+            data={
+                'confirm': 1,
+                'username': 'test',
+                'password': 'test'
+            },
+            follow_redirects=True
+        )
+        response_text = response.get_data(as_text=True)
+        self.assertIn('spidCode', response_text)
+        key = list(self.idp_server.ticket.keys())[0]
+        response = self.test_client.post(
+            '/continue-response',
+            data={
+                'confirm': 1,
+                'request_key': key
+            },
+            follow_redirects=False
         )
 
 if __name__ == '__main__':
