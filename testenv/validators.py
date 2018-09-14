@@ -363,8 +363,10 @@ class SpidValidator(object):
             required=True
         )
 
+        AUTHNREQUEST_TAG = '{%s}AuthnRequest' % (PROTOCOL)
+
         authnrequest_schema = {
-            '{%s}AuthnRequest' % (PROTOCOL): {
+            AUTHNREQUEST_TAG: {
                 'attrs': authnrequest_attr_schema,
                 'children': Schema(
                     {
@@ -382,7 +384,15 @@ class SpidValidator(object):
         }
 
         if self._binding == BINDING_HTTP_POST:
-            authnrequest_schema['{%s}AuthnRequest' % (PROTOCOL)]['children'].extend = {'{%s}Signature' % (SIGNATURE) : signature}
+            # Add signature schema
+            _new_sub_schema = authnrequest_schema[
+                AUTHNREQUEST_TAG
+            ]['children'].extend(
+                    {
+                        '{%s}Signature' % (SIGNATURE) : signature
+                    }
+                )
+            authnrequest_schema[AUTHNREQUEST_TAG]['children'] = _new_sub_schema
 
         authn_request = Schema(
             authnrequest_schema,
