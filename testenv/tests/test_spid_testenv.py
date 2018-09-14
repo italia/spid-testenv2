@@ -44,7 +44,7 @@ def _sp_single_logout_service(server, issuer_name, binding):
     return _slo
 
 
-def generate_authn_request(data={}, acs_level=0):
+def generate_authn_request(data={}, acs_level=0, sign=False):
     _id = data.get('id') if data.get('id') else 'test_123456'
     version = data.get('version') if data.get('version') else '2.0'
     issue_instant = data.get('issue_instant') if data.get('issue_instant') else '2018-07-16T09:38:29Z'
@@ -77,6 +77,31 @@ def generate_authn_request(data={}, acs_level=0):
     else:
         _acs = ''
 
+    if sign:
+        signature = '''<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+            <ds:SignedInfo>
+            <ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+            <ds:SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>
+            <ds:Reference URI="#pfx41d8ef22-e612-8c50-9960-1b16f15741b3">
+                <ds:Transforms>
+                <ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>
+                <ds:Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+                </ds:Transforms>
+                <ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>
+                <ds:DigestValue>yJN6cXUwQxTmMEsPesBP2NkqYFI=</ds:DigestValue>
+            </ds:Reference>
+            </ds:SignedInfo>
+            <ds:SignatureValue>g5eM9yPnKsmmE/Kh2qS7nfK8HoF6yHrAdNQxh70kh8pRI4KaNbYNOL9sF8F57Yd+jO6iNga8nnbwhbATKGXIZOJJSugXGAMRyZsj/rqngwTJk5KmujbqouR1SLFsbo7Iuwze933EgefBbAE4JRI7V2aD9YgmB3socPqAi2Qf97E=</ds:SignatureValue>
+            <ds:KeyInfo>
+            <ds:X509Data>
+                <ds:X509Certificate>MIICajCCAdOgAwIBAgIBADANBgkqhkiG9w0BAQQFADBSMQswCQYDVQQGEwJ1czETMBEGA1UECAwKQ2FsaWZvcm5pYTEVMBMGA1UECgwMT25lbG9naW4gSW5jMRcwFQYDVQQDDA5zcC5leGFtcGxlLmNvbTAeFw0xNDA3MTcwMDI5MjdaFw0xNTA3MTcwMDI5MjdaMFIxCzAJBgNVBAYTAnVzMRMwEQYDVQQIDApDYWxpZm9ybmlhMRUwEwYDVQQKDAxPbmVsb2dpbiBJbmMxFzAVBgNVBAMMDnNwLmV4YW1wbGUuY29tMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC7vU/6R/OBA6BKsZH4L2bIQ2cqBO7/aMfPjUPJPSn59d/f0aRqSC58YYrPuQODydUABiCknOn9yV0fEYm4bNvfjroTEd8bDlqo5oAXAUAI8XHPppJNz7pxbhZW0u35q45PJzGM9nCv9bglDQYJLby1ZUdHsSiDIpMbGgf/ZrxqawIDAQABo1AwTjAdBgNVHQ4EFgQU3s2NEpYx7wH6bq7xJFKa46jBDf4wHwYDVR0jBBgwFoAU3s2NEpYx7wH6bq7xJFKa46jBDf4wDAYDVR0TBAUwAwEB/zANBgkqhkiG9w0BAQQFAAOBgQCPsNO2FG+zmk5miXEswAs30E14rBJpe/64FBpM1rPzOleexvMgZlr0/smF3P5TWb7H8Fy5kEiByxMjaQmml/nQx6qgVVzdhaTANpIE1ywEzVJlhdvw4hmRuEKYqTaFMLez0sRL79LUeDxPWw7Mj9FkpRYT+kAGiFomHop1nErV6Q==</ds:X509Certificate>
+            </ds:X509Data>
+            </ds:KeyInfo>
+        </ds:Signature>
+        '''
+    else:
+        signature = ''
+
     xmlstr = '''<samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
                     xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
                     ID="%s"
@@ -86,6 +111,7 @@ def generate_authn_request(data={}, acs_level=0):
                     %s>
         <saml:Issuer Format="%s"
                     NameQualifier="%s">%s</saml:Issuer>
+        %s
         <samlp:NameIDPolicy Format="%s" />
         <samlp:RequestedAuthnContext Comparison="%s">
             <saml:AuthnContextClassRef>%s</saml:AuthnContextClassRef>
@@ -100,6 +126,7 @@ def generate_authn_request(data={}, acs_level=0):
         issuer__format,
         issuer__namequalifier,
         issuer_url,
+        signature,
         name_id_policy__format,
         requested_authn_context__comparison,
         requested_authn_context__authn_context_class_ref
@@ -727,7 +754,7 @@ class SpidTestenvTest(unittest.TestCase):
             self.assertEqual(len(self.idp_server.responses), 0)
 
     @freeze_time("2018-07-16T09:38:29Z")
-    @patch('testenv.parser.HTTPPostRequestParser._decode_saml_request', return_value=generate_authn_request())
+    @patch('testenv.parser.HTTPPostRequestParser._decode_saml_request', return_value=generate_authn_request(sign=True))
     @patch('testenv.crypto.HTTPPostSignatureVerifier.verify', return_value=True)
     def test_relaystate_in_post_request_to_sp(self, verified, unravel):
         # https://github.com/italia/spid-testenv2/issues/135
