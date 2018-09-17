@@ -211,11 +211,11 @@ class SPIDValidatorTestCase(unittest.TestCase):
             self.assertEqual('è diverso dal valore di riferimento http://localhost:9999/', exc.details[0].message)
 
     @freeze_time('2018-08-18T06:55:22Z')
-    def test_http_post_without_signature(self):
+    def test_authn_request_http_post_without_signature(self):
         # https://github.com/italia/spid-testenv2/issues/159
         # https://github.com/italia/spid-testenv2/issues/165
         config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
-        request = FakeRequest(sample_requests.no_signature % (''))
+        request = FakeRequest(sample_requests.auth_no_signature % (''))
         metadata = FakeMetadata(['https://localhost:8088/'], [{'index': 0, 'location': 'http://localhost:3000/spid-sso'}])
         validator = SpidValidator('login', settings.BINDING_HTTP_POST, metadata, config)
         with pytest.raises(SPIDValidationError) as excinfo:
@@ -228,21 +228,21 @@ class SPIDValidatorTestCase(unittest.TestCase):
         self.assertEqual('required key not provided', exc.details[0].message)
 
     @freeze_time('2018-08-18T06:55:22Z')
-    def test_http_post_with_signature(self):
+    def test_authn_request_http_post_with_signature(self):
         # https://github.com/italia/spid-testenv2/issues/159
         # https://github.com/italia/spid-testenv2/issues/165
         config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
-        request = FakeRequest(sample_requests.no_signature % (sample_requests.fake_signature))
+        request = FakeRequest(sample_requests.auth_no_signature % (sample_requests.fake_signature))
         metadata = FakeMetadata(['https://localhost:8088/'], [{'index': 0, 'location': 'http://localhost:3000/spid-sso'}])
         validator = SpidValidator('login', settings.BINDING_HTTP_POST, metadata, config)
         validator.validate(request)
 
     @freeze_time('2018-08-18T06:55:22Z')
-    def test_http_redirect_with_signature(self):
+    def test_authn_request_http_redirect_with_signature(self):
         # https://github.com/italia/spid-testenv2/issues/159
         # https://github.com/italia/spid-testenv2/issues/165
         config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
-        request = FakeRequest(sample_requests.no_signature % (sample_requests.fake_signature))
+        request = FakeRequest(sample_requests.auth_no_signature % (sample_requests.fake_signature))
         metadata = FakeMetadata(['https://localhost:8088/'], [{'index': 0, 'location': 'http://localhost:3000/spid-sso'}])
         validator = SpidValidator('login', settings.BINDING_HTTP_REDIRECT, metadata, config)
         with pytest.raises(SPIDValidationError) as excinfo:
@@ -255,11 +255,65 @@ class SPIDValidatorTestCase(unittest.TestCase):
         self.assertEqual('extra keys not allowed', exc.details[0].message)
 
     @freeze_time('2018-08-18T06:55:22Z')
-    def test_http_redirect_without_signature(self):
+    def test_authn_request_http_redirect_without_signature(self):
         # https://github.com/italia/spid-testenv2/issues/159
         # https://github.com/italia/spid-testenv2/issues/165
         config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
-        request = FakeRequest(sample_requests.no_signature % (''))
+        request = FakeRequest(sample_requests.auth_no_signature % (''))
         metadata = FakeMetadata(['https://localhost:8088/'], [{'index': 0, 'location': 'http://localhost:3000/spid-sso'}])
         validator = SpidValidator('login', settings.BINDING_HTTP_REDIRECT, metadata, config)
+        validator.validate(request)
+
+    @freeze_time('2018-08-18T06:55:22Z')
+    def test_logout_request_http_post_without_signature(self):
+        # https://github.com/italia/spid-testenv2/issues/159
+        # https://github.com/italia/spid-testenv2/issues/165
+        config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
+        request = FakeRequest(sample_requests.logout_no_signature % (''))
+        metadata = FakeMetadata(['https://localhost:8088/'], [{'index': 0, 'location': 'http://localhost:3000/spid-slo'}])
+        validator = SpidValidator('logout', settings.BINDING_HTTP_POST, metadata, config)
+        with pytest.raises(SPIDValidationError) as excinfo:
+            validator.validate(request)
+        exc = excinfo.value
+        self.assertEqual(
+            'xpath: {urn:oasis:names:tc:SAML:2.0:protocol}LogoutRequest/{http://www.w3.org/2000/09/xmldsig#}Signature',
+            exc.details[0].path
+        )
+        self.assertEqual('required key not provided', exc.details[0].message)
+
+    @freeze_time('2018-08-18T06:55:22Z')
+    def test_logout_request_http_post_with_signature(self):
+        # https://github.com/italia/spid-testenv2/issues/159
+        # https://github.com/italia/spid-testenv2/issues/165
+        config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
+        request = FakeRequest(sample_requests.logout_no_signature % (sample_requests.fake_signature))
+        metadata = FakeMetadata(['https://localhost:8088/'], [{'index': 0, 'location': 'http://localhost:3000/spid-slo'}])
+        validator = SpidValidator('logout', settings.BINDING_HTTP_POST, metadata, config)
+        validator.validate(request)
+
+    @freeze_time('2018-08-18T06:55:22Z')
+    def test_logout_request_http_redirect_with_signature(self):
+        # https://github.com/italia/spid-testenv2/issues/159
+        # https://github.com/italia/spid-testenv2/issues/165
+        config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
+        request = FakeRequest(sample_requests.logout_no_signature % (sample_requests.fake_signature))
+        metadata = FakeMetadata(['https://localhost:8088/'], [{'index': 0, 'location': 'http://localhost:3000/spid-slo'}])
+        validator = SpidValidator('logout', settings.BINDING_HTTP_REDIRECT, metadata, config)
+        with pytest.raises(SPIDValidationError) as excinfo:
+            validator.validate(request)
+        exc = excinfo.value
+        self.assertEqual(
+            'xpath: {urn:oasis:names:tc:SAML:2.0:protocol}LogoutRequest/{http://www.w3.org/2000/09/xmldsig#}Signature',
+            exc.details[0].path
+        )
+        self.assertEqual('extra keys not allowed', exc.details[0].message)
+
+    @freeze_time('2018-08-18T06:55:22Z')
+    def test_logout_request_http_redirect_without_signature(self):
+        # https://github.com/italia/spid-testenv2/issues/159
+        # https://github.com/italia/spid-testenv2/issues/165
+        config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
+        request = FakeRequest(sample_requests.logout_no_signature % (''))
+        metadata = FakeMetadata(['https://localhost:8088/'], [{'index': 0, 'location': 'http://localhost:3000/spid-slo'}])
+        validator = SpidValidator('logout', settings.BINDING_HTTP_REDIRECT, metadata, config)
         validator.validate(request)

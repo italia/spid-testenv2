@@ -395,43 +395,67 @@ class SpidValidator(object):
             }
         }
 
-        if self._binding == BINDING_HTTP_POST:
-            # Add signature schema
-            _new_sub_schema = authnrequest_schema[
-                AUTHNREQUEST_TAG
-            ]['children'].extend(
+        # LOGOUT
+
+        LOGOUTREQUEST_TAG = '{%s}LogoutRequest' % (PROTOCOL)
+
+        logoutrequest_attr_schema = Schema(
+            All(
+                {
+                    'ID': str,
+                    'Version': Equal('2.0', msg=DEFAULT_VALUE_ERROR.format('2.0')),
+                    'IssueInstant': All(str, self._check_utc_date, self._check_date_in_range),
+                    'Destination': Equal(
+                        entity_id, msg=DEFAULT_VALUE_ERROR.format(entity_id)
+                    )
+                }
+            ),
+            required=True
+        )
+
+        logoutrequest_schema = {
+            LOGOUTREQUEST_TAG: {
+                'attrs': logoutrequest_attr_schema,
+                'children': Schema(
                     {
-                        '{%s}Signature' % (SIGNATURE) : signature
-                    }
-                )
-            authnrequest_schema[AUTHNREQUEST_TAG]['children'] = _new_sub_schema
+                        '{%s}Issuer' % (ASSERTION): issuer,
+                        '{%s}NameID' % (ASSERTION): name_id,
+                        '{%s}SessionIndex' % (PROTOCOL): dict,
+                    },
+                    required=True
+                ),
+                'text': None
+            }
+        }
+
+        if self._binding == BINDING_HTTP_POST:
+            if self._action == 'login':
+                # Add signature schema
+                _new_sub_schema = authnrequest_schema[
+                    AUTHNREQUEST_TAG
+                ]['children'].extend(
+                        {
+                            '{%s}Signature' % (SIGNATURE) : signature
+                        }
+                    )
+                authnrequest_schema[AUTHNREQUEST_TAG]['children'] = _new_sub_schema
+            if self._action == 'logout':
+                _new_sub_schema = logoutrequest_schema[
+                    LOGOUTREQUEST_TAG
+                ]['children'].extend(
+                        {
+                            '{%s}Signature' % (SIGNATURE) : signature
+                        }
+                    )
+                logoutrequest_schema[LOGOUTREQUEST_TAG]['children'] = _new_sub_schema
 
         authn_request = Schema(
             authnrequest_schema,
             required=True,
         )
 
-        # LOGOUT
-
-        logout_request= Schema(
-            {
-                '{%s}LogoutRequest' % (PROTOCOL): {
-                    'attrs': {
-                        'ID': str,
-                        'Version': Equal('2.0', msg=DEFAULT_VALUE_ERROR.format('2.0')),
-                        'IssueInstant': All(str, self._check_utc_date, self._check_date_in_range),
-                        'Destination': Equal(
-                            entity_id, msg=DEFAULT_VALUE_ERROR.format(entity_id)
-                        ),
-                    },
-                    'children': {
-                        '{%s}Issuer' % (ASSERTION): issuer,
-                        '{%s}NameID' % (ASSERTION): name_id,
-                        '{%s}SessionIndex' % (PROTOCOL): dict,
-                    },
-                    'text': None
-                }
-            },
+        logout_request = Schema(
+            logoutrequest_schema,
             required=True,
         )
 

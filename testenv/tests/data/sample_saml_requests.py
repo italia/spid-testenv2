@@ -109,13 +109,20 @@ wrong_destination = """\
 </saml2p:AuthnRequest>
 """
 
-no_signature = """\
+auth_no_signature = """\
 <saml2p:AuthnRequest ForceAuthn="false" AssertionConsumerServiceURL="http://localhost:3000/spid-sso" ID="_980c46de183f4818b1f765dfb22fd1dc" Destination="http://localhost:8088/" IssueInstant="2018-08-18T06:57:22Z" ProtocolBinding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Version="2.0" xmlns:saml2p="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
     <saml2:Issuer Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity" NameQualifier="https://localhost:8088/">https://localhost:8088/</saml2:Issuer>%s<saml2p:NameIDPolicy Format="urn:oasis:names:tc:SAML:2.0:nameid-format:transient"></saml2p:NameIDPolicy>
     <saml2p:RequestedAuthnContext Comparison="minimum">
         <saml2:AuthnContextClassRef>https://www.spid.gov.it/SpidL1</saml2:AuthnContextClassRef>
     </saml2p:RequestedAuthnContext>
 </saml2p:AuthnRequest>
+"""
+
+logout_no_signature = """\
+<samlp:LogoutRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="_980c46de183f4818b1f765dfb22fd1dc" Version="2.0" IssueInstant="2018-08-18T06:57:22Z" Destination="http://localhost:8088/">
+  <saml:Issuer NameQualifier="https://localhost:8088/" Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity">https://localhost:8088/</saml:Issuer>%s<saml:NameID NameQualifier="https://localhost:8088/" Format="urn:oasis:names:tc:SAML:2.0:nameid-format:transient">id_123456</saml:NameID>
+<samlp:SessionIndex>id_999000999</samlp:SessionIndex>
+</samlp:LogoutRequest>
 """
 
 fake_signature = """<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
