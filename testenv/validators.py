@@ -28,6 +28,7 @@ ValidationDetail = namedtuple(
 
 
 class ValidatorGroup(object):
+
     def __init__(self, validators):
         self._validators = validators
         self._validation_errors = []
@@ -96,6 +97,7 @@ class XMLFormatValidator(object):
 
 
 class XMLMetadataFormatValidator(XMLFormatValidator):
+
     def validate(self, xmlstr):
         try:
             etree.fromstring(xmlstr, parser=self._parser)
@@ -175,6 +177,7 @@ class BaseXMLSchemaValidator(object):
 
 
 class AuthnRequestXMLSchemaValidator(BaseXMLSchemaValidator):
+
     def validate(self, request):
         xml = request.saml_request
         schema_type = 'protocol'
@@ -182,6 +185,7 @@ class AuthnRequestXMLSchemaValidator(BaseXMLSchemaValidator):
 
 
 class ServiceProviderMetadataXMLSchemaValidator(BaseXMLSchemaValidator):
+
     def validate(self, metadata):
         schema_type = 'metadata'
         return self._run(metadata, schema_type)
@@ -250,8 +254,10 @@ class SpidValidator(object):
                 ) for el in atcss if 'index' in el.get('attrs', {})
             ]
             ascss = sp_metadata.assertion_consumer_services
-            assertion_consumer_service_indexes = [str(el.get('index')) for el in ascss]
-            assertion_consumer_service_urls = [str(el.get('Location')) for el in ascss]
+            assertion_consumer_service_indexes = [
+                str(el.get('index')) for el in ascss]
+            assertion_consumer_service_urls = [
+                str(el.get('Location')) for el in ascss]
         else:
             attribute_consuming_service_indexes = []
             assertion_consumer_service_indexes = []
@@ -262,11 +268,13 @@ class SpidValidator(object):
             {
                 'attrs': {
                     'Format': Equal(
-                        NAMEID_FORMAT_ENTITY, msg=DEFAULT_VALUE_ERROR.format(NAMEID_FORMAT_ENTITY)
+                        NAMEID_FORMAT_ENTITY, msg=DEFAULT_VALUE_ERROR.format(
+                            NAMEID_FORMAT_ENTITY)
                     ),
                     'NameQualifier': Equal(
-                            issuer_name, msg=DEFAULT_VALUE_ERROR.format(issuer_name)
-                        ),
+                        issuer_name, msg=DEFAULT_VALUE_ERROR.format(
+                            issuer_name)
+                    ),
                 },
                 'children': {},
                 'text': str,
@@ -279,7 +287,8 @@ class SpidValidator(object):
                 'attrs': {
                     'NameQualifier': str,
                     'Format': Equal(
-                        NAMEID_FORMAT_TRANSIENT, msg=DEFAULT_VALUE_ERROR.format(NAMEID_FORMAT_TRANSIENT)
+                        NAMEID_FORMAT_TRANSIENT, msg=DEFAULT_VALUE_ERROR.format(
+                            NAMEID_FORMAT_TRANSIENT)
                     ),
                 },
                 'children': {},
@@ -292,7 +301,8 @@ class SpidValidator(object):
             {
                 'attrs': {
                     'Format': Equal(
-                        NAMEID_FORMAT_TRANSIENT, msg=DEFAULT_VALUE_ERROR.format(NAMEID_FORMAT_TRANSIENT)
+                        NAMEID_FORMAT_TRANSIENT, msg=DEFAULT_VALUE_ERROR.format(
+                            NAMEID_FORMAT_TRANSIENT)
                     ),
                 },
                 'children': {},
@@ -359,7 +369,8 @@ class SpidValidator(object):
             {
                 'attrs': {
                     'Format': Equal(
-                        NAMEID_FORMAT_ENTITY, msg=DEFAULT_VALUE_ERROR.format(NAMEID_FORMAT_ENTITY)
+                        NAMEID_FORMAT_ENTITY, msg=DEFAULT_VALUE_ERROR.format(
+                            NAMEID_FORMAT_ENTITY)
                     ),
                     'NameQualifier': str
                 },
@@ -374,34 +385,31 @@ class SpidValidator(object):
         def check_assertion_consumer_service(attrs):
             keys = attrs.keys()
             if (
-                'AssertionConsumerServiceURL' in keys
-                and 'ProtocolBinding' in keys
-                and 'AssertionConsumerServiceIndex' not in keys
+                'AssertionConsumerServiceURL' in keys and 'ProtocolBinding' in keys and 'AssertionConsumerServiceIndex' not in keys
             ):
                 _errors = []
                 if attrs['ProtocolBinding'] != BINDING_HTTP_POST:
                     _errors.append(
-                    Invalid(
-                        DEFAULT_VALUE_ERROR.format(BINDING_HTTP_POST), path=['ProtocolBinding']
-                    )
+                        Invalid(
+                            DEFAULT_VALUE_ERROR.format(BINDING_HTTP_POST), path=['ProtocolBinding']
+                        )
                     )
                 if attrs['AssertionConsumerServiceURL'] not in assertion_consumer_service_urls:
                     _errors.append(
                         Invalid(
-                        DEFAULT_VALUE_ERROR.format(assertion_consumer_service_urls), path=['AssertionConsumerServiceURL'])
+                            DEFAULT_VALUE_ERROR.format(assertion_consumer_service_urls), path=['AssertionConsumerServiceURL'])
                     )
                 if _errors:
                     raise MultipleInvalid(errors=_errors)
                 return attrs
 
             elif (
-                'AssertionConsumerServiceURL' not in keys
-                and 'ProtocolBinding' not in keys
-                and 'AssertionConsumerServiceIndex' in keys
+                'AssertionConsumerServiceURL' not in keys and 'ProtocolBinding' not in keys and 'AssertionConsumerServiceIndex' in keys
             ):
                 if attrs['AssertionConsumerServiceIndex'] not in assertion_consumer_service_indexes:
                     raise Invalid(
-                        DEFAULT_LIST_VALUE_ERROR.format(assertion_consumer_service_indexes),
+                        DEFAULT_LIST_VALUE_ERROR.format(
+                            assertion_consumer_service_indexes),
                         path=['AssertionConsumerServiceIndex'])
                 return attrs
 
@@ -421,7 +429,8 @@ class SpidValidator(object):
                     Optional('ForceAuthn'): str,
                     Optional('AttributeConsumingServiceIndex'): In(
                         attribute_consuming_service_indexes,
-                        msg=DEFAULT_LIST_VALUE_ERROR.format(attribute_consuming_service_indexes)
+                        msg=DEFAULT_LIST_VALUE_ERROR.format(
+                            attribute_consuming_service_indexes)
                     ),
                     Optional('AssertionConsumerServiceIndex'): str,
                     Optional('AssertionConsumerServiceURL'): str,
@@ -491,20 +500,22 @@ class SpidValidator(object):
                 _new_sub_schema = authnrequest_schema[
                     AUTHNREQUEST_TAG
                 ]['children'].extend(
-                        {
-                            '{%s}Signature' % (SIGNATURE) : signature
-                        }
-                    )
-                authnrequest_schema[AUTHNREQUEST_TAG]['children'] = _new_sub_schema
+                    {
+                        '{%s}Signature' % (SIGNATURE): signature
+                    }
+                )
+                authnrequest_schema[AUTHNREQUEST_TAG][
+                    'children'] = _new_sub_schema
             if self._action == 'logout':
                 _new_sub_schema = logoutrequest_schema[
                     LOGOUTREQUEST_TAG
                 ]['children'].extend(
-                        {
-                            '{%s}Signature' % (SIGNATURE) : signature
-                        }
-                    )
-                logoutrequest_schema[LOGOUTREQUEST_TAG]['children'] = _new_sub_schema
+                    {
+                        '{%s}Signature' % (SIGNATURE): signature
+                    }
+                )
+                logoutrequest_schema[LOGOUTREQUEST_TAG][
+                    'children'] = _new_sub_schema
 
         authn_request = Schema(
             authnrequest_schema,

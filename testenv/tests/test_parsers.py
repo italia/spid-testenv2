@@ -23,17 +23,20 @@ except ImportError:
 
 
 class FakeSAMLClass(object):
+
     def __init__(self, data):
         self.data = data
 
 
 class SuccessValidator(object):
+
     @staticmethod
     def validate(request):
         return None
 
 
 class FailValidator(object):
+
     def __init__(self, exc):
         self._exc = exc
 
@@ -104,6 +107,7 @@ class HTTPRedirectRequestParserTestCase(unittest.TestCase):
 
 
 class HTTPPostRequestParserTestCase(unittest.TestCase):
+
     def setUp(self):
         saml_request = base64.b64encode(b'saml_request').decode('ascii')
         relay_state = 'relay_state'
@@ -195,6 +199,7 @@ class HTTPRequestDeserializerTestCase(unittest.TestCase):
 
 
 class SAMLTreeTestCase(unittest.TestCase):
+
     def test_deserialization(self):
         xml = """\
 <root>
@@ -212,5 +217,7 @@ class SAMLTreeTestCase(unittest.TestCase):
         self.assertEqual(saml_tree.child2.an_attribute, 'more data')
         self.assertEqual(len(saml_tree.special_child3.item), 2)
         self.assertEqual(saml_tree.special_child3.tag, 'special_child3')
-        self.assertEqual(saml_tree.special_child3.item[0].another_attribute, 'foo')
-        self.assertEqual(saml_tree.special_child3.item[1].even_another_attribute, 'bar')
+        self.assertEqual(saml_tree.special_child3.item[
+                         0].another_attribute, 'foo')
+        self.assertEqual(saml_tree.special_child3.item[
+                         1].even_another_attribute, 'bar')

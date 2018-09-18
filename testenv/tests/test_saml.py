@@ -3,8 +3,6 @@ from __future__ import unicode_literals
 
 import unittest
 
-from lxml import etree
-
 from testenv.saml import create_idp_metadata, create_response
 from testenv.settings import (
     BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, DS, MD, SAML, SAMLP, SPID_LEVEL_1, STATUS_SUCCESS,
@@ -55,7 +53,8 @@ class SamlElementTestCase(unittest.TestCase):
             },
             {}
         )
-        authenticating_authorities = response._element.findall('.//{%s}AuthenticatingAuthority' % SAML)
+        authenticating_authorities = response._element.findall(
+            './/{%s}AuthenticatingAuthority' % SAML)
         self.assertEqual(len(authenticating_authorities), 0)
 
     def test_issuer_in_response_and_assertion(self):
@@ -100,7 +99,8 @@ class SamlElementTestCase(unittest.TestCase):
         issuers = response._element.findall('.//{%s}Issuer' % SAML)
         self.assertEqual(len(issuers), 2)
         for issuer in issuers:
-            self.assertEqual(issuer.get('NameQualifier'), 'http://test_id.entity')
+            self.assertEqual(issuer.get('NameQualifier'),
+                             'http://test_id.entity')
             self.assertEqual(issuer.text, 'http://test_id.entity')
         self.assertEqual(issuers[0].getparent().tag, '{%s}Response' % SAMLP)
         self.assertEqual(issuers[1].getparent().tag, '{%s}Assertion' % SAML)
@@ -147,7 +147,8 @@ class SamlElementTestCase(unittest.TestCase):
             },
             {}
         )
-        authn_statements = response._element.findall('.//{%s}AuthnStatement' % SAML)
+        authn_statements = response._element.findall(
+            './/{%s}AuthnStatement' % SAML)
         self.assertEqual(len(authn_statements), 1)
         authn_statement = authn_statements[0]
         self.assertTrue(authn_statement.get('SessionIndex', False))

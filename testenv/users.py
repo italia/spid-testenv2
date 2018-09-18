@@ -21,6 +21,7 @@ class AbstractUserManager(object):
     """
     Base User manager class to handling user objects
     """
+
     def __init__(self, conf=None):
         self._config = conf or config.params
 

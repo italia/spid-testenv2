@@ -93,7 +93,8 @@ class HTTPRedirectSignatureVerifierTestCase(unittest.TestCase):
         self.assertIsNone(verifier.verify())
 
     def test_deprecated_algorithm(self):
-        self.request_data['sig_alg'] = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1'
+        self.request_data[
+            'sig_alg'] = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1'
         request = HTTPRedirectRequest(**self.request_data)
         verifier = HTTPRedirectSignatureVerifier(self.cert, request)
         with pytest.raises(SignatureVerificationError) as excinfo:
@@ -101,7 +102,8 @@ class HTTPRedirectSignatureVerifierTestCase(unittest.TestCase):
         exc = excinfo.value
         self.assertEqual(
             "L'algoritmo 'http://www.w3.org/2000/09/xmldsig#rsa-sha1' è considerato deprecato. "
-            "Si prega di utilizzare uno dei seguenti: {}".format(self.supported_sig_alg),
+            "Si prega di utilizzare uno dei seguenti: {}".format(
+                self.supported_sig_alg),
             exc.args[0]
         )
 
@@ -189,11 +191,13 @@ class HTTPPostSignatureVerifierTestCase(unittest.TestCase):
         saml_request = self.saml_request.format(
             break_digest='',
             signature_value=self.signature_value,
-            signed_info=self.signed_info.format(sig_alg=self.sig_alg, break_signature=''),
+            signed_info=self.signed_info.format(
+                sig_alg=self.sig_alg, break_signature=''),
             certificate=self.cert,
         )
         relay_state = 'relay_state'
-        request = HTTPPostRequest(saml_request=saml_request, relay_state=relay_state)
+        request = HTTPPostRequest(
+            saml_request=saml_request, relay_state=relay_state)
         verifier = HTTPPostSignatureVerifier(self.cert, request)
         self.assertIsNone(verifier.verify())
 
@@ -202,18 +206,21 @@ class HTTPPostSignatureVerifierTestCase(unittest.TestCase):
         saml_request = self.saml_request.format(
             break_digest='',
             signature_value=self.signature_value,
-            signed_info=self.signed_info.format(sig_alg=sig_alg, break_signature=''),
+            signed_info=self.signed_info.format(
+                sig_alg=sig_alg, break_signature=''),
             certificate=self.cert,
         )
         relay_state = 'relay_state'
-        request = HTTPPostRequest(saml_request=saml_request, relay_state=relay_state)
+        request = HTTPPostRequest(
+            saml_request=saml_request, relay_state=relay_state)
         verifier = HTTPPostSignatureVerifier(self.cert, request)
         with pytest.raises(SignatureVerificationError) as excinfo:
             verifier.verify()
         exc = excinfo.value
         self.assertEqual(
             "L'algoritmo 'http://www.w3.org/2000/09/xmldsig#rsa-sha1' è considerato deprecato. "
-            "Si prega di utilizzare uno dei seguenti: {}".format(self.supported_sig_alg),
+            "Si prega di utilizzare uno dei seguenti: {}".format(
+                self.supported_sig_alg),
             exc.args[0]
         )
 
@@ -222,11 +229,13 @@ class HTTPPostSignatureVerifierTestCase(unittest.TestCase):
         saml_request = self.saml_request.format(
             break_digest='',
             signature_value=self.signature_value,
-            signed_info=self.signed_info.format(sig_alg=sig_alg, break_signature=''),
+            signed_info=self.signed_info.format(
+                sig_alg=sig_alg, break_signature=''),
             certificate=self.cert,
         )
         relay_state = 'relay_state'
-        request = HTTPPostRequest(saml_request=saml_request, relay_state=relay_state)
+        request = HTTPPostRequest(
+            saml_request=saml_request, relay_state=relay_state)
         verifier = HTTPPostSignatureVerifier(self.cert, request)
         with pytest.raises(SignatureVerificationError) as excinfo:
             verifier.verify()
@@ -241,11 +250,13 @@ class HTTPPostSignatureVerifierTestCase(unittest.TestCase):
         saml_request = self.saml_request.format(
             break_digest='',
             signature_value=self.signature_value,
-            signed_info=self.signed_info.format(sig_alg=self.sig_alg, break_signature=''),
+            signed_info=self.signed_info.format(
+                sig_alg=self.sig_alg, break_signature=''),
             certificate='fake cert',
         )
         relay_state = 'relay_state'
-        request = HTTPPostRequest(saml_request=saml_request, relay_state=relay_state)
+        request = HTTPPostRequest(
+            saml_request=saml_request, relay_state=relay_state)
         verifier = HTTPPostSignatureVerifier(self.cert, request)
         with pytest.raises(SignatureVerificationError) as excinfo:
             verifier.verify()
@@ -260,11 +271,13 @@ class HTTPPostSignatureVerifierTestCase(unittest.TestCase):
         saml_request = self.saml_request.format(
             break_digest='broken',
             signature_value=self.signature_value,
-            signed_info=self.signed_info.format(sig_alg=self.sig_alg, break_signature=''),
+            signed_info=self.signed_info.format(
+                sig_alg=self.sig_alg, break_signature=''),
             certificate=self.cert,
         )
         relay_state = 'relay_state'
-        request = HTTPPostRequest(saml_request=saml_request, relay_state=relay_state)
+        request = HTTPPostRequest(
+            saml_request=saml_request, relay_state=relay_state)
         verifier = HTTPPostSignatureVerifier(self.cert, request)
         with pytest.raises(SignatureVerificationError) as excinfo:
             verifier.verify()
@@ -275,11 +288,13 @@ class HTTPPostSignatureVerifierTestCase(unittest.TestCase):
         saml_request = self.saml_request.format(
             break_digest='',
             signature_value=self.signature_value,
-            signed_info=self.signed_info.format(sig_alg=self.sig_alg, break_signature='broken'),
+            signed_info=self.signed_info.format(
+                sig_alg=self.sig_alg, break_signature='broken'),
             certificate=self.cert,
         )
         relay_state = 'relay_state'
-        request = HTTPPostRequest(saml_request=saml_request, relay_state=relay_state)
+        request = HTTPPostRequest(
+            saml_request=saml_request, relay_state=relay_state)
         verifier = HTTPPostSignatureVerifier(self.cert, request)
         with pytest.raises(SignatureVerificationError) as excinfo:
             verifier.verify()
@@ -293,7 +308,7 @@ class SignedResponseTestCase(unittest.TestCase):
         generate_certificate(fname='test', path=DATA_DIR)
 
     def tearDown(self):
-        to_remove = ['test.key', 'test.crt',]
+        to_remove = ['test.key', 'test.crt', ]
         for f in to_remove:
             os.remove(os.path.join(DATA_DIR, f))
 
@@ -353,11 +368,13 @@ class SignedResponseTestCase(unittest.TestCase):
             )
             decoded_response = b64decode(response)
             tree = etree.fromstring(decoded_response)
-            signature_values = tree.findall('.//{http://www.w3.org/2000/09/xmldsig#}SignatureValue')
-            digest_values = tree.findall('.//{http://www.w3.org/2000/09/xmldsig#}DigestValue')
+            signature_values = tree.findall(
+                './/{http://www.w3.org/2000/09/xmldsig#}SignatureValue')
+            digest_values = tree.findall(
+                './/{http://www.w3.org/2000/09/xmldsig#}DigestValue')
             self.assertEqual(len(signature_values), 0)
             self.assertEqual(len(digest_values), 0)
-            with pytest.raises(InvalidInput) as excinfo:
+            with pytest.raises(InvalidInput) as excinfo:  # noqa: F841
                 XMLVerifier().verify(tree, x509_cert=cert)
             # Signed response
             response = sign_http_post(
@@ -369,8 +386,10 @@ class SignedResponseTestCase(unittest.TestCase):
             )
             decoded_response = b64decode(response)
             tree = etree.fromstring(decoded_response)
-            signature_values = tree.findall('.//{http://www.w3.org/2000/09/xmldsig#}SignatureValue')
-            digest_values = tree.findall('.//{http://www.w3.org/2000/09/xmldsig#}DigestValue')
+            signature_values = tree.findall(
+                './/{http://www.w3.org/2000/09/xmldsig#}SignatureValue')
+            digest_values = tree.findall(
+                './/{http://www.w3.org/2000/09/xmldsig#}DigestValue')
             self.assertEqual(len(signature_values), 1)
             self.assertEqual(len(digest_values), 1)
             XMLVerifier().verify(tree, x509_cert=cert)
@@ -384,8 +403,10 @@ class SignedResponseTestCase(unittest.TestCase):
             )
             decoded_response = b64decode(response)
             tree = etree.fromstring(decoded_response)
-            signature_values = tree.findall('.//{http://www.w3.org/2000/09/xmldsig#}SignatureValue')
-            digest_values = tree.findall('.//{http://www.w3.org/2000/09/xmldsig#}DigestValue')
+            signature_values = tree.findall(
+                './/{http://www.w3.org/2000/09/xmldsig#}SignatureValue')
+            digest_values = tree.findall(
+                './/{http://www.w3.org/2000/09/xmldsig#}DigestValue')
             self.assertEqual(len(signature_values), 1)
             self.assertEqual(len(digest_values), 1)
             XMLVerifier().verify(tree, x509_cert=cert)
@@ -399,8 +420,10 @@ class SignedResponseTestCase(unittest.TestCase):
             )
             decoded_response = b64decode(response)
             tree = etree.fromstring(decoded_response)
-            signature_values = tree.findall('.//{http://www.w3.org/2000/09/xmldsig#}SignatureValue')
-            digest_values = tree.findall('.//{http://www.w3.org/2000/09/xmldsig#}DigestValue')
+            signature_values = tree.findall(
+                './/{http://www.w3.org/2000/09/xmldsig#}SignatureValue')
+            digest_values = tree.findall(
+                './/{http://www.w3.org/2000/09/xmldsig#}DigestValue')
             self.assertEqual(len(signature_values), 2)
             self.assertEqual(len(digest_values), 2)
             XMLVerifier().verify(tree, x509_cert=cert)
@@ -485,7 +508,8 @@ class SignedResponseTestCase(unittest.TestCase):
             ])
             signed_data = signed_data.encode('ascii')
             verified = verifier.verify(
-                load_pem_x509_certificate(cert, backend=default_backend()).public_key(),
+                load_pem_x509_certificate(
+                    cert, backend=default_backend()).public_key(),
                 bytes(signed_data),
                 bytes(signature)
             )
@@ -523,7 +547,8 @@ class SignedResponseTestCase(unittest.TestCase):
             ])
             signed_data = signed_data.encode('ascii')
             verified = verifier.verify(
-                load_pem_x509_certificate(cert, backend=default_backend()).public_key(),
+                load_pem_x509_certificate(
+                    cert, backend=default_backend()).public_key(),
                 bytes(signed_data),
                 bytes(signature)
             )
@@ -563,7 +588,8 @@ class SignedResponseTestCase(unittest.TestCase):
             ])
             signed_data = signed_data.encode('ascii')
             verified = verifier.verify(
-                load_pem_x509_certificate(cert, backend=default_backend()).public_key(),
+                load_pem_x509_certificate(
+                    cert, backend=default_backend()).public_key(),
                 bytes(signed_data),
                 bytes(signature)
             )

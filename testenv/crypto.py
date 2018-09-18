@@ -56,6 +56,7 @@ def normalize_x509(cert):
 
 
 class RSASigner(object):
+
     def __init__(self, digest, key=None, padding=None):
         self._key = key
         self._digest = digest
@@ -68,6 +69,7 @@ class RSASigner(object):
 
 
 class RSAVerifier(object):
+
     def __init__(self, digest, padding=None):
         self._digest = digest
         self._padding = padding or PKCS1v15()
@@ -141,6 +143,7 @@ def sign_http_redirect(xmlstr, key, relay_state=None, req_type='SAMLResponse'):
 
 
 class HTTPRedirectSignatureVerifier(object):
+
     def __init__(self, certificate, request, verifiers=None):
         self._cert = certificate
         self._request = request
@@ -192,6 +195,7 @@ class HTTPRedirectSignatureVerifier(object):
 
 
 class HTTPPostSignatureVerifier(object):
+
     def __init__(self, certificate, request, verifier=None):
         self._cert = certificate
         self._request = request

@@ -127,7 +127,8 @@ class IdpServer(object):
         :param kwargs: dictionary, extra arguments
         """
         level = self._spid_levels.index(level)
-        self.app.logger.debug('spid level {} - verifica ({})'.format(level, verify))
+        self.app.logger.debug(
+            'spid level {} - verifica ({})'.format(level, verify))
         if verify:
             # Verify the challenge
             if level == 2:
@@ -156,9 +157,9 @@ class IdpServer(object):
                 otp = ''.join(random.choice(string.digits) for _ in range(6))
                 self.challenges[key] = [otp, datetime.now()]
                 extra_challenge = '<span>Otp ({})</span>'\
-                '<input type="text" name="otp" />'.format(
-                    otp
-                )
+                    '<input type="text" name="otp" />'.format(
+                        otp
+                    )
             else:
                 extra_challenge = ''
             return extra_challenge
@@ -179,7 +180,7 @@ class IdpServer(object):
 
         abort(
             Response(
-               render_template(
+                render_template(
                     "error.html",
                     **{'msg': msg, 'extra': extra or ""}
                 ), 200
@@ -206,8 +207,8 @@ class IdpServer(object):
             **{
                 'lines': xmlstr.splitlines(),
                 'errors': errors
-                }
-            )
+            }
+        )
         return rendered_error_response
 
     def _parse_message(self, action):
@@ -236,7 +237,8 @@ class IdpServer(object):
         # about request parsing *at all*.
         saml_msg = self.unpack_args(request.args)
         request_data = HTTPRedirectRequestParser(saml_msg).parse()
-        deserializer = get_http_redirect_request_deserializer(request_data, action)
+        deserializer = get_http_redirect_request_deserializer(
+            request_data, action)
         saml_tree = deserializer.deserialize()
         certs = self._get_certificates_by_issuer(saml_tree.issuer.text)
         if not certs:
@@ -267,12 +269,12 @@ class IdpServer(object):
             return self._registry.get(issuer).certs()
         except KeyError:
             self._raise_error(
-                'entity ID {} non registrato, impossibile ricavare'\
+                'entity ID {} non registrato, impossibile ricavare'
                 ' un certificato valido.'.format(issuer)
             )
         except NoCertificateError:
             self._raise_error(
-                'Errore, il metadata associato al Service provider non'\
+                'Errore, il metadata associato al Service provider non'
                 ' non è provvisto di certificati validi'.format(issuer)
             )
 
@@ -357,7 +359,8 @@ class IdpServer(object):
                 if spid_value:
                     extra[spid_field] = spid_value
             if 'fiscalNumber' in extra:
-                extra['fiscalNumber'] = 'TINIT-{}'.format(extra['fiscalNumber'])
+                extra[
+                    'fiscalNumber'] = 'TINIT-{}'.format(extra['fiscalNumber'])
             self.user_manager.add(username, password, sp, extra.copy())
         return redirect(url_for('users'))
 
@@ -379,7 +382,8 @@ class IdpServer(object):
         acs_index = getattr(req, 'assertion_consumer_service_index', None)
         protocol_binding = getattr(req, 'protocol_binding', None)
         if acs_index is not None:
-            acss = self._registry.get(sp_id).assertion_consumer_service(index=acs_index)
+            acss = self._registry.get(
+                sp_id).assertion_consumer_service(index=acs_index)
             if acss:
                 destination = acss[0].get('Location')
             self.app.logger.debug(
@@ -420,7 +424,8 @@ class IdpServer(object):
             spid_level = authn_context.authn_context_class_ref.text
             if request.method == 'GET':
                 # inject extra data in form login based on spid level
-                extra_challenge = self._verify_spid(level=spid_level, **{'key': key})
+                extra_challenge = self._verify_spid(
+                    level=spid_level, **{'key': key})
                 rendered_form = render_template(
                     'login.html',
                     **{
@@ -453,7 +458,8 @@ class IdpServer(object):
                         self.app.logger.debug(
                             'Unfiltered data: {}'.format(identity)
                         )
-                        atcs_idx = getattr(authn_request, 'attribute_consuming_service_index', None)
+                        atcs_idx = getattr(
+                            authn_request, 'attribute_consuming_service_index', None)
                         self.app.logger.debug(
                             'AttributeConsumingServiceIndex: {}'.format(
                                 atcs_idx
@@ -477,12 +483,14 @@ class IdpServer(object):
                             try:
                                 _identity[_key] = identity[_key]
                             except KeyError:
-                                _identity[_key] = ('', self._attribute_type(_key))
+                                _identity[_key] = (
+                                    '', self._attribute_type(_key))
                         for _key in optional:
                             try:
                                 _identity[_key] = identity[_key]
                             except KeyError:
-                                _identity[_key] = ('', self._attribute_type(_key))
+                                _identity[_key] = (
+                                    '', self._attribute_type(_key))
 
                         self.app.logger.debug(
                             'Filtered data: {}'.format(_identity)
@@ -615,8 +623,8 @@ class IdpServer(object):
                     auth_req, auth_req.issuer.text
                 )
                 error_info = get_spid_error(
-                        AUTH_NO_CONSENT
-                    )
+                    AUTH_NO_CONSENT
+                )
                 response = create_error_response(
                     {
                         'response': {
@@ -661,7 +669,8 @@ class IdpServer(object):
         _slo = None
         for binding in [BINDING_HTTP_POST, BINDING_HTTP_REDIRECT]:
             try:
-                _slo = self._registry.get(issuer_name).single_logout_services[0]
+                _slo = self._registry.get(
+                    issuer_name).single_logout_services[0]
             except Exception:
                 pass
         return _slo
@@ -678,7 +687,7 @@ class IdpServer(object):
             _slo = self._sp_single_logout_service(issuer_name)
             if _slo is None:
                 self._raise_error(
-                    'Impossibile trovare un servizio di'\
+                    'Impossibile trovare un servizio di'
                     ' Single Logout per il service provider {}'.format(
                         issuer_name
                     )
