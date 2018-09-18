@@ -4,7 +4,7 @@
     xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"  
     xmlns:ds="http://www.w3.org/2000/09/xmldsig#"  
     entityID="https://spid.test:8000"  
-    ID="0480324032lsdjs98"> 
+    ID="_0480324032lsdjs98">
     <md:SPSSODescriptor  
         protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol"  
         AuthnRequestsSigned="true"  

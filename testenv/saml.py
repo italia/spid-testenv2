@@ -47,11 +47,10 @@ class SamlMixin(object):
     defaults = {}
 
     def __init__(self, attrib={}, text=None, *args, **kwargs):
-        tag = '{%s}' % NSMAP[self.saml_type] + self.class_name
         E = MAKERS.get(self.saml_type)
         attributes = self.defaults.copy()
         attributes.update(attrib.copy())
-        self._element = getattr(E, tag)(
+        self._element = getattr(E, self.tag())(
             **attributes
         )
         if text is not None:
@@ -70,6 +69,10 @@ class SamlMixin(object):
 
     def append(self, el):
         self.tree.append(el.tree)
+
+    @classmethod
+    def tag(cls):
+        return '{%s}' % NSMAP[cls.saml_type] + cls.__name__
 
 
 class Response(SamlMixin):

@@ -11,7 +11,8 @@ from voluptuous.validators import Equal
 
 from testenv import config
 from testenv.exceptions import (
-    SPIDValidationError, UnknownEntityIDError, XMLFormatValidationError, XMLSchemaValidationError,
+    GroupValidationError, SPIDValidationError, StopValidation, UnknownEntityIDError, ValidationError,
+    XMLFormatValidationError, XMLSchemaValidationError,
 )
 from testenv.settings import (
     BINDING_HTTP_POST, DEFAULT_LIST_VALUE_ERROR, DEFAULT_VALUE_ERROR, DS as SIGNATURE, NAMEID_FORMAT_ENTITY,
@@ -24,6 +25,42 @@ ValidationDetail = namedtuple(
     'ValidationDetail',
     ['value', 'line', 'column', 'domain_name', 'type_name', 'message', 'path']
 )
+
+
+class ValidatorGroup(object):
+    def __init__(self, validators):
+        self._validators = validators
+        self._validation_errors = []
+
+    def validate(self, data):
+        self._run(data)
+        if self._validation_errors:
+            raise GroupValidationError(self._validation_errors)
+
+    def _run(self, data):
+        try:
+            self._run_validators(data)
+        except StopValidation:
+            pass
+
+    def _run_validators(self, data):
+        for validator in self._validators:
+            self._run_validator(validator, data)
+
+    def _run_validator(self, validator, data):
+        try:
+            validator.validate(data)
+        except XMLFormatValidationError as e:
+            self._handle_blocking_error(e)
+        except ValidationError as e:
+            self._handle_nonblocking_error(e)
+
+    def _handle_blocking_error(self, error):
+        self._handle_nonblocking_error(error)
+        raise StopValidation
+
+    def _handle_nonblocking_error(self, error):
+        self._validation_errors += error.details
 
 
 class XMLFormatValidator(object):
@@ -58,6 +95,14 @@ class XMLFormatValidator(object):
         return self._translator.translate_many(errors)
 
 
+class XMLMetadataFormatValidator(XMLFormatValidator):
+    def validate(self, xmlstr):
+        try:
+            etree.fromstring(xmlstr, parser=self._parser)
+        except SyntaxError as e:
+            self._handle_errors()
+
+
 class XMLSchemaFileLoader(object):
     """
     Load XML Schema instances from the filesystem.
@@ -65,6 +110,7 @@ class XMLSchemaFileLoader(object):
 
     _schema_files = {
         'protocol': 'saml-schema-protocol-2.0.xsd',
+        'metadata': 'saml-schema-metadata-2.0.xsd',
     }
 
     def __init__(self, import_path=None):
@@ -135,13 +181,23 @@ class AuthnRequestXMLSchemaValidator(BaseXMLSchemaValidator):
         return self._run(xml, schema_type)
 
 
+class ServiceProviderMetadataXMLSchemaValidator(BaseXMLSchemaValidator):
+    def validate(self, metadata):
+        schema_type = 'metadata'
+        return self._run(metadata, schema_type)
+
+
 class SpidValidator(object):
 
-    def __init__(self, action, binding, metadata, conf=None):
+    def __init__(self, action, binding, registry=None, conf=None):
         self._action = action
         self._binding = binding
-        self._metadata = metadata
         self._config = conf or config.params
+        if registry:  # FIXME fix circular import. this is ugly.
+            self._registry = registry
+        else:
+            from testenv import spmetadata
+            self._registry = spmetadata.registry
 
     def _check_utc_date(self, date):
         try:
@@ -166,7 +222,6 @@ class SpidValidator(object):
     def validate(self, request):
         xmlstr = request.saml_request
         data = saml_to_dict(xmlstr)
-        atcss = []
         if self._action == 'login':
             req_type = 'AuthnRequest'
         elif self._action == 'logout':
@@ -178,28 +233,30 @@ class SpidValidator(object):
         ).get(
             '{urn:oasis:names:tc:SAML:2.0:assertion}Issuer', {}
         ).get('text')
-        if issuer_name and issuer_name not in self._metadata.service_providers():
+        if issuer_name is None:
+            raise UnknownEntityIDError(
+                'Issuer non presente nella {}'.format(req_type)
+            )
+        if issuer_name and issuer_name not in self._registry.service_providers:
             raise UnknownEntityIDError(
                 'entity ID {} non registrato'.format(issuer_name)
             )
-        for k, _md in self._metadata.items():
-            if k == issuer_name:
-                _srvs = _md.get('spsso_descriptor', [])
-                for _srv in _srvs:
-                    for _acs in _srv.get(
-                        'attribute_consuming_service', []
-                    ):
-                        atcss.append(_acs)
-        try:
-            ascss = self._metadata.assertion_consumer_service(issuer_name)
-        except Exception:
-            ascss = []
-        except Exception:
-            ascss = []
-        attribute_consuming_service_indexes = [str(el.get('index')) for el in atcss]
-        assertion_consumer_service_indexes = [str(el.get('index')) for el in ascss]
+        sp_metadata = self._registry.get(issuer_name)
+        if sp_metadata is not None:
+            atcss = sp_metadata.attribute_consuming_services
+            attribute_consuming_service_indexes = [
+                str(
+                    el.get('attrs').get('index')
+                ) for el in atcss if 'index' in el.get('attrs', {})
+            ]
+            ascss = sp_metadata.assertion_consumer_services
+            assertion_consumer_service_indexes = [str(el.get('index')) for el in ascss]
+            assertion_consumer_service_urls = [str(el.get('Location')) for el in ascss]
+        else:
+            attribute_consuming_service_indexes = []
+            assertion_consumer_service_indexes = []
+            assertion_consumer_service_urls = []
         entity_id = self._config.entity_id
-        assertion_consumer_service_urls = [str(el.get('location')) for el in ascss]
 
         issuer = Schema(
             {

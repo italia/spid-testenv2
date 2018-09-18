@@ -7,7 +7,7 @@ import os.path
 
 from flask import Flask
 
-from testenv import config
+from testenv import config, spmetadata
 from testenv.exceptions import BadConfiguration
 from testenv.server import IdpServer
 
@@ -27,6 +27,7 @@ if __name__ == '__main__':
     except BadConfiguration as e:
         print(e)
     else:
+        spmetadata.build_metadata_registry()
         os.environ['FLASK_ENV'] = 'development'
         server = IdpServer(app=Flask(__name__, static_url_path='/static'))
         server.start()

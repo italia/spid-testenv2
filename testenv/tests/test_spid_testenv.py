@@ -15,7 +15,7 @@ from freezegun import freeze_time
 from lxml import etree as ET
 from six.moves.urllib.parse import parse_qs, quote, urlparse
 
-from testenv import config
+from testenv import config, spmetadata
 from testenv.crypto import decode_base64_and_inflate, deflate_and_base64_encode, sign_http_redirect
 from testenv.parser import SAMLTree
 from testenv.settings import (
@@ -38,8 +38,8 @@ DATA_DIR = 'testenv/tests/data/'
 
 
 def _sp_single_logout_service(server, issuer_name, binding):
-    _slo = server.metadata.single_logout_service(
-        issuer_name, binding=binding, typ='spsso'
+    _slo = server._registry.get(issuer_name).single_logout_service(
+        binding=binding
     )
     return _slo
 
@@ -205,6 +205,7 @@ class SpidTestenvTest(unittest.TestCase):
         xml.write(tmp_metadata)
         app = flask.Flask(spid_testenv.__name__, static_url_path='/static')
         config.load('testenv/tests/data/config.yaml')
+        spmetadata.build_metadata_registry()
         cls.idp_server = spid_testenv.IdpServer(app=app)
         cls.idp_server.app.testing = True
         cls.test_client = cls.idp_server.app.test_client()
@@ -720,7 +721,7 @@ class SpidTestenvTest(unittest.TestCase):
     @patch('testenv.crypto.HTTPRedirectSignatureVerifier.verify', return_value=True)
     def test_logout_response_http_redirect(self, unravel, verified):
         # See: https://github.com/italia/spid-testenv2/issues/88
-        with patch('testenv.server.IdpServer._sp_single_logout_service', return_value=_sp_single_logout_service(self.idp_server.server, 'https://spid.test:8000', BINDING_HTTP_REDIRECT)) as mocked:
+        with patch('testenv.server.IdpServer._sp_single_logout_service', return_value=_sp_single_logout_service(self.idp_server, 'https://spid.test:8000', BINDING_HTTP_REDIRECT)) as mocked:
             response = self.test_client.get(
                 '/slo-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
                 follow_redirects=False
@@ -746,7 +747,7 @@ class SpidTestenvTest(unittest.TestCase):
     @patch('testenv.crypto.HTTPRedirectSignatureVerifier.verify', return_value=True)
     def test_logout_response_http_post(self, unravel, verified):
         # See: https://github.com/italia/spid-testenv2/issues/88
-        with patch('testenv.server.IdpServer._sp_single_logout_service', return_value=_sp_single_logout_service(self.idp_server.server, 'https://spid.test:8000', BINDING_HTTP_POST)) as mocked:
+        with patch('testenv.server.IdpServer._sp_single_logout_service', return_value=_sp_single_logout_service(self.idp_server, 'https://spid.test:8000', BINDING_HTTP_POST)) as mocked:
             response = self.test_client.get(
                 '/slo-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(quote(SIG_RSA_SHA256)),
                 follow_redirects=False

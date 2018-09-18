@@ -8,11 +8,9 @@ from collections import namedtuple
 
 from lxml import etree, objectify
 
-from testenv.exceptions import (
-    DeserializationError, RequestParserError, StopValidation, ValidationError, XMLFormatValidationError,
-)
+from testenv.exceptions import DeserializationError, RequestParserError, ValidationError
 from testenv.settings import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, MULTIPLE_OCCURRENCES_TAGS
-from testenv.validators import AuthnRequestXMLSchemaValidator, SpidValidator, XMLFormatValidator
+from testenv.validators import AuthnRequestXMLSchemaValidator, SpidValidator, ValidatorGroup, XMLFormatValidator
 
 try:
     from urllib import urlencode
@@ -32,21 +30,22 @@ HTTPRedirectRequest = namedtuple(
 HTTPPostRequest = namedtuple('HTTPPostRequest', ['saml_request', 'relay_state'])
 
 
-def _get_deserializer(request, action, binding, metadata):
+def _get_deserializer(request, action, binding):
     validators = [
         XMLFormatValidator(),
         AuthnRequestXMLSchemaValidator(),
-        SpidValidator(action, binding, metadata),
+        SpidValidator(action, binding),
     ]
-    return HTTPRequestDeserializer(request, validators)
+    validator_group = ValidatorGroup(validators)
+    return HTTPRequestDeserializer(request, validator_group)
 
 
-def get_http_redirect_request_deserializer(request, action, metadata):
-    return _get_deserializer(request, action, BINDING_HTTP_REDIRECT, metadata)
+def get_http_redirect_request_deserializer(request, action):
+    return _get_deserializer(request, action, BINDING_HTTP_REDIRECT)
 
 
-def get_http_post_request_deserializer(request, action, metadata):
-    return _get_deserializer(request, action, BINDING_HTTP_POST, metadata)
+def get_http_post_request_deserializer(request, action):
+    return _get_deserializer(request, action, BINDING_HTTP_POST)
 
 
 class HTTPRedirectRequestParser(object):
@@ -178,45 +177,23 @@ class HTTPPostRequestParser(object):
 
 
 class HTTPRequestDeserializer(object):
-    def __init__(self, request, validators, saml_class=None):
+    def __init__(self, request, validator, saml_class=None):
         self._request = request
-        self._validators = validators
+        self._validator = validator
         self._saml_class = saml_class or SAMLTree
-        self._validation_errors = []
 
     def deserialize(self):
         self._validate()
-        if self._validation_errors:
-            raise DeserializationError(
-                self._request.saml_request,
-                self._validation_errors,
-            )
         return self._deserialize()
 
     def _validate(self):
         try:
-            self._run_validators()
-        except StopValidation:
-            pass
-
-    def _run_validators(self):
-        for validator in self._validators:
-            self._run_validator(validator)
-
-    def _run_validator(self, validator):
-        try:
-            validator.validate(self._request)
-        except XMLFormatValidationError as e:
-            self._handle_blocking_error(e)
+            self._validator.validate(self._request)
         except ValidationError as e:
-            self._handle_nonblocking_error(e)
-
-    def _handle_blocking_error(self, error):
-        self._handle_nonblocking_error(error)
-        raise StopValidation
-
-    def _handle_nonblocking_error(self, error):
-        self._validation_errors += error.details
+            raise DeserializationError(
+                self._request.saml_request,
+                e.details,
+            )
 
     def _deserialize(self):
         xml_doc = objectify.fromstring(self._request.saml_request)
