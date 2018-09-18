@@ -622,7 +622,7 @@ def create_sp_metadata(
     if assertion_consumer_services is not None:
         for idx, _ascs in enumerate(assertion_consumer_services):
             _attrib = dict(
-                Location=ascs.location,
+                Location=_ascs.location,
                 index=str(idx)
             )
             if idx == 0:
