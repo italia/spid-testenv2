@@ -22,6 +22,7 @@ class FakeTranslator(object):
 
 
 class FakeConfig(object):
+
     def __init__(self, endpoint, entity_id):
         self._endpoint = endpoint
         self._entity_id = entity_id
@@ -35,6 +36,7 @@ class FakeConfig(object):
 
 
 class FakeMetadata(dict):
+
     def __init__(self, service_providers, assertion_consumer_services):
         self._service_providers = service_providers
         self._assertion_consumer_services = assertion_consumer_services
@@ -47,6 +49,7 @@ class FakeMetadata(dict):
 
 
 class FakeRegistry(object):
+
     def __init__(self, metadata):
         self._metadata = metadata.copy()
 
@@ -64,11 +67,10 @@ class ServiceProviderMetadataFakeLoader(object):
         self.atcs_indexes = atcs_indexes
         self.acs_indexes = acs_indexes
 
-
     @property
     def attribute_consuming_services(self):
         return [
-            { 'attrs': { 'index': index }} for index in self.atcs_indexes
+            {'attrs': {'index': index}} for index in self.atcs_indexes
         ]
 
     @property
@@ -216,7 +218,8 @@ class SPIDValidatorTestCase(unittest.TestCase):
     @freeze_time('2018-08-18T06:55:22Z')
     def test_missing_issuer(self):
         # https://github.com/italia/spid-testenv2/issues/133
-        config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
+        config = FakeConfig('http://localhost:8088/sso',
+                            'http://localhost:8088/')
         registry = FakeRegistry({
             'http://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
@@ -227,12 +230,14 @@ class SPIDValidatorTestCase(unittest.TestCase):
                 request.saml_request = request.saml_request % (val)
                 validator.validate(request)
             exc = excinfo.value
-            self.assertEqual('Issuer non presente nella AuthnRequest', str(exc))
+            self.assertEqual(
+                'Issuer non presente nella AuthnRequest', str(exc))
 
     @freeze_time('2018-08-18T06:55:22Z')
     def test_wrong_destination(self):
         # https://github.com/italia/spid-testenv2/issues/158
-        config = FakeConfig('http://localhost:9999/sso', 'http://localhost:9999/')
+        config = FakeConfig('http://localhost:9999/sso',
+                            'http://localhost:9999/')
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
@@ -246,18 +251,21 @@ class SPIDValidatorTestCase(unittest.TestCase):
                 request.saml_request = request.saml_request % (val)
                 validator.validate(request)
             exc = excinfo.value
-            self.assertEqual('è diverso dal valore di riferimento http://localhost:9999/', exc.details[0].message)
+            self.assertEqual(
+                'è diverso dal valore di riferimento http://localhost:9999/', exc.details[0].message)
 
     @freeze_time('2018-08-18T06:55:22Z')
     def test_authn_request_http_post_without_signature(self):
         # https://github.com/italia/spid-testenv2/issues/159
         # https://github.com/italia/spid-testenv2/issues/165
-        config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
+        config = FakeConfig('http://localhost:8088/sso',
+                            'http://localhost:8088/')
         request = FakeRequest(sample_requests.auth_no_signature % (''))
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        validator = SpidValidator('login', settings.BINDING_HTTP_POST, registry, config)
+        validator = SpidValidator(
+            'login', settings.BINDING_HTTP_POST, registry, config)
         with pytest.raises(SPIDValidationError) as excinfo:
             validator.validate(request)
         exc = excinfo.value
@@ -271,24 +279,30 @@ class SPIDValidatorTestCase(unittest.TestCase):
     def test_authn_request_http_post_with_signature(self):
         # https://github.com/italia/spid-testenv2/issues/159
         # https://github.com/italia/spid-testenv2/issues/165
-        config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
-        request = FakeRequest(sample_requests.auth_no_signature % (sample_requests.fake_signature))
+        config = FakeConfig('http://localhost:8088/sso',
+                            'http://localhost:8088/')
+        request = FakeRequest(sample_requests.auth_no_signature %
+                              (sample_requests.fake_signature))
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        validator = SpidValidator('login', settings.BINDING_HTTP_POST, registry, config)
+        validator = SpidValidator(
+            'login', settings.BINDING_HTTP_POST, registry, config)
         validator.validate(request)
 
     @freeze_time('2018-08-18T06:55:22Z')
     def test_authn_request_http_redirect_with_signature(self):
         # https://github.com/italia/spid-testenv2/issues/159
         # https://github.com/italia/spid-testenv2/issues/165
-        config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
-        request = FakeRequest(sample_requests.auth_no_signature % (sample_requests.fake_signature))
+        config = FakeConfig('http://localhost:8088/sso',
+                            'http://localhost:8088/')
+        request = FakeRequest(sample_requests.auth_no_signature %
+                              (sample_requests.fake_signature))
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        validator = SpidValidator('login', settings.BINDING_HTTP_REDIRECT, registry, config)
+        validator = SpidValidator(
+            'login', settings.BINDING_HTTP_REDIRECT, registry, config)
         with pytest.raises(SPIDValidationError) as excinfo:
             validator.validate(request)
         exc = excinfo.value
@@ -302,24 +316,28 @@ class SPIDValidatorTestCase(unittest.TestCase):
     def test_authn_request_http_redirect_without_signature(self):
         # https://github.com/italia/spid-testenv2/issues/159
         # https://github.com/italia/spid-testenv2/issues/165
-        config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
+        config = FakeConfig('http://localhost:8088/sso',
+                            'http://localhost:8088/')
         request = FakeRequest(sample_requests.auth_no_signature % (''))
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        validator = SpidValidator('login', settings.BINDING_HTTP_REDIRECT, registry, config)
+        validator = SpidValidator(
+            'login', settings.BINDING_HTTP_REDIRECT, registry, config)
         validator.validate(request)
 
     @freeze_time('2018-08-18T06:55:22Z')
     def test_logout_request_http_post_without_signature(self):
         # https://github.com/italia/spid-testenv2/issues/159
         # https://github.com/italia/spid-testenv2/issues/165
-        config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
+        config = FakeConfig('http://localhost:8088/sso',
+                            'http://localhost:8088/')
         request = FakeRequest(sample_requests.logout_no_signature % (''))
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        validator = SpidValidator('logout', settings.BINDING_HTTP_POST, registry, config)
+        validator = SpidValidator(
+            'logout', settings.BINDING_HTTP_POST, registry, config)
         with pytest.raises(SPIDValidationError) as excinfo:
             validator.validate(request)
         exc = excinfo.value
@@ -333,24 +351,30 @@ class SPIDValidatorTestCase(unittest.TestCase):
     def test_logout_request_http_post_with_signature(self):
         # https://github.com/italia/spid-testenv2/issues/159
         # https://github.com/italia/spid-testenv2/issues/165
-        config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
-        request = FakeRequest(sample_requests.logout_no_signature % (sample_requests.fake_signature))
+        config = FakeConfig('http://localhost:8088/sso',
+                            'http://localhost:8088/')
+        request = FakeRequest(sample_requests.logout_no_signature %
+                              (sample_requests.fake_signature))
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        validator = SpidValidator('logout', settings.BINDING_HTTP_POST, registry, config)
+        validator = SpidValidator(
+            'logout', settings.BINDING_HTTP_POST, registry, config)
         validator.validate(request)
 
     @freeze_time('2018-08-18T06:55:22Z')
     def test_logout_request_http_redirect_with_signature(self):
         # https://github.com/italia/spid-testenv2/issues/159
         # https://github.com/italia/spid-testenv2/issues/165
-        config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
-        request = FakeRequest(sample_requests.logout_no_signature % (sample_requests.fake_signature))
+        config = FakeConfig('http://localhost:8088/sso',
+                            'http://localhost:8088/')
+        request = FakeRequest(sample_requests.logout_no_signature %
+                              (sample_requests.fake_signature))
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        validator = SpidValidator('logout', settings.BINDING_HTTP_REDIRECT, registry, config)
+        validator = SpidValidator(
+            'logout', settings.BINDING_HTTP_REDIRECT, registry, config)
         with pytest.raises(SPIDValidationError) as excinfo:
             validator.validate(request)
         exc = excinfo.value
@@ -364,10 +388,12 @@ class SPIDValidatorTestCase(unittest.TestCase):
     def test_logout_request_http_redirect_without_signature(self):
         # https://github.com/italia/spid-testenv2/issues/159
         # https://github.com/italia/spid-testenv2/issues/165
-        config = FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
+        config = FakeConfig('http://localhost:8088/sso',
+                            'http://localhost:8088/')
         request = FakeRequest(sample_requests.logout_no_signature % (''))
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        validator = SpidValidator('logout', settings.BINDING_HTTP_REDIRECT, registry, config)
+        validator = SpidValidator(
+            'logout', settings.BINDING_HTTP_REDIRECT, registry, config)
         validator.validate(request)

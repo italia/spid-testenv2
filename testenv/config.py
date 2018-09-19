@@ -12,6 +12,7 @@ from testenv.exceptions import BadConfiguration
 
 
 class ConfigValidator(object):
+
     def __init__(self, confdata):
         self._confdata = confdata
         self._init_schema()
@@ -53,7 +54,8 @@ class ConfigValidator(object):
             key_path = data.get('https_key_file')
             cert_path = data.get('https_cert_file')
             if https and not all([key_path, cert_path]):
-                raise Invalid('Errore modalità HTTPS: chiave e/o certificato assenti')
+                raise Invalid(
+                    'Errore modalità HTTPS: chiave e/o certificato assenti')
             return data
 
         def check_endpoints(data):
@@ -90,6 +92,7 @@ class ConfigValidator(object):
 
 
 class Config(object):
+
     def __init__(self, confdata):
         self._confdata = confdata
         self._idp_key = self._load_idp_key()
@@ -99,7 +102,8 @@ class Config(object):
         try:
             return self._read_file_bytes(self.idp_key_file_path)
         except Exception:
-            self._fail('Impossibile ottenere la chiave privata dal file {}'.format(self.key_file_path))
+            self._fail('Impossibile ottenere la chiave privata dal file {}'.format(
+                self.key_file_path))
 
     @staticmethod
     def _read_file_bytes(path):
@@ -118,7 +122,8 @@ class Config(object):
         try:
             return self._read_file_bytes(self.idp_certificate_file_path)
         except Exception:
-            self._fail('Impossibile ottenere il certificato dal file {}'.format(self.cert_file_path))
+            self._fail('Impossibile ottenere il certificato dal file {}'.format(
+                self.cert_file_path))
 
     @property
     def idp_certificate_file_path(self):
@@ -233,6 +238,7 @@ class Config(object):
 
 
 class BaseConfigParser(object):
+
     def __init__(self, path):
         self._path = path
         self._fp = None
@@ -241,9 +247,11 @@ class BaseConfigParser(object):
         try:
             return self._parse()
         except OSError:
-            raise BadConfiguration('Impossibile accedere al file di configurazione: {}'.format(self._path))
+            raise BadConfiguration(
+                'Impossibile accedere al file di configurazione: {}'.format(self._path))
         except Exception:
-            raise BadConfiguration('Errore di sintassi nel file di configurazione: {}'.format(self._path))
+            raise BadConfiguration(
+                'Errore di sintassi nel file di configurazione: {}'.format(self._path))
 
     def _parse(self):
         with open(self._path, 'r') as fp:
@@ -252,11 +260,13 @@ class BaseConfigParser(object):
 
 
 class YAMLConfigParser(BaseConfigParser):
+
     def _deserialize(self):
         return yaml.load(self._fp)
 
 
 class JSONConfigParser(BaseConfigParser):
+
     def _deserialize(self):
         return json.load(self._fp.read())
 

@@ -15,6 +15,7 @@ class RequestParserError(TestenvError):
 
 
 class DeserializationError(TestenvError):
+
     def __init__(self, initial_data, details):
         super(DeserializationError, self).__init__()
         self.initial_data = initial_data
@@ -58,6 +59,7 @@ class UnknownEntityIDError(TestenvError):
 
 
 class MetadataNotFoundError(TestenvError):
+
     def __init__(self, entity_id):
         self.entity_id = entity_id
 

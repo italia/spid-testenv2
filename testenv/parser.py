@@ -27,7 +27,8 @@ HTTPRedirectRequest = namedtuple(
 )
 
 
-HTTPPostRequest = namedtuple('HTTPPostRequest', ['saml_request', 'relay_state'])
+HTTPPostRequest = namedtuple(
+    'HTTPPostRequest', ['saml_request', 'relay_state'])
 
 
 def _get_deserializer(request, action, binding):
@@ -49,6 +50,7 @@ def get_http_post_request_deserializer(request, action):
 
 
 class HTTPRedirectRequestParser(object):
+
     def __init__(self, querystring, request_class=None):
         self._querystring = querystring
         self._request_class = request_class or HTTPRedirectRequest
@@ -130,6 +132,7 @@ class HTTPRedirectRequestParser(object):
 
 
 class HTTPPostRequestParser(object):
+
     def __init__(self, form, request_class=None):
         self._form = form
         self._request_class = request_class or HTTPPostRequest
@@ -177,6 +180,7 @@ class HTTPPostRequestParser(object):
 
 
 class HTTPRequestDeserializer(object):
+
     def __init__(self, request, validator, saml_class=None):
         self._request = request
         self._validator = validator
@@ -201,6 +205,7 @@ class HTTPRequestDeserializer(object):
 
 
 class SAMLTree(object):
+
     def __init__(self, xml_doc, multi_occur_tags=None):
         self._xml_doc = xml_doc
         self._multi_occur_tags = multi_occur_tags or MULTIPLE_OCCURRENCES_TAGS

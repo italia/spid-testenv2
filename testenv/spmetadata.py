@@ -29,6 +29,7 @@ SINGLE_LOGOUT_SERVICE = SingleLogoutService.tag()
 
 
 class ServiceProviderMetadataBaseLoader(object):
+
     def __init__(self, conf, validator):
         self._config = conf
         self._validator = validator
@@ -46,6 +47,7 @@ class ServiceProviderMetadataBaseLoader(object):
 
 
 class ServiceProviderMetadataFileLoader(ServiceProviderMetadataBaseLoader):
+
     def _load(self):
         try:
             return self._read_file_text()
@@ -62,6 +64,7 @@ class ServiceProviderMetadataFileLoader(ServiceProviderMetadataBaseLoader):
 
 
 class ServiceProviderMetadataHTTPLoader(ServiceProviderMetadataBaseLoader):
+
     def _load(self):
         try:
             return self._make_request()
@@ -78,6 +81,7 @@ class ServiceProviderMetadataHTTPLoader(ServiceProviderMetadataBaseLoader):
 
 
 class ServiceProviderMetadata(object):
+
     def __init__(self, loader):
         self._loader = loader
 
@@ -101,7 +105,7 @@ class ServiceProviderMetadata(object):
         key_descriptors = self.root.get(
             'children', {}
         ).get(SPSSODESCRIPTOR, {}
-        ).get(
+              ).get(
             'children', {}
         ).get(
             KEYDESCRIPTOR, []
@@ -112,7 +116,7 @@ class ServiceProviderMetadata(object):
                 'children', {}
             )
             if key_descriptor.get('attrs', {}
-            ).get('use') == use:
+                                  ).get('use') == use:
                 _cert = _key_descriptor.get(
                     KEYINFO, {}
                 ).get(
@@ -135,7 +139,7 @@ class ServiceProviderMetadata(object):
         acss = self.root.get(
             'children', {}
         ).get(SPSSODESCRIPTOR, {}
-        ).get(
+              ).get(
             'children', {}
         ).get(
             ASSERTION_CONSUMER_SERVICE, []
@@ -147,10 +151,10 @@ class ServiceProviderMetadata(object):
     def assertion_consumer_service(self, binding=None, index=None):
         return [
             acs for acs in self.assertion_consumer_services if (
-                    binding is not None and acs.get('Binding') == binding
-                ) or (
-                    index is not None and acs.get('index') == index
-                )
+                binding is not None and acs.get('Binding') == binding
+            ) or (
+                index is not None and acs.get('index') == index
+            )
         ]
 
     @property
@@ -158,7 +162,7 @@ class ServiceProviderMetadata(object):
         return self.root.get(
             'children', {}
         ).get(SPSSODESCRIPTOR, {}
-        ).get(
+              ).get(
             'children', {}
         ).get(
             ATTRIBUTE_CONSUMING_SERVICE, []
@@ -182,7 +186,7 @@ class ServiceProviderMetadata(object):
             requested_attributes = service.get(
                 'children', {}
             ).get(REQUESTEDATTRIBUTE, []
-            )
+                  )
             for requested_attribute in requested_attributes:
                 _attrs = requested_attribute.get(
                     'attrs', {}
@@ -200,7 +204,7 @@ class ServiceProviderMetadata(object):
         slos = self.root.get(
             'children', {}
         ).get(SPSSODESCRIPTOR, {}
-        ).get(
+              ).get(
             'children', {}
         ).get(
             SINGLE_LOGOUT_SERVICE, []
@@ -221,6 +225,7 @@ class ServiceProviderMetadata(object):
 
 
 class ServiceProviderMetadataRegistry(object):
+
     def __init__(self):
         self._metadata = {}
 
@@ -228,7 +233,8 @@ class ServiceProviderMetadataRegistry(object):
         try:
             self._register(metadata)
         except MetadataLoadError as e:
-            logger.error("Impossibile aggiungere metadata al registry: '{}'".format(e))
+            logger.error(
+                "Impossibile aggiungere metadata al registry: '{}'".format(e))
 
     def _register(self, metadata):
         entity_id = metadata.entity_id
@@ -267,5 +273,6 @@ def _get_loader(source_type, source_params):
         'local': ServiceProviderMetadataFileLoader,
         'remote': ServiceProviderMetadataHTTPLoader,
     }[source_type]
-    validator = ValidatorGroup([XMLMetadataFormatValidator(), ServiceProviderMetadataXMLSchemaValidator()])
+    validator = ValidatorGroup(
+        [XMLMetadataFormatValidator(), ServiceProviderMetadataXMLSchemaValidator()])
     return Loader(source_params, validator)

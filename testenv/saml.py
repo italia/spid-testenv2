@@ -276,7 +276,7 @@ def create_response(data, response_status, attributes={}):
             InResponseTo=response_attrs.get('in_response_to')
         )
     )
-    
+
     # Setup issuer data
     issuer_attrs = data.get('issuer').get('attrs')
     issuer = Issuer(
@@ -286,7 +286,7 @@ def create_response(data, response_status, attributes={}):
         text=data.get('issuer').get('text')
     )
     response.append(issuer)
-    
+
     # Setup status data
     status = Status()
     status_code_value = response_status.get('status_code')
@@ -297,7 +297,7 @@ def create_response(data, response_status, attributes={}):
     )
     status.append(status_code)
     response.append(status)
-    
+
     # Create and setup the assertion
     assertion = Assertion(
         attrib=dict(
@@ -316,7 +316,8 @@ def create_response(data, response_status, attributes={}):
     )
     subject.append(name_id)
     subject_confirmation = SubjectConfirmation()
-    subject_confirmation_data_attrs = data.get('subject_confirmation_data').get('attrs')
+    subject_confirmation_data_attrs = data.get(
+        'subject_confirmation_data').get('attrs')
     subject_confirmation_data = SubjectConfirmationData(
         attrib=dict(
             Recipient=subject_confirmation_data_attrs.get('recipient'),
@@ -489,7 +490,6 @@ class ServiceName(SamlMixin):
 
 class RequestedAttribute(SamlMixin):
     saml_type = 'md'
-
 
 
 def create_idp_metadata(

@@ -68,7 +68,7 @@ XSI = 'http://www.w3.org/2001/XMLSchema-instance'
 XS = 'http://www.w3.org/2001/XMLSchema'
 MD = 'urn:oasis:names:tc:SAML:2.0:metadata'
 
-NSMAP = { 'saml':  SAML, 'samlp': SAMLP, 'ds': DS, 'md': MD}
+NSMAP = {'saml': SAML, 'samlp': SAMLP, 'ds': DS, 'md': MD}
 NAME_FORMAT_BASIC = 'urn:oasis:names:tc:SAML:2.0:attrname-format:basic'
 NAMEID_FORMAT_TRANSIENT = 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient'
 NAMEID_FORMAT_ENTITY = 'urn:oasis:names:tc:SAML:2.0:nameid-format:entity'
@@ -98,7 +98,8 @@ SIG_RSA_SHA256 = 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256'
 SIG_RSA_SHA384 = 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha384'
 SIG_RSA_SHA512 = 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha512'
 DEPRECATED_ALGORITHMS = [SIG_RSA_SHA1]
-SUPPORTED_ALGORITHMS = [SIG_RSA_SHA224, SIG_RSA_SHA256, SIG_RSA_SHA384, SIG_RSA_SHA512]
+SUPPORTED_ALGORITHMS = [SIG_RSA_SHA224,
+                        SIG_RSA_SHA256, SIG_RSA_SHA384, SIG_RSA_SHA512]
 
 SIG_NS = '{http://www.w3.org/2000/09/xmldsig#}'
 
@@ -115,8 +116,9 @@ SIGNED_PARAMS = ['SAMLRequest', 'SAMLResponse', 'RelayState', 'SigAlg']
 
 
 # Misc
-TIMEDELTA = 2 # minutes (used to verify and generate range limits for issue instant etc.)
-CHALLENGES_TIMEOUT = 30 # seconds (used to verify spid level >= 2 challenges)
+# minutes (used to verify and generate range limits for issue instant etc.)
+TIMEDELTA = 2
+CHALLENGES_TIMEOUT = 30  # seconds (used to verify spid level >= 2 challenges)
 
 MULTIPLE_OCCURRENCES_TAGS = {
     '{%s}AssertionConsumerService' % (MD),
