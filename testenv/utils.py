@@ -79,7 +79,7 @@ def prettify_xml(msg):
 
 
 def saml_to_dict(xmlstr):
-    root = objectify.fromstring(xmlstr)
+    root = objectify.fromstring(xmlstr.encode('utf-8'))
 
     def _obj(elem):
         children = {}

@@ -200,7 +200,7 @@ class HTTPPostSignatureVerifier(object):
         self._cert = certificate
         self._request = request
         self._verifier = verifier or XMLVerifier()
-        self._xml_doc = objectify.fromstring(request.saml_request)
+        self._xml_doc = objectify.fromstring(request.saml_request.encode('utf-8'))
 
     @property
     def _supported_algorithms(self):
