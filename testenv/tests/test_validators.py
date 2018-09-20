@@ -84,12 +84,12 @@ class XMLFormatValidatorTestCase(unittest.TestCase):
 
     def test_valid_request(self):
         validator = XMLFormatValidator(translator=FakeTranslator())
-        request = FakeRequest('<a></a>')
+        request = FakeRequest(b'<a></a>')
         self.assertIsNone(validator.validate(request))
 
     def test_empty_request(self):
         validator = XMLFormatValidator(translator=FakeTranslator())
-        request = FakeRequest('')
+        request = FakeRequest(b'')
         with pytest.raises(XMLFormatValidationError) as excinfo:
             validator.validate(request)
         exc = excinfo.value
@@ -98,7 +98,7 @@ class XMLFormatValidatorTestCase(unittest.TestCase):
 
     def test_not_xml(self):
         validator = XMLFormatValidator(translator=FakeTranslator())
-        request = FakeRequest('{"this": "is JSON"}')
+        request = FakeRequest(b'{"this": "is JSON"}')
         with pytest.raises(XMLFormatValidationError) as excinfo:
             validator.validate(request)
         exc = excinfo.value
@@ -108,7 +108,7 @@ class XMLFormatValidatorTestCase(unittest.TestCase):
 
     def test_tag_mismatch(self):
         validator = XMLFormatValidator(translator=FakeTranslator())
-        request = FakeRequest('<a></b>')
+        request = FakeRequest(b'<a></b>')
         with pytest.raises(XMLFormatValidationError) as excinfo:
             validator.validate(request)
         exc = excinfo.value
@@ -120,12 +120,17 @@ class XMLFormatValidatorTestCase(unittest.TestCase):
 
     def test_duplicate_attribute(self):
         validator = XMLFormatValidator(translator=FakeTranslator())
-        request = FakeRequest('<a attr="value" attr="value"></a>')
+        request = FakeRequest(b'<a attr="value" attr="value"></a>')
         with pytest.raises(XMLFormatValidationError) as excinfo:
             validator.validate(request)
         exc = excinfo.value
         self.assertEqual(len(exc.details), 1)
         self.assertIn('Attribute attr redefined', exc.details[0].message)
+
+    def test_xml_with_declarations(self):
+        validator = XMLFormatValidator(translator=FakeTranslator())
+        request = FakeRequest(b'<?xml version="1.0" encoding="utf-8" ?><a></a>')
+        validator.validate(request)
 
 
 class AuthnRequestXMLSchemaValidatorTestCase(unittest.TestCase):
