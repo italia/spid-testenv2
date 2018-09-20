@@ -243,7 +243,7 @@ class ServiceProviderMetadataRegistry(object):
     def get(self, entity_id):
         try:
             return self._metadata[entity_id]
-        except KeyError as e:
+        except KeyError:
             raise MetadataNotFoundError(entity_id)
 
     @property
