@@ -422,14 +422,14 @@ class EntityDescriptor(SamlMixin):
 class IDPSSODescriptor(SamlMixin):
     saml_type = 'md'
     defaults = {
-        'protocolSupportEnumeration': SAML,
+        'protocolSupportEnumeration': SAMLP,
     }
 
 
 class SPSSODescriptor(SamlMixin):
     saml_type = 'md'
     defaults = {
-        'protocolSupportEnumeration': SAML,
+        'protocolSupportEnumeration': SAMLP,
     }
 
 
@@ -499,7 +499,7 @@ def create_idp_metadata(
     single_sign_on_services=None,
     single_logout_services=None,
     attributes=None,
-    org=None
+    org=None,
 ):
     entity_descriptor = EntityDescriptor(
         attrib=dict(
@@ -589,17 +589,22 @@ def create_sp_metadata(
     authn_request_signed,
     keys=None,
     assertion_consumer_services=None,
-    attribute_consuming_services=None
+    attribute_consuming_services=None,
+    single_logout_services=None,
+    md_id=None,
+    check_attributes=True
 ):
+    _id = generate_unique_id() if md_id is None else md_id
     entity_descriptor = EntityDescriptor(
         attrib=dict(
-            entityID=entity_id
+            entityID=entity_id,
+            ID=_id
         )
     )
     # Setup idp sso descriptor
     sp_sso_descriptor = SPSSODescriptor(
         attrib=dict(
-            AuthnRequestSigned=authn_request_signed
+            AuthnRequestsSigned=authn_request_signed
         )
     )
     if keys is not None:
@@ -618,6 +623,21 @@ def create_sp_metadata(
             key_info.append(x509_data)
             key_descriptor.append(key_info)
             sp_sso_descriptor.append(key_descriptor)
+    # setup single logout service(s)
+    if single_logout_services is not None:
+        for _slo in single_logout_services:
+            single_logout_service = SingleLogoutService(
+                attrib=dict(
+                    Binding=_slo.binding,
+                    Location=_slo.location
+                )
+            )
+            sp_sso_descriptor.append(single_logout_service)
+    # setup name id
+    name_id_format = NameIDFormat(
+        text=NAMEID_FORMAT_TRANSIENT
+    )
+    sp_sso_descriptor.append(name_id_format)
     # Setup assertion consumer service(s)
     if assertion_consumer_services is not None:
         for idx, _ascs in enumerate(assertion_consumer_services):
@@ -640,15 +660,20 @@ def create_sp_metadata(
                 )
             )
             service_name = ServiceName(text=_atcs.service_name)
+            attribute_consuming_service.append(service_name)
             for attr_name in _atcs.attributes:
-                if attr_name in SPID_ATTRIBUTES['primary'] or attr_name in SPID_ATTRIBUTES['secondary']:
+                if attr_name in SPID_ATTRIBUTES[
+                    'primary'
+                ] or attr_name in SPID_ATTRIBUTES[
+                    'secondary'
+                ] or not check_attributes:
                     requested_attribute = RequestedAttribute(
                         attrib=dict(
-                            Name=attr_name
+                            Name=attr_name,
+                            NameFormat=NAME_FORMAT_BASIC
                         )
                     )
-                    service_name.append(requested_attribute)
-            attribute_consuming_service.append(service_name)
+                    attribute_consuming_service.append(requested_attribute)
             sp_sso_descriptor.append(attribute_consuming_service)
     entity_descriptor.append(sp_sso_descriptor)
     return entity_descriptor

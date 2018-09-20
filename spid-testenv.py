@@ -2,14 +2,18 @@
 from __future__ import unicode_literals
 
 import argparse
+import logging
 import os
 import os.path
 
 from flask import Flask
 
 from testenv import config, spmetadata
-from testenv.exceptions import BadConfiguration
+from testenv.exceptions import BadConfiguration, DeserializationError, ValidationError
 from testenv.server import IdpServer
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -25,9 +29,13 @@ if __name__ == '__main__':
     try:
         config.load(args.config, args.configuration_type)
     except BadConfiguration as e:
-        print(e)
+        logger.error(e)
     else:
-        spmetadata.build_metadata_registry()
+        try:
+            spmetadata.build_metadata_registry()
+        except (ValidationError, DeserializationError) as e:
+            for err in e.details:
+                logger.error(err)
         os.environ['FLASK_ENV'] = 'development'
         server = IdpServer(app=Flask(__name__, static_url_path='/static'))
         server.start()

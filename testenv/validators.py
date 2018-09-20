@@ -6,17 +6,21 @@ from datetime import datetime, timedelta
 
 import importlib_resources
 from lxml import etree
-from voluptuous import All, In, Invalid, MultipleInvalid, Optional, Schema
+from voluptuous import All, In, Invalid, Length, MultipleInvalid, Optional, Schema
 from voluptuous.validators import Equal
 
 from testenv import config
+from testenv.crypto import (
+    load_certificate, verify_bad_certificate_algorithm, verify_certificate_algorithm, verify_certificate_expiration,
+)
 from testenv.exceptions import (
-    GroupValidationError, SPIDValidationError, StopValidation, UnknownEntityIDError, ValidationError,
-    XMLFormatValidationError, XMLSchemaValidationError,
+    ExpiredCertificateError, GroupValidationError, SPIDValidationError, StopValidation, UnknownEntityIDError,
+    ValidationError, XMLFormatValidationError, XMLSchemaValidationError,
 )
 from testenv.settings import (
-    BINDING_HTTP_POST, DEFAULT_LIST_VALUE_ERROR, DEFAULT_VALUE_ERROR, DS as SIGNATURE, NAMEID_FORMAT_ENTITY,
-    NAMEID_FORMAT_TRANSIENT, SAML as ASSERTION, SAMLP as PROTOCOL, SPID_LEVELS, TIMEDELTA,
+    BINDING_HTTP_POST, DEFAULT_LIST_VALUE_ERROR, DEFAULT_VALUE_ERROR, DS as SIGNATURE, KEYDESCRIPTOR_USES,
+    MD as METADATA, NAME_FORMAT_BASIC, NAMEID_FORMAT_ENTITY, NAMEID_FORMAT_TRANSIENT, SAML as ASSERTION,
+    SAMLP as PROTOCOL, SPID_ATTRIBUTES_NAMES, SPID_LEVELS, TIMEDELTA,
 )
 from testenv.translation import Libxml2Translator
 from testenv.utils import saml_to_dict, str_to_datetime, str_to_struct_time
@@ -25,6 +29,51 @@ ValidationDetail = namedtuple(
     'ValidationDetail',
     ['value', 'line', 'column', 'domain_name', 'type_name', 'message', 'path']
 )
+
+
+def _check_utc_date(date):
+    try:
+        str_to_struct_time(date)
+    except Exception:
+        raise Invalid('la data non è in formato UTC')
+    return date
+
+
+def _check_date_in_range(self, date):
+    date = str_to_datetime(date)
+    now = datetime.utcnow()
+    lower = now - timedelta(minutes=TIMEDELTA)
+    upper = now + timedelta(minutes=TIMEDELTA)
+    if date < lower or date > upper:
+        raise Invalid(
+            '{} non è compreso tra {} e {}'.format(
+                date, lower, upper
+            )
+        )
+    return date
+
+
+def _check_certificate(cert):
+    _errors = []
+    cert = load_certificate(cert)
+    is_expired = verify_certificate_expiration(cert)
+    has_supported_alg = verify_certificate_algorithm(cert)
+    no_sha1 = verify_bad_certificate_algorithm(cert)
+    if is_expired:
+        _errors.append(
+            Invalid('Il certificato è scaduto.')
+        )
+    if not has_supported_alg:
+        _errors.append(
+            Invalid('Il certificato deve essere firmato con un algoritmo valido.')
+        )
+    if not no_sha1:
+        _errors.append(
+            Invalid('Il certificato non deve essere firmato tramite algoritmo SHA1 (deprecato).')
+        )
+    if _errors:
+        raise MultipleInvalid(errors=_errors)
+    return cert
 
 
 class ValidatorGroup(object):
@@ -192,7 +241,209 @@ class ServiceProviderMetadataXMLSchemaValidator(BaseXMLSchemaValidator):
         return self._run(metadata, schema_type)
 
 
-class SpidValidator(object):
+class SpidMetadataValidator(object):
+    def __init__(self, registry=None):
+        if registry:  # FIXME fix circular import. this is ugly.
+            self._registry = registry
+        else:
+            from testenv import spmetadata
+            self._registry = spmetadata.registry
+
+    def _check_keydescriptor(self, val):
+        signing = [key for key in val if key.get('attrs', {}).get('use') == 'signing']
+        if len(signing) == 0:
+            raise Invalid('Deve essere presente almeno una chiave con attributo use uguale a "signing"')
+        return val
+
+    def validate(self, metadata):
+        data = saml_to_dict(metadata)
+        key_descriptor = Schema(
+            All(
+                [{
+                    'attrs': Schema({
+                        'use': All(str, In(
+                            KEYDESCRIPTOR_USES,
+                            msg=DEFAULT_LIST_VALUE_ERROR.format(KEYDESCRIPTOR_USES))
+                        ),
+                    }, required=True),
+                    'children': {
+                        '{%s}KeyInfo' % (SIGNATURE): {
+                            'attrs': {},
+                            'children': {
+                                '{%s}X509Data' % (SIGNATURE): {
+                                    'attrs': {},
+                                    'children': {
+                                        '{%s}X509Certificate' % (SIGNATURE): {
+                                            'attrs': {},
+                                            'children': {},
+                                            'text': All(str, _check_certificate)
+                                        }
+                                    },
+                                    'text': None
+                                }
+                            },
+                            'text': None
+                        }
+                    },
+                    'text': None
+                }], self._check_keydescriptor),
+            required=True,
+        )
+        slo = Schema(
+            All(
+                [{
+                    'attrs': dict,
+                    'children': dict,
+                    'text': None
+                }], Length(min=1)),
+            required=True,
+        )
+        acs = Schema(
+            All(
+                [{
+                    'attrs': dict,
+                    'children': dict,
+                    'text': None
+                }], Length(min=1)),
+            required=True,
+        )
+        atcs = Schema(
+            All(
+                [{
+                    'attrs': {
+                        'index': str
+                    },
+                    'children': {
+                        '{%s}ServiceName' % (METADATA): {
+                            'attrs': dict,
+                            'children': {},
+                            'text': str
+                        },
+                        Optional('{%s}ServiceDescription' % (METADATA)): {
+                            'attrs': dict,
+                            'children': {},
+                            'text': str
+                        },
+                        '{%s}RequestedAttribute' % (METADATA): All(
+                            [{
+                                'attrs': {
+                                    'Name': All(str, In(SPID_ATTRIBUTES_NAMES, msg=DEFAULT_LIST_VALUE_ERROR.format(SPID_ATTRIBUTES_NAMES))),
+                                    'NameFormat': Equal(
+                                        NAME_FORMAT_BASIC, msg=DEFAULT_VALUE_ERROR.format(
+                                            NAME_FORMAT_BASIC)
+                                    ),
+                                    Optional('isRequired'): str
+                                },
+                                'children': {},
+                                'text': None
+                            }],
+                            Length(min=1)),
+                    },
+                    'text': None
+                }], Length(min=1)),
+            required=True,
+        )
+        name_id_format = Schema(
+            {
+                'attrs': {},
+                'children': {},
+                'text': Equal(
+                    NAMEID_FORMAT_TRANSIENT, msg=DEFAULT_VALUE_ERROR.format(
+                        NAMEID_FORMAT_TRANSIENT)
+                ),
+            },
+            required=True,
+        )
+        spsso_descriptor_attr_schema = Schema(
+            All(
+                {
+                    'protocolSupportEnumeration': Equal(PROTOCOL, msg=DEFAULT_VALUE_ERROR.format(PROTOCOL)),
+                    'AuthnRequestsSigned': Equal('true', msg=DEFAULT_VALUE_ERROR.format('true')),
+                    Optional('WantAssertionsSigned'): str,
+
+                }
+            ),
+            required=True
+        )
+        spsso = Schema(
+            {
+                'attrs': spsso_descriptor_attr_schema,
+                'children': {
+                    '{%s}KeyDescriptor' % (METADATA): key_descriptor,
+                    '{%s}SingleLogoutService' % (METADATA): slo,
+                    '{%s}AssertionConsumerService' % (METADATA): acs,
+                    '{%s}AttributeConsumingService' % (METADATA): atcs,
+                    '{%s}NameIDFormat' % (METADATA): name_id_format,
+                },
+                'text': None
+            },
+            required=True
+        )
+        entity_descriptor_schema = Schema({
+            '{%s}EntityDescriptor' % (METADATA): {
+                'attrs': Schema({
+                    'entityID': str,
+                    Optional('ID'): str,
+                    Optional('validUntil'): All(str, _check_utc_date),
+                    Optional('cacheDuration'): str,
+                    Optional('Name'): str,
+                }, required=True),
+                'children': Schema(
+                    {
+                        Optional('{%s}Signature' % (SIGNATURE)): Schema(
+                            {
+                                'attrs': dict,
+                                'children': dict,
+                                'text': None
+                            },
+                            required=True,
+                        ),
+                        '{%s}SPSSODescriptor' % (METADATA): spsso,
+                        Optional('{%s}Organization' % (METADATA)): dict,
+                        Optional('{%s}ContactPerson' % (METADATA)): list
+                    },
+                    required=True
+                ),
+                'text': None
+            }
+        }, required=True)
+        errors = []
+        try:
+            entity_descriptor_schema(data)
+        except MultipleInvalid as e:
+            for err in e.errors:
+                _val = data
+                _paths = []
+                _attr = None
+                for idx, _path in enumerate(err.path):
+                    if _path != 'children':
+                        if _path == 'attrs':
+                            try:
+                                _attr = err.path[(idx + 1)]
+                            except IndexError:
+                                _attr = ''
+                            break
+                        _paths.append(str(_path))
+                path = '/'.join(_paths)
+                path = 'xpath: {}'.format(path)
+                if _attr is not None:
+                    path = '{} - attribute: {}'.format(path, _attr)
+                for _ in err.path:
+                    try:
+                        _val = _val[_]
+                    except IndexError:
+                        _val = None
+                    except KeyError:
+                        _val = None
+                errors.append(
+                    ValidationDetail(
+                        _val, None, None, None, None, err.msg, path
+                    )
+                )
+            raise SPIDValidationError(details=errors)
+
+
+class SpidRequestValidator(object):
 
     def __init__(self, action, binding, registry=None, conf=None):
         self._action = action
@@ -203,13 +454,6 @@ class SpidValidator(object):
         else:
             from testenv import spmetadata
             self._registry = spmetadata.registry
-
-    def _check_utc_date(self, date):
-        try:
-            str_to_struct_time(date)
-        except Exception:
-            raise Invalid('la data non è in formato UTC')
-        return date
 
     def _check_date_in_range(self, date):
         date = str_to_datetime(date)
@@ -322,8 +566,8 @@ class SpidValidator(object):
         conditions = Schema(
             {
                 'attrs': {
-                    'NotBefore': All(str, self._check_utc_date),
-                    'NotOnOrAfter': All(str, self._check_utc_date),
+                    'NotBefore': All(str, _check_utc_date),
+                    'NotOnOrAfter': All(str, _check_utc_date),
                 },
                 'children': {},
                 'text': None,
@@ -430,7 +674,7 @@ class SpidValidator(object):
                 {
                     'ID': str,
                     'Version': Equal('2.0', msg=DEFAULT_VALUE_ERROR.format('2.0')),
-                    'IssueInstant': All(str, self._check_utc_date, self._check_date_in_range),
+                    'IssueInstant': All(str, _check_utc_date, self._check_date_in_range),
                     'Destination': Equal(
                         entity_id, msg=DEFAULT_VALUE_ERROR.format(entity_id)
                     ),
@@ -478,11 +722,11 @@ class SpidValidator(object):
                 {
                     'ID': str,
                     'Version': Equal('2.0', msg=DEFAULT_VALUE_ERROR.format('2.0')),
-                    'IssueInstant': All(str, self._check_utc_date, self._check_date_in_range),
+                    'IssueInstant': All(str, _check_utc_date, self._check_date_in_range),
                     'Destination': Equal(
                         entity_id, msg=DEFAULT_VALUE_ERROR.format(entity_id)
                     ),
-                    Optional('NotOnOrAfter'): All(str, self._check_utc_date, self._check_date_not_expired),
+                    Optional('NotOnOrAfter'): All(str, _check_utc_date, self._check_date_not_expired),
                     Optional('Reason'): str,
                 }
             ),
@@ -558,13 +802,18 @@ class SpidValidator(object):
                             except IndexError:
                                 _attr = ''
                             break
-                        _paths.append(_path)
+                        _paths.append(str(_path))
                 path = '/'.join(_paths)
                 path = 'xpath: {}'.format(path)
                 if _attr is not None:
                     path = '{} - attribute: {}'.format(path, _attr)
                 for _ in err.path:
-                    _val = _val.get(_)
+                    try:
+                        _val = _val[_]
+                    except KeyError:
+                        _val = None
+                    except ValueError:
+                        _val = None
                 errors.append(
                     ValidationDetail(
                         _val, None, None, None, None, err.msg, path

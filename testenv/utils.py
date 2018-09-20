@@ -112,7 +112,14 @@ def saml_to_dict(xmlstr):
     }
 
 
+def get_today_utc_date():
+    now = datetime.utcnow()
+    return now
+
+
 Org = namedtuple('Org', ['name', 'url'])
 Key = namedtuple('Key', ['use', 'value'])
 Sso = namedtuple('SingleSignOn', ['binding', 'location'])
 Slo = namedtuple('SingleLogout', ['binding', 'location'])
+Atcs = namedtuple('AttributeConsumingService', ['service_name', 'attributes'])
+Acs = namedtuple('AssertionConsumerService', ['location'])

@@ -13,7 +13,8 @@ from flask import Response, abort, escape, redirect, render_template, request, s
 from testenv import config, spmetadata
 from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect
 from testenv.exceptions import (
-    DeserializationError, NoCertificateError, RequestParserError, SignatureVerificationError, UnknownEntityIDError,
+    DeserializationError, MetadataLoadError, NoCertificateError, RequestParserError, SignatureVerificationError,
+    UnknownEntityIDError,
 )
 from testenv.parser import (
     HTTPPostRequestParser, HTTPRedirectRequestParser, get_http_post_request_deserializer,
@@ -302,6 +303,8 @@ class IdpServer(object):
             self._raise_error(err.args[0])
         except DeserializationError as err:
             return self._handle_errors(err.initial_data, err.details)
+        except MetadataLoadError as err:
+            self._raise_error('Metadata non disponibile: {}'.format(err.args[0]))
 
     @property
     def _spid_main_fields(self):
@@ -751,6 +754,8 @@ class IdpServer(object):
             self._raise_error(err.args[0])
         except DeserializationError as err:
             return self._handle_errors(err.initial_data, err.details)
+        except MetadataLoadError as err:
+            self._raise_error(err.args[0])
         abort(400)
 
     def metadata(self):

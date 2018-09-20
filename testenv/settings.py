@@ -14,6 +14,8 @@ SPID_LEVELS = [
     SPID_LEVEL_3
 ]
 
+KEYDESCRIPTOR_USES = ['signing', 'encryption']
+
 SPID_ATTRIBUTES = {
     'primary': {
         'spidCode': 'string',
@@ -38,6 +40,10 @@ SPID_ATTRIBUTES = {
     }
 }
 
+SPID_ATTRIBUTES_NAMES = list(SPID_ATTRIBUTES['primary'].keys())
+SPID_ATTRIBUTES_NAMES.extend(
+    list(SPID_ATTRIBUTES['secondary'].keys())
+)
 
 #######
 
@@ -126,4 +132,5 @@ MULTIPLE_OCCURRENCES_TAGS = {
     '{%s}KeyDescriptor' % (MD),
     '{%s}RequestedAttribute' % (MD),
     '{%s}SingleLogoutService' % (MD),
+    '{%s}ContactPerson' % (MD),
 }

@@ -70,3 +70,7 @@ class MetadataLoadError(TestenvError):
 
 class NoCertificateError(TestenvError):
     pass
+
+
+class ExpiredCertificateError(TestenvError):
+    pass
