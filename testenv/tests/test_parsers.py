@@ -64,7 +64,7 @@ class HTTPRedirectRequestParserTestCase(unittest.TestCase):
     def test_valid_request(self):
         parser = HTTPRedirectRequestParser(self.querystring)
         parsed = parser.parse()
-        self.assertEqual(parsed.saml_request, 'saml_request')
+        self.assertEqual(parsed.saml_request, b'saml_request')
         self.assertEqual(parsed.sig_alg, 'sig_alg')
         self.assertEqual(parsed.relay_state, 'relay_state')
         self.assertEqual(parsed.signature, b'signature')
@@ -119,7 +119,7 @@ class HTTPPostRequestParserTestCase(unittest.TestCase):
     def test_valid_request(self):
         parser = HTTPPostRequestParser(self.form)
         parsed = parser.parse()
-        self.assertEqual(parsed.saml_request, 'saml_request')
+        self.assertEqual(parsed.saml_request, b'saml_request')
         self.assertEqual(parsed.relay_state, 'relay_state')
 
     def test_relay_state_is_optional(self):

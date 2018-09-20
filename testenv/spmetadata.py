@@ -13,7 +13,7 @@ from testenv.saml import (
 )
 from testenv.utils import saml_to_dict
 from testenv.validators import ServiceProviderMetadataXMLSchemaValidator, ValidatorGroup, XMLMetadataFormatValidator
-
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 ENTITYDESCRIPTOR = EntityDescriptor.tag()
@@ -59,7 +59,7 @@ class ServiceProviderMetadataFileLoader(ServiceProviderMetadataBaseLoader):
 
     def _read_file_text(self):
         path = self._config
-        with open(path, 'r') as fp:
+        with open(path, 'rb') as fp:
             return fp.read()
 
 
@@ -77,7 +77,7 @@ class ServiceProviderMetadataHTTPLoader(ServiceProviderMetadataBaseLoader):
     def _make_request(self):
         response = requests.get(self._config.get('url'))
         response.raise_for_status()
-        return bytes(response.text, 'utf-8')
+        return response.content
 
 
 class ServiceProviderMetadata(object):
