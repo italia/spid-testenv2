@@ -13,6 +13,7 @@ from testenv.saml import (
 )
 from testenv.utils import saml_to_dict
 from testenv.validators import ServiceProviderMetadataXMLSchemaValidator, ValidatorGroup, XMLMetadataFormatValidator
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
