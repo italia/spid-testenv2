@@ -200,7 +200,7 @@ class HTTPRequestDeserializer(object):
             )
 
     def _deserialize(self):
-        xml_doc = objectify.fromstring(self._request.saml_request)
+        xml_doc = objectify.fromstring(self._request.saml_request.encode('utf-8'))
         return self._saml_class(xml_doc)
 
 

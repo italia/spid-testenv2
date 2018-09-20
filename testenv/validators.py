@@ -75,7 +75,7 @@ class XMLFormatValidator(object):
 
     def validate(self, request):
         try:
-            etree.fromstring(request.saml_request, parser=self._parser)
+            etree.fromstring(request.saml_request.encode('utf-8'), parser=self._parser)
         except SyntaxError:
             self._handle_errors()
 
@@ -100,7 +100,7 @@ class XMLMetadataFormatValidator(XMLFormatValidator):
 
     def validate(self, xmlstr):
         try:
-            etree.fromstring(xmlstr, parser=self._parser)
+            etree.fromstring(xmlstr.encode('utf-8'), parser=self._parser)
         except SyntaxError as e:
             self._handle_errors()
 
@@ -149,7 +149,7 @@ class BaseXMLSchemaValidator(object):
         return self._validate_xml(xml_doc, schema)
 
     def _parse_xml(self, xml):
-        return etree.fromstring(xml, parser=self._parser)
+        return etree.fromstring(xml.encode('utf-8'), parser=self._parser)
 
     def _load_schema(self, schema_type):
         return self._schema_loader.load(schema_type)
