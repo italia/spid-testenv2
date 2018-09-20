@@ -63,7 +63,7 @@ def str_to_struct_time(timestr, format=TIME_FORMAT):
     except ValueError:  # assume it's a format problem
         try:
             elem = TIME_FORMAT_WITH_FRAGMENT.match(timestr)
-        except Exception as exc:
+        except Exception:
             raise
         then = time.strptime(elem.groups()[0] + 'Z', TIME_FORMAT)
 

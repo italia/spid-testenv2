@@ -667,12 +667,10 @@ class IdpServer(object):
 
     def _sp_single_logout_service(self, issuer_name):
         _slo = None
-        for binding in [BINDING_HTTP_POST, BINDING_HTTP_REDIRECT]:
-            try:
-                _slo = self._registry.get(
-                    issuer_name).single_logout_services[0]
-            except Exception:
-                pass
+        try:
+            _slo = self._registry.get(issuer_name).single_logout_services[0]
+        except Exception:
+            pass
         return _slo
 
     def single_logout_service(self):
@@ -692,13 +690,13 @@ class IdpServer(object):
                         issuer_name
                     )
                 )
-            response_binding = _slo[0].get('Binding')
+            response_binding = _slo.get('Binding')
             self.app.logger.debug(
                 'Response binding: \n{}'.format(
                     response_binding
                 )
             )
-            destination = _slo[0].get('Location')
+            destination = _slo.get('Location')
             response = create_logout_response(
                 {
                     'logout_response': {

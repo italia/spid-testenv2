@@ -41,7 +41,7 @@ def _sp_single_logout_service(server, issuer_name, binding):
     _slo = server._registry.get(issuer_name).single_logout_service(
         binding=binding
     )
-    return _slo
+    return _slo[0]
 
 
 def generate_authn_request(data={}, acs_level=0, sign=False):

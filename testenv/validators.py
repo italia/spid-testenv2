@@ -101,7 +101,7 @@ class XMLMetadataFormatValidator(XMLFormatValidator):
     def validate(self, xmlstr):
         try:
             etree.fromstring(xmlstr, parser=self._parser)
-        except SyntaxError as e:
+        except SyntaxError:
             self._handle_errors()
 
 
