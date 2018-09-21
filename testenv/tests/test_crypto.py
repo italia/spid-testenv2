@@ -84,6 +84,7 @@ class HTTPRedirectSignatureVerifierTestCase(unittest.TestCase):
             'sig_alg': sig_alg,
             'signature': signature,
             'signed_data': signed_data,
+            'auto_login': None
         }
         self.supported_sig_alg = ', '.join(SUPPORTED_SIG_ALG)
 

@@ -28,7 +28,7 @@ HTTPRedirectRequest = namedtuple(
 
 
 HTTPPostRequest = namedtuple(
-    'HTTPPostRequest', ['saml_request', 'relay_state'])
+    'HTTPPostRequest', ['saml_request', 'relay_state', 'auto_login'])
 
 
 def _get_deserializer(request, action, binding):
