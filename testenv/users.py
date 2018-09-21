@@ -99,3 +99,20 @@ class JsonUserManager(AbstractUserManager):
 
     def all(self):
         return self.users
+
+
+class AutoLoginJsonUserManager(JsonUserManager):
+    """
+    User manager class that bypass the password check
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(AutoLoginJsonUserManager, self).__init__(*args, **kwargs)
+
+    def get(self, uid, pwd, sp_id):
+        for user, _attrs in self.users.items():
+            if user == uid:
+                if _attrs['sp'] is not None and _attrs['sp'] != sp_id:
+                    return None, None
+                return user, self.users[user]
+        return None, None
