@@ -165,7 +165,8 @@ class BaseXMLSchemaValidator(object):
         localized_errors = self._localize_messages(errors)
         raise XMLSchemaValidationError(localized_errors)
 
-    def _build_errors(self, error_log):
+    @staticmethod
+    def _build_errors(error_log):
         return [
             ValidationDetail(None, err.line, err.column, err.domain_name,
                              err.type_name, err.message, err.path)
