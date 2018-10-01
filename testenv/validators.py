@@ -224,6 +224,13 @@ class SpidValidator(object):
             )
         return date
 
+    def _check_date_not_expired(self, date):
+        date = str_to_datetime(date)
+        now = datetime.utcnow()
+        if now > date:
+            raise Invalid('Richiesta scaduta in data {}'.format(date))
+        return date
+
     def validate(self, request):
         xmlstr = request.saml_request
         data = saml_to_dict(xmlstr)
@@ -474,7 +481,9 @@ class SpidValidator(object):
                     'IssueInstant': All(str, self._check_utc_date, self._check_date_in_range),
                     'Destination': Equal(
                         entity_id, msg=DEFAULT_VALUE_ERROR.format(entity_id)
-                    )
+                    ),
+                    Optional('NotOnOrAfter'): All(str, self._check_utc_date, self._check_date_not_expired),
+                    Optional('Reason'): str,
                 }
             ),
             required=True
