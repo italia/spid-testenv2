@@ -227,7 +227,7 @@ class SpidValidator(object):
     def _check_date_not_expired(self, date):
         date = str_to_datetime(date)
         now = datetime.utcnow()
-        if now > date:
+        if now >= date:
             raise Invalid('Richiesta scaduta in data {}'.format(date))
         return date
 
