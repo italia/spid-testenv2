@@ -763,32 +763,30 @@ class IdpServer(object):
         slo = endpoints.get('single_logout_service')
         sso_list = []
         slo_list = []
-        for _sso in sso:
-            sso_list.append(
-                Sso(
-                    binding=BINDING_HTTP_POST,
-                    location=_sso
-                )
+        sso_list.append(
+            Sso(
+                binding=BINDING_HTTP_POST,
+                location=sso
             )
-            sso_list.append(
-                Sso(
-                    binding=BINDING_HTTP_REDIRECT,
-                    location=_sso
-                )
+        )
+        sso_list.append(
+            Sso(
+                binding=BINDING_HTTP_REDIRECT,
+                location=sso
             )
-        for _slo in slo:
-            slo_list.append(
-                Slo(
-                    binding=BINDING_HTTP_POST,
-                    location=_slo
-                )
+        )
+        slo_list.append(
+            Slo(
+                binding=BINDING_HTTP_POST,
+                location=slo
             )
-            slo_list.append(
-                Slo(
-                    binding=BINDING_HTTP_REDIRECT,
-                    location=_slo
-                )
+        )
+        slo_list.append(
+            Slo(
+                binding=BINDING_HTTP_REDIRECT,
+                location=slo
             )
+        )
         metadata = create_idp_metadata(
             entity_id=self._config.entity_id,
             want_authn_requests_signed='true',
