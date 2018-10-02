@@ -41,13 +41,19 @@ check_url.error_msg = 'la url non è in formato corretto'
 
 
 def str_to_datetime(val):
-    try:
-        return datetime.strptime(val, '%Y-%m-%dT%H:%M:%S.%fZ')
-    except ValueError:
+    nanoseconds_fmt = '%Y-%m-%dT%H:%M:%S.%fZ'
+    seconds_fmt = '%Y-%m-%dT%H:%M:%SZ'
+    for fmt in (nanoseconds_fmt, seconds_fmt):
         try:
-            return datetime.strptime(val, '%Y-%m-%dT%H:%M:%SZ')
+            return datetime.strptime(val, fmt)
         except ValueError:
             pass
+
+    truncated_to_nanoseconds = '{}Z'.format(val[:26])
+    try:
+        return datetime.strptime(truncated_to_nanoseconds, nanoseconds_fmt)
+    except ValueError:
+        raise ValueError('Cannot parse date: {}'.format(val))
 
 
 def str_to_struct_time(timestr, format=TIME_FORMAT):

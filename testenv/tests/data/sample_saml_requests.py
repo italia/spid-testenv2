@@ -146,3 +146,17 @@ fake_signature = """<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
       </ds:X509Data>
     </ds:KeyInfo>
   </ds:Signature>"""
+
+logout_with_notonorafter_attr = """\
+<saml2p:LogoutRequest xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion" ID="_55d5aaad-e828-4609-8c71-8064ea01cc91" Version="2.0" IssueInstant="2018-08-18T06:57:22Z" Destination="http://localhost:8088/" NotOnOrAfter="2018-09-14T16:14:03.6077842Z" xmlns:saml2p="urn:oasis:names:tc:SAML:2.0:protocol">
+    <saml2:Issuer NameQualifier="https://localhost:8088/" Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity">https://localhost:8088/</saml2:Issuer>%s
+    <saml2:NameID NameQualifier="https://localhost:8088/" Format="urn:oasis:names:tc:SAML:2.0:nameid-format:transient">id_08300a4f4edd3bbfead6b87cfb2449f7dcaf041c</saml2:NameID>
+    <saml2p:SessionIndex>id_25a2e734dd1c7cfab13efcc17b051e02789007f1</saml2p:SessionIndex>
+</saml2p:LogoutRequest>"""
+
+logout_with_reason_attr = """\
+<saml2p:LogoutRequest xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion" ID="_55d5aaad-e828-4609-8c71-8064ea01cc91" Version="2.0" IssueInstant="2018-08-18T06:57:22Z" Destination="http://localhost:8088/" Reason="urn:oasis:names:tc:SAML:2.0:logout:user" xmlns:saml2p="urn:oasis:names:tc:SAML:2.0:protocol">
+    <saml2:Issuer NameQualifier="https://localhost:8088/" Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity">https://localhost:8088/</saml2:Issuer>%s
+    <saml2:NameID NameQualifier="https://localhost:8088/" Format="urn:oasis:names:tc:SAML:2.0:nameid-format:transient">id_08300a4f4edd3bbfead6b87cfb2449f7dcaf041c</saml2:NameID>
+    <saml2p:SessionIndex>id_25a2e734dd1c7cfab13efcc17b051e02789007f1</saml2p:SessionIndex>
+</saml2p:LogoutRequest>"""

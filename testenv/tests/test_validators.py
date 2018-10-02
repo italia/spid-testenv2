@@ -402,3 +402,31 @@ class SPIDValidatorTestCase(unittest.TestCase):
         validator = SpidValidator(
             'logout', settings.BINDING_HTTP_REDIRECT, registry, config)
         validator.validate(request)
+
+    @freeze_time('2018-08-18T06:55:22Z')
+    def test_logout_request_http_post_with_notonorafter_attr(self):
+        # https://github.com/italia/spid-testenv2/issues/159
+        config = FakeConfig('http://localhost:8088/sso',
+                            'http://localhost:8088/')
+        request = FakeRequest(sample_requests.logout_with_notonorafter_attr %
+                              (sample_requests.fake_signature))
+        registry = FakeRegistry({
+            'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
+        })
+        validator = SpidValidator(
+            'logout', settings.BINDING_HTTP_POST, registry, config)
+        validator.validate(request)
+
+    @freeze_time('2018-08-18T06:55:22Z')
+    def test_logout_request_http_post_with_reason_attr(self):
+        # https://github.com/italia/spid-testenv2/issues/159
+        config = FakeConfig('http://localhost:8088/sso',
+                            'http://localhost:8088/')
+        request = FakeRequest(sample_requests.logout_with_reason_attr %
+                              (sample_requests.fake_signature))
+        registry = FakeRegistry({
+            'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
+        })
+        validator = SpidValidator(
+            'logout', settings.BINDING_HTTP_POST, registry, config)
+        validator.validate(request)
