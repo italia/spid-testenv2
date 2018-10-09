@@ -759,8 +759,8 @@ class IdpServer(object):
             cert = fp.readlines()[1:-1]
             cert = ''.join(cert)
         endpoints = self._config.endpoints
-        sso = endpoints.get('single_sign_on_service')
-        slo = endpoints.get('single_logout_service')
+        sso = self._config.entity_id + endpoints.get('single_sign_on_service')
+        slo = self._config.entity_id + endpoints.get('single_logout_service')
         sso_list = []
         slo_list = []
         sso_list.append(
