@@ -25,7 +25,7 @@ from testenv.settings import (
     AUTH_NO_CONSENT, BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, CHALLENGES_TIMEOUT, SPID_ATTRIBUTES, SPID_LEVELS,
     STATUS_SUCCESS,
 )
-from testenv.users import JsonUserManager
+from testenv.users import AutoLoginJsonUserManager, JsonUserManager
 from testenv.utils import Key, Slo, Sso, get_spid_error
 
 # FIXME: move to a the parser.py module after metadata refactoring
@@ -61,6 +61,7 @@ class IdpServer(object):
         # bind Flask app
         self.app = app
         self.user_manager = JsonUserManager()
+        self.auto_login_user_manager = AutoLoginJsonUserManager()
         # setup
         self._config = conf or config.params
         self._registry = registry or spmetadata.registry
@@ -288,6 +289,11 @@ class IdpServer(object):
             key = self._store_request(spid_request.saml_tree)
             session['request_key'] = key
             session['relay_state'] = spid_request.data.relay_state or ''
+
+            if spid_request.data.auto_login:
+                username = spid_request.data.auto_login
+                return self._auto_login(username), 200
+
             return redirect(url_for('login'))
         except RequestParserError as err:
             self._raise_error(err.args[0])
@@ -299,6 +305,186 @@ class IdpServer(object):
             return self._handle_errors(err.initial_data, err.details)
         except MetadataLoadError as err:
             self._raise_error('Metadata non disponibile: {}'.format(err.args[0]))
+
+    def _auto_login(self, username):
+        """
+        Returns an AuthnResponse for the specific username bypassing the login form
+        """
+
+        self.app.logger.debug(
+            'Auto login richiesto per l\'utente: {}'.format(username)
+        )
+
+        key = from_session('request_key')
+        relay_state = from_session('relay_state')
+        self.app.logger.debug('Request key: {}'.format(key))
+        if key and key in self.ticket:
+            authn_request = self.ticket[key]
+            sp_id = authn_request.issuer.text
+            destination = self.get_destination(authn_request, sp_id)
+            authn_context = authn_request.requested_authn_context
+            spid_level = authn_context.authn_context_class_ref.text
+
+            # verify user credentials
+            user_id, user = self.auto_login_user_manager.get(
+                username,
+                '',  # no need for password with auto_login_user_manager
+                sp_id
+            )
+            if user_id is not None:
+                rendered_template, response_xmlstr, _identity = self._build_success_response(user, authn_request, spid_level, destination, sp_id, relay_state)
+                return rendered_template
+            else:
+                rendered_template = self._build_failed_response(authn_request, destination, key, relay_state)
+                return rendered_template
+
+    def _build_success_response(self, user, authn_request, spid_level, destination, sp_id, relay_state):
+        """
+        Build and return a successful response
+        """
+
+        identity = user['attrs'].copy()
+        self.app.logger.debug(
+            'Unfiltered data: {}'.format(identity)
+        )
+        atcs_idx = getattr(
+            authn_request, 'attribute_consuming_service_index', None)
+        self.app.logger.debug(
+            'AttributeConsumingServiceIndex: {}'.format(
+                atcs_idx
+            )
+        )
+        sp_metadata = self._registry.get(sp_id)
+        required = []
+        optional = []
+        if atcs_idx and sp_metadata:
+            attrs = sp_metadata.attributes(atcs_idx)
+            required = [el for el in attrs.get('required')]
+            optional = [el for el in attrs.get('optional')]
+
+        for attr_name, val in identity.items():
+            _type = self._attribute_type(attr_name)
+            identity[attr_name] = (_type, val)
+
+        _identity = {}
+        # TODO: refactor a bit the following snippet
+        for _key in required:
+            try:
+                _identity[_key] = identity[_key]
+            except KeyError:
+                _identity[_key] = (
+                    '', self._attribute_type(_key))
+        for _key in optional:
+            try:
+                _identity[_key] = identity[_key]
+            except KeyError:
+                _identity[_key] = (
+                    '', self._attribute_type(_key))
+
+        self.app.logger.debug(
+            'Filtered data: {}'.format(_identity)
+        )
+
+        response_xmlstr = create_response(
+            {
+                'response': {
+                    'attrs': {
+                        'in_response_to': authn_request.id,
+                        'destination': destination
+                    }
+                },
+                'issuer': {
+                    'attrs': {
+                        'name_qualifier': self._config.entity_id,
+                    },
+                    'text': self._config.entity_id
+                },
+                'name_id': {
+                    'attrs': {
+                        'name_qualifier': self._config.entity_id,
+                    }
+                },
+
+                'subject_confirmation_data': {
+                    'attrs': {
+                        'recipient': destination
+                    }
+                },
+                'audience': {
+                    'text': sp_id
+                },
+                'authn_context_class_ref': {
+                    'text': spid_level
+                }
+            },
+            {
+                'status_code': STATUS_SUCCESS
+            },
+            _identity.copy()
+        ).to_xml()
+        response = sign_http_post(
+            response_xmlstr,
+            self._config.idp_key,
+            self._config.idp_certificate,
+        )
+        rendered_template = render_template(
+            'form_http_post.html',
+            **{
+                'action': destination,
+                'relay_state': relay_state,
+                'message': response,
+                'message_type': 'SAMLResponse'
+            }
+        )
+        return rendered_template, response_xmlstr, _identity
+
+    def _build_failed_response(self, authn_request, destination, key, relay_state):
+        """
+        Build and return a failed response
+        """
+
+        error_info = get_spid_error(
+            AUTH_NO_CONSENT
+        )
+        response = create_error_response(
+            {
+                'response': {
+                    'attrs': {
+                        'in_response_to': authn_request.id,
+                        'destination': destination
+                    }
+                },
+                'issuer': {
+                    'attrs': {
+                        'name_qualifier': self._config.entity_id,
+                    },
+                    'text': self._config.entity_id
+                },
+            },
+            {
+                'status_code': error_info[0],
+                'status_message': error_info[1]
+            }
+        ).to_xml()
+        self.app.logger.debug(
+            'Error response: \n{}'.format(response)
+        )
+        response = sign_http_post(
+            response,
+            self._config.idp_key,
+            self._config.idp_certificate,
+        )
+        del self.ticket[key]
+        rendered_template = render_template(
+            'form_http_post.html',
+            **{
+                'action': destination,
+                'relay_state': relay_state,
+                'message': response,
+                'message_type': 'SAMLResponse'
+            }
+        )
+        return rendered_template
 
     @property
     def _spid_main_fields(self):
@@ -454,103 +640,8 @@ class IdpServer(object):
                         sp_id
                     )
                     if user_id is not None:
-                        # setup response
-                        identity = user['attrs'].copy()
-                        self.app.logger.debug(
-                            'Unfiltered data: {}'.format(identity)
-                        )
-                        atcs_idx = getattr(
-                            authn_request, 'attribute_consuming_service_index', None)
-                        self.app.logger.debug(
-                            'AttributeConsumingServiceIndex: {}'.format(
-                                atcs_idx
-                            )
-                        )
-                        sp_metadata = self._registry.get(sp_id)
-                        required = []
-                        optional = []
-                        if atcs_idx and sp_metadata:
-                            attrs = sp_metadata.attributes(atcs_idx)
-                            required = [el for el in attrs.get('required')]
-                            optional = [el for el in attrs.get('optional')]
-
-                        for attr_name, val in identity.items():
-                            _type = self._attribute_type(attr_name)
-                            identity[attr_name] = (_type, val)
-
-                        _identity = {}
-                        # TODO: refactor a bit the following snippet
-                        for _key in required:
-                            try:
-                                _identity[_key] = identity[_key]
-                            except KeyError:
-                                _identity[_key] = (
-                                    '', self._attribute_type(_key))
-                        for _key in optional:
-                            try:
-                                _identity[_key] = identity[_key]
-                            except KeyError:
-                                _identity[_key] = (
-                                    '', self._attribute_type(_key))
-
-                        self.app.logger.debug(
-                            'Filtered data: {}'.format(_identity)
-                        )
-
-                        response_xmlstr = create_response(
-                            {
-                                'response': {
-                                    'attrs': {
-                                        'in_response_to': authn_request.id,
-                                        'destination': destination
-                                    }
-                                },
-                                'issuer': {
-                                    'attrs': {
-                                        'name_qualifier': self._config.entity_id,
-                                    },
-                                    'text': self._config.entity_id
-                                },
-                                'name_id': {
-                                    'attrs': {
-                                        'name_qualifier': self._config.entity_id,
-                                    }
-                                },
-
-                                'subject_confirmation_data': {
-                                    'attrs': {
-                                        'recipient': destination
-                                    }
-                                },
-                                'audience': {
-                                    'text': sp_id
-                                },
-                                'authn_context_class_ref': {
-                                    'text': spid_level
-                                }
-                            },
-                            {
-                                'status_code': STATUS_SUCCESS
-                            },
-                            _identity.copy()
-                        ).to_xml()
-                        response = sign_http_post(
-                            response_xmlstr,
-                            self._config.idp_key,
-                            self._config.idp_certificate,
-                        )
-                        self.app.logger.debug(
-                            'Response: \n{}'.format(response)
-                        )
-                        rendered_template = render_template(
-                            'form_http_post.html',
-                            **{
-                                'action': destination,
-                                'relay_state': relay_state,
-                                'message': response,
-                                'message_type': 'SAMLResponse'
-                            }
-                        )
+                        rendered_template, response_xmlstr, _identity = self._build_success_response(user, authn_request, spid_level, destination,
+                                                                         sp_id, relay_state)
                         self.responses[key] = rendered_template
                         # Setup confirmation page data
                         rendered_response = render_template(
@@ -567,47 +658,7 @@ class IdpServer(object):
                         )
                         return rendered_response, 200
             elif 'delete' in request.form:
-                error_info = get_spid_error(
-                    AUTH_NO_CONSENT
-                )
-                response = create_error_response(
-                    {
-                        'response': {
-                            'attrs': {
-                                'in_response_to': authn_request.id,
-                                'destination': destination
-                            }
-                        },
-                        'issuer': {
-                            'attrs': {
-                                'name_qualifier': self._config.entity_id,
-                            },
-                            'text': self._config.entity_id
-                        },
-                    },
-                    {
-                        'status_code': error_info[0],
-                        'status_message': error_info[1]
-                    }
-                ).to_xml()
-                self.app.logger.debug(
-                    'Error response: \n{}'.format(response)
-                )
-                response = sign_http_post(
-                    response,
-                    self._config.idp_key,
-                    self._config.idp_certificate,
-                )
-                del self.ticket[key]
-                rendered_template = render_template(
-                    'form_http_post.html',
-                    **{
-                        'action': destination,
-                        'relay_state': relay_state,
-                        'message': response,
-                        'message_type': 'SAMLResponse'
-                    }
-                )
+                rendered_template = self._build_failed_response(authn_request, destination, key, relay_state)
                 return rendered_template, 200
         return render_template('403.html'), 403
 

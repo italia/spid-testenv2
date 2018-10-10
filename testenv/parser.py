@@ -23,12 +23,12 @@ SIGNED_PARAMS = ['SAMLRequest', 'RelayState', 'SigAlg']
 
 HTTPRedirectRequest = namedtuple(
     'HTTPRedirectRequest',
-    ['saml_request', 'relay_state', 'sig_alg', 'signature', 'signed_data'],
+    ['saml_request', 'relay_state', 'sig_alg', 'signature', 'signed_data', 'auto_login'],
 )
 
 
 HTTPPostRequest = namedtuple(
-    'HTTPPostRequest', ['saml_request', 'relay_state'])
+    'HTTPPostRequest', ['saml_request', 'relay_state', 'auto_login'])
 
 
 def _get_deserializer(request, action, binding):
@@ -59,6 +59,7 @@ class HTTPRedirectRequestParser(object):
         self._sig_alg = None
         self._signature = None
         self._signed_data = None
+        self._auto_login = None
 
     def parse(self):
         self._saml_request = self._parse_saml_request()
@@ -66,6 +67,7 @@ class HTTPRedirectRequestParser(object):
         self._sig_alg = self._parse_sig_alg()
         self._signature = self._parse_signature()
         self._signed_data = self._build_signed_data()
+        self._auto_login = self._build_auto_login()
         return self._build_request()
 
     def _parse_saml_request(self):
@@ -121,6 +123,10 @@ class HTTPRedirectRequestParser(object):
         )
         return signed_data.encode('ascii')
 
+    def _build_auto_login(self):
+        auto_login = self._querystring.get('auto_login', None)
+        return auto_login
+
     def _build_request(self):
         return self._request_class(
             self._saml_request,
@@ -128,6 +134,7 @@ class HTTPRedirectRequestParser(object):
             self._sig_alg,
             self._signature,
             self._signed_data,
+            self._auto_login
         )
 
 
