@@ -112,12 +112,6 @@ class IdpServer(object):
         """
         Setup server
         """
-        # FIXME: remove after pysaml2 drop
-        # from saml2.config import Config as Saml2Config
-        # self.idp_config = Saml2Config()
-        # self.idp_config.load(cnf=self._config.pysaml2compat)
-        # self.server = Server(config=self.idp_config)
-        #
         self._setup_app_routes()
 
     def _verify_spid(self, level, verify=False, **kwargs):
@@ -332,6 +326,7 @@ class IdpServer(object):
         """
         spid_main_fields = self._spid_main_fields
         spid_secondary_fields = self._spid_secondary_fields
+        can_add_user = self._config.can_add_user
         rendered_form = render_template(
             "users.html",
             **{
@@ -340,11 +335,14 @@ class IdpServer(object):
                 'secondary_attributes': spid_secondary_fields,
                 'users': self.user_manager.all(),
                 'sp_list': self._registry.service_providers,
+                'can_add_user': can_add_user
             }
         )
         if request.method == 'GET':
             return rendered_form, 200
         elif request.method == 'POST':
+            if not can_add_user:
+                return render_template('403.html'), 403
             username = request.form.get('username')
             password = request.form.get('password')
             sp = request.form.get('service_provider')
