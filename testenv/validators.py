@@ -14,8 +14,8 @@ from testenv.crypto import (
     load_certificate, verify_bad_certificate_algorithm, verify_certificate_algorithm, verify_certificate_expiration,
 )
 from testenv.exceptions import (
-    ExpiredCertificateError, GroupValidationError, SPIDValidationError, StopValidation, UnknownEntityIDError,
-    ValidationError, XMLFormatValidationError, XMLSchemaValidationError,
+    GroupValidationError, SPIDValidationError, StopValidation, UnknownEntityIDError, ValidationError,
+    XMLFormatValidationError, XMLSchemaValidationError,
 )
 from testenv.settings import (
     BINDING_HTTP_POST, DEFAULT_LIST_VALUE_ERROR, DEFAULT_VALUE_ERROR, DS as SIGNATURE, KEYDESCRIPTOR_USES,
