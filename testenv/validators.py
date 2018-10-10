@@ -328,7 +328,7 @@ class SpidMetadataValidator(object):
                             [{
                                 'attrs': {
                                     'Name': All(str, In(SPID_ATTRIBUTES_NAMES, msg=DEFAULT_LIST_VALUE_ERROR.format(SPID_ATTRIBUTES_NAMES))),
-                                    'NameFormat': Equal(
+                                    Optional('NameFormat'): Equal(
                                         NAME_FORMAT_BASIC, msg=DEFAULT_VALUE_ERROR.format(
                                             NAME_FORMAT_BASIC)
                                     ),
