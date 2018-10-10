@@ -409,6 +409,24 @@ class IdpServer(object):
             _type = self._spid_attributes['secondary'][attribute_name]
         return _type
 
+    def _filter_attributes(self, identity, required, optional):
+        _identity = {}
+        sequence = [required, optional]
+        for seq in sequence:
+            for _key in seq:
+                try:
+                    _identity[_key] = identity[_key]
+                except KeyError:
+                    _type = self._attribute_type(_key)
+                    if _type == 'date':
+                        _default = '1970-01-01'
+                    else:
+                        _default = ''
+                    _identity[_key] = (
+                        _type, _default
+                    )
+        return _identity
+
     def login(self):
         """
         Login endpoint (verify user credentials)
@@ -478,20 +496,11 @@ class IdpServer(object):
                             _type = self._attribute_type(attr_name)
                             identity[attr_name] = (_type, val)
 
-                        _identity = {}
-                        # TODO: refactor a bit the following snippet
-                        for _key in required:
-                            try:
-                                _identity[_key] = identity[_key]
-                            except KeyError:
-                                _identity[_key] = (
-                                    '', self._attribute_type(_key))
-                        for _key in optional:
-                            try:
-                                _identity[_key] = identity[_key]
-                            except KeyError:
-                                _identity[_key] = (
-                                    '', self._attribute_type(_key))
+                        _identity = self._filter_attributes(
+                            identity,
+                            required,
+                            optional
+                        )
 
                         self.app.logger.debug(
                             'Filtered data: {}'.format(_identity)

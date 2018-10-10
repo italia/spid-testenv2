@@ -967,6 +967,70 @@ class SpidTestenvTest(unittest.TestCase):
             follow_redirects=False
         )
 
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch(
+        'testenv.parser.HTTPRedirectRequestParser._decode_saml_request',
+        return_value=generate_authn_request(
+            data={
+                'attribute_consuming_service_index': 1}))
+    @patch(
+        'testenv.crypto.HTTPRedirectSignatureVerifier.verify',
+        return_value=True)
+    def test_default_date_attribute_value(self, verified, unravel):
+        self.idp_server.user_manager.add(
+            'noattr', 'noattr', None, {
+                'familyName': 'abc'
+            }
+        )
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(
+                quote(SIG_RSA_SHA256)), follow_redirects=True)
+        response = self.test_client.post(
+            '/login',
+            data={
+                'confirm': 1,
+                'username': 'noattr',
+                'password': 'noattr'
+            },
+            follow_redirects=True
+        )
+        response_text = response.get_data(as_text=True)
+        self.assertIn('1970-01-01', response_text)
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch(
+        'testenv.parser.HTTPRedirectRequestParser._decode_saml_request',
+        return_value=generate_authn_request(
+            data={
+                'attribute_consuming_service_index': 1}))
+    @patch(
+        'testenv.crypto.HTTPRedirectSignatureVerifier.verify',
+        return_value=True)
+    def test_date_with_attribute_value(self, verified, unravel):
+        self.idp_server.user_manager.add(
+            'testtest', 'testtest', None, {
+                'familyName': 'abc',
+                'dateOfBirth': '1980-01-01',
+                'expirationDate': '2020-01-01'
+            }
+        )
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(
+                quote(SIG_RSA_SHA256)), follow_redirects=True)
+        response = self.test_client.post(
+            '/login',
+            data={
+                'confirm': 1,
+                'username': 'testtest',
+                'password': 'testtest'
+            },
+            follow_redirects=True
+        )
+        response_text = response.get_data(as_text=True)
+        self.assertIn('1980-01-01', response_text)
+        self.assertIn('2020-01-01', response_text)
+        self.assertNotIn('1970-01-01', response_text)
+
 
 if __name__ == '__main__':
     unittest.main()
