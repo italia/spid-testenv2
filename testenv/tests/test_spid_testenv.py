@@ -221,7 +221,8 @@ class SpidTestenvTest(unittest.TestCase):
         xml.write(tmp_metadata)
         app = flask.Flask(spid_testenv.__name__, static_url_path='/static')
         config.load('testenv/tests/data/config.yaml')
-        spmetadata.build_metadata_registry()
+        with freeze_time('2018-07-16T09:38:29Z'):
+            spmetadata.build_metadata_registry()
         cls.idp_server = spid_testenv.IdpServer(app=app)
         cls.idp_server.app.testing = True
         cls.test_client = cls.idp_server.app.test_client()

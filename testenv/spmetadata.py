@@ -12,7 +12,9 @@ from testenv.saml import (
     SingleLogoutService, SPSSODescriptor, X509Certificate, X509Data,
 )
 from testenv.utils import saml_to_dict
-from testenv.validators import ServiceProviderMetadataXMLSchemaValidator, ValidatorGroup, XMLMetadataFormatValidator
+from testenv.validators import (
+    ServiceProviderMetadataXMLSchemaValidator, SpidMetadataValidator, ValidatorGroup, XMLMetadataFormatValidator,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -275,5 +277,6 @@ def _get_loader(source_type, source_params):
         'remote': ServiceProviderMetadataHTTPLoader,
     }[source_type]
     validator = ValidatorGroup(
-        [XMLMetadataFormatValidator(), ServiceProviderMetadataXMLSchemaValidator()])
+        [XMLMetadataFormatValidator(), ServiceProviderMetadataXMLSchemaValidator(), SpidMetadataValidator()]
+    )
     return Loader(source_params, validator)

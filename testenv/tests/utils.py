@@ -36,8 +36,8 @@ def generate_certificate(fname, path):
     key.generate_key(crypto.TYPE_RSA, 2048)
     cert = crypto.X509()
     cert.get_subject().C = 'IT'
-    cert.gmtime_adj_notBefore(0)
-    cert.gmtime_adj_notAfter(10 * 365 * 24 * 60 * 60)
+    cert.gmtime_adj_notBefore(-50 * 365 * 24 * 60 * 60)
+    cert.gmtime_adj_notAfter(50 * 365 * 24 * 60 * 60)
     cert.set_pubkey(key)
     cert.sign(key, str('sha256'))
     open(os.path.join(path, '{}.crt'.format(fname)), "wb").write(

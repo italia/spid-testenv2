@@ -64,7 +64,6 @@
 
     </md:SPSSODescriptor> 
 	
-	<!-- Informazioni generali sul Service Provider -->
     <md:Organization> 
         <md:OrganizationName xml:lang="it">Nome del Service Provider</md:OrganizationName> 
         <md:OrganizationDisplayName xml:lang="it">Nome completo del Service Provider</md:OrganizationDisplayName> 

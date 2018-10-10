@@ -10,7 +10,7 @@ from lxml import etree, objectify
 
 from testenv.exceptions import DeserializationError, RequestParserError, ValidationError
 from testenv.settings import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, MULTIPLE_OCCURRENCES_TAGS
-from testenv.validators import AuthnRequestXMLSchemaValidator, SpidValidator, ValidatorGroup, XMLFormatValidator
+from testenv.validators import AuthnRequestXMLSchemaValidator, SpidRequestValidator, ValidatorGroup, XMLFormatValidator
 
 try:
     from urllib import urlencode
@@ -35,7 +35,7 @@ def _get_deserializer(request, action, binding):
     validators = [
         XMLFormatValidator(),
         AuthnRequestXMLSchemaValidator(),
-        SpidValidator(action, binding),
+        SpidRequestValidator(action, binding),
     ]
     validator_group = ValidatorGroup(validators)
     return HTTPRequestDeserializer(request, validator_group)
