@@ -555,3 +555,25 @@ class SpidMetadataValidatorTestCase(unittest.TestCase):
         )
         self.assertEqual('non corrisponde a nessuno dei valori contenuti in {}'.format(
             settings.SPID_ATTRIBUTES_NAMES), exc.details[0].message)
+
+    @patch('testenv.validators._check_certificate', side_effect=fake_check_certificate)
+    def test_no_name_format(self, mocked):
+        FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
+        validator = SpidMetadataValidator()
+        metadata = create_sp_metadata(
+            entity_id='http://test.sp',
+            authn_request_signed='true',
+            assertion_consumer_services=[Acs(location='http://test.sp/acs')],
+            attribute_consuming_services=[
+                Atcs(
+                    service_name='test_1',
+                    attributes=['spidCode']
+                )
+            ],
+            single_logout_services=[
+                Slo(binding=BINDING_HTTP_POST, location='http://test.sp/slo')
+            ],
+            keys=[Key('signing', 'somevalue123')],
+            name_format=False
+        ).to_xml()
+        validator.validate(metadata)

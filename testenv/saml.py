@@ -592,7 +592,8 @@ def create_sp_metadata(
     attribute_consuming_services=None,
     single_logout_services=None,
     md_id=None,
-    check_attributes=True
+    check_attributes=True,
+    name_format=True
 ):
     _id = generate_unique_id() if md_id is None else md_id
     entity_descriptor = EntityDescriptor(
@@ -667,11 +668,13 @@ def create_sp_metadata(
                 ] or attr_name in SPID_ATTRIBUTES[
                     'secondary'
                 ] or not check_attributes:
+                    _attrib = {
+                        'Name': attr_name
+                    }
+                    if name_format:
+                        _attrib['NameFormat'] = NAME_FORMAT_BASIC
                     requested_attribute = RequestedAttribute(
-                        attrib=dict(
-                            Name=attr_name,
-                            NameFormat=NAME_FORMAT_BASIC
-                        )
+                        attrib=_attrib
                     )
                     attribute_consuming_service.append(requested_attribute)
             sp_sso_descriptor.append(attribute_consuming_service)
