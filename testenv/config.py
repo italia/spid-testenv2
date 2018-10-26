@@ -5,7 +5,7 @@ import json
 from copy import deepcopy
 
 import yaml
-from voluptuous import ALLOW_EXTRA, All, Any, Invalid, Length, Required, Schema, Url
+from voluptuous import ALLOW_EXTRA, All, Any, In, Invalid, Length, Required, Schema, Url
 
 from testenv import settings
 from testenv.exceptions import BadConfiguration
@@ -31,6 +31,8 @@ class ConfigValidator(object):
             'https_key_file': str,
             'users_file': str,
             'can_add_user': bool,
+            'storage': All(str, In(['file', 'postgres'])),
+            'db_url': str,
             'endpoints': {
                 'single_logout_service': str,
                 'single_sign_on_service': str,
@@ -169,6 +171,14 @@ class Config(object):
     @property
     def can_add_user(self):
         return self._confdata.get('can_add_user', True)
+
+    @property
+    def storage(self):
+        return self._confdata.get('storage', 'file')
+
+    @property
+    def db_url(self):
+        return self._confdata.get('db_url', 'postgresql+psycopg2://postgres:@localhost:5432/spidtestenv')
 
     @property
     def endpoints(self):

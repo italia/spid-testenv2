@@ -9,13 +9,15 @@ from hashlib import sha1
 from logging.handlers import RotatingFileHandler
 
 from flask import Response, abort, escape, redirect, render_template, request, session, url_for
+from flask_admin import Admin
 
 from testenv import config, spmetadata
 from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect
 from testenv.exceptions import (
     DeserializationError, MetadataLoadError, NoCertificateError, RequestParserError, SignatureVerificationError,
-    UnknownEntityIDError,
+    ValidationError, UnknownEntityIDError,
 )
+
 from testenv.parser import (
     HTTPPostRequestParser, HTTPRedirectRequestParser, get_http_post_request_deserializer,
     get_http_redirect_request_deserializer,
@@ -25,7 +27,7 @@ from testenv.settings import (
     AUTH_NO_CONSENT, BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, CHALLENGES_TIMEOUT, SPID_ATTRIBUTES, SPID_LEVELS,
     STATUS_AUTHN_FAILED, STATUS_SUCCESS,
 )
-from testenv.users import JsonUserManager
+from testenv.storages import SpMetadataManager, UserManager
 from testenv.utils import Key, Slo, Sso, get_spid_error
 
 # FIXME: move to a the parser.py module after metadata refactoring
@@ -60,7 +62,6 @@ class IdpServer(object):
         """
         # bind Flask app
         self.app = app
-        self.user_manager = JsonUserManager()
         # setup
         self._config = conf or config.params
         self._registry = registry or spmetadata.registry
@@ -70,6 +71,26 @@ class IdpServer(object):
         )
         self.app.logger.addHandler(handler)
         self._prepare_server()
+        self.sp_metadata_manager = None
+        self.user_manager = UserManager.factory()
+        self._setup_managers()
+
+    def _setup_managers(self):
+        self.app.config['FLASK_ADMIN_SWATCH'] = 'cerulean'
+        self.admin = Admin(
+            self.app,
+            name='Ambiente di test Spid - Interfaccia di amministrazione',
+            template_mode='bootstrap3'
+        )
+        self.user_manager.register_admin(self.admin)
+        if self._config.storage == 'postgres':
+            self.sp_metadata_manager = SpMetadataManager()
+            self.sp_metadata_manager.register_admin(self.admin)
+            try:
+                spmetadata._populate_registry_from_db(self._registry, self.sp_metadata_manager)
+            except (ValidationError, DeserializationError) as e:
+                for err in e.details:
+                    self.app.logger.error(err)
 
     @property
     def _mode(self):

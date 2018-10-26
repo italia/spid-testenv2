@@ -51,3 +51,7 @@ endpoints:
 
 # Abilita (true) o disabilita (false) la possibilità di aggiungere nuovi utenti
 #can_add_user: false
+
+# Indica il tipo di memorizzazione e l'eventuale path
+storage: 'postgres'
+db_url: 'postgresql+psycopg2://postgres:@localhost:5432/exampledb'

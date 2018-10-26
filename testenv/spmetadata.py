@@ -33,7 +33,7 @@ SINGLE_LOGOUT_SERVICE = SingleLogoutService.tag()
 
 class ServiceProviderMetadataBaseLoader(object):
 
-    def __init__(self, conf, validator):
+    def __init__(self, conf, validator, **kwargs):
         self._config = conf
         self._validator = validator
 
@@ -81,6 +81,27 @@ class ServiceProviderMetadataHTTPLoader(ServiceProviderMetadataBaseLoader):
         response = requests.get(self._config.get('url'))
         response.raise_for_status()
         return response.content
+
+
+class ServiceProviderMetadataDbLoader(ServiceProviderMetadataBaseLoader):
+
+    def __init__(self, conf, validator, **kwargs):
+        self._manager = kwargs.pop('manager')
+        super(
+            ServiceProviderMetadataDbLoader, self
+        ).__init__(conf, validator, **kwargs)
+
+    def _load(self):
+        try:
+            return self._read_from_db()
+        except Exception as e:
+            print(e)
+            raise MetadataLoadError(
+                "Impossibile leggere dal DB il metadata"
+            )
+
+    def _read_from_db(self):
+        return self._manager.get(self._config)
 
 
 class ServiceProviderMetadata(object):
@@ -271,12 +292,23 @@ def _populate_registry(registry):
             registry.register(metadata)
 
 
-def _get_loader(source_type, source_params):
+def _populate_registry_from_db(registry, manager):
+    ids = manager.ids
+    for _id in ids:
+        loader = _get_loader('db', _id, **{'manager': manager})
+        metadata = ServiceProviderMetadata(loader)
+        registry.register(metadata)
+
+
+VALIDATORS = ValidatorGroup(
+    [XMLMetadataFormatValidator(), ServiceProviderMetadataXMLSchemaValidator(), SpidMetadataValidator()]
+)
+
+def _get_loader(source_type, source_params, **kwargs):
     Loader = {
         'local': ServiceProviderMetadataFileLoader,
         'remote': ServiceProviderMetadataHTTPLoader,
+        'db': ServiceProviderMetadataDbLoader,
     }[source_type]
-    validator = ValidatorGroup(
-        [XMLMetadataFormatValidator(), ServiceProviderMetadataXMLSchemaValidator(), SpidMetadataValidator()]
-    )
-    return Loader(source_params, validator)
+    validator = VALIDATORS
+    return Loader(source_params, validator,**kwargs)
