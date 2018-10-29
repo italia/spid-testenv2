@@ -14,7 +14,7 @@ from testenv.settings import MULTIPLE_OCCURRENCES_TAGS, SPID_ERRORS
 
 TIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 TIME_FORMAT_WITH_FRAGMENT = re.compile(
-    '^(\d{4,4}-\d{2,2}-\d{2,2}T\d{2,2}:\d{2,2}:\d{2,2})(\.\d*)?Z?$')
+    r'^(\d{4,4}-\d{2,2}-\d{2,2}T\d{2,2}:\d{2,2}:\d{2,2})(\.\d*)?Z?$')
 
 
 def get_spid_error(code):
