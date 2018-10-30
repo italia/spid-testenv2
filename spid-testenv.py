@@ -8,12 +8,12 @@ import os.path
 
 from flask import Flask
 
-from testenv import config, spmetadata
+from testenv import config, log, spmetadata
 from testenv.exceptions import BadConfiguration, DeserializationError, ValidationError
 from testenv.server import IdpServer
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = log.logger
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

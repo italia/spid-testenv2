@@ -15,6 +15,7 @@ from lxml.etree import fromstring, tostring
 from signxml import XMLSigner, XMLVerifier
 from signxml.exceptions import InvalidDigest, InvalidSignature as InvalidSignature_
 
+from testenv import log
 from testenv.exceptions import SignatureVerificationError
 from testenv.settings import (
     DEPRECATED_ALGORITHMS, KEY_INFO, SAML, SIG_NS, SIG_RSA_SHA224, SIG_RSA_SHA256, SIG_RSA_SHA384, SIG_RSA_SHA512,
@@ -26,6 +27,9 @@ try:
     from urllib import urlencode
 except ImportError:
     from urllib.parse import urlencode
+
+
+logger = log.logger
 
 
 def deflate_and_base64_encode(msg):
@@ -135,6 +139,7 @@ def sign_http_post(xmlstr, key, cert, message=False, assertion=True):
     # We have to use xml-exc-c14n# because when we isolate the Assertion
     # element below, a superfluous xmlns:samlp attribute gets added by etree.tostring()
     # which is not removed by xml-c14n11 (thus generating a wrong digest).
+    logger.debug('http-post signing')
     signer = XMLSigner(
         signature_algorithm='rsa-sha256',
         digest_algorithm='sha256',
@@ -142,8 +147,10 @@ def sign_http_post(xmlstr, key, cert, message=False, assertion=True):
     )
     root = fromstring(xmlstr)
     if message:
+        logger.debug('signing message')
         root = signer.sign(root, key=key, cert=cert)
     if assertion:
+        logger.debug('signing assertion')
         assertions = root.findall('{%s}Assertion' % SAML)
         for assertion in assertions:
             _assertion = signer.sign(assertion, key=key, cert=cert)
@@ -152,10 +159,13 @@ def sign_http_post(xmlstr, key, cert, message=False, assertion=True):
             issuer.addnext(signature)
             assertion.getparent().replace(assertion, _assertion)
     response = tostring(root)
+    logger.debug('Signed message: {}'.format(response))
     return base64.b64encode(response).decode('ascii')
 
 
 def sign_http_redirect(xmlstr, key, relay_state=None, req_type='SAMLResponse'):
+    logger.debug('http-redirect signing')
+    logger.debug('request type {}'.format(req_type))
     encoded_message = deflate_and_base64_encode(xmlstr)
     args = {
         req_type: encoded_message,

@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import logging
 import random
 import string
 from collections import namedtuple
 from datetime import datetime
 from hashlib import sha1
-from logging.handlers import RotatingFileHandler
 
 from flask import Response, abort, escape, redirect, render_template, request, session, url_for
 
-from testenv import config, spmetadata
+from testenv import config, log, spmetadata
 from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect
 from testenv.exceptions import (
     DeserializationError, MetadataLoadError, NoCertificateError, RequestParserError, SignatureVerificationError,
@@ -30,6 +30,9 @@ from testenv.utils import Key, Slo, Sso, get_spid_error
 
 # FIXME: move to a the parser.py module after metadata refactoring
 SPIDRequest = namedtuple('SPIDRequest', ['data', 'saml_tree'])
+
+
+logger = log.logger
 
 
 def from_session(key):
@@ -65,10 +68,6 @@ class IdpServer(object):
         self._config = conf or config.params
         self._registry = registry or spmetadata.registry
         self.app.secret_key = 'sosecret'
-        handler = RotatingFileHandler(
-            'spid.log', maxBytes=500000, backupCount=1
-        )
-        self.app.logger.addHandler(handler)
         self._prepare_server()
 
     @property
@@ -122,7 +121,7 @@ class IdpServer(object):
         :param kwargs: dictionary, extra arguments
         """
         level = self._spid_levels.index(level)
-        self.app.logger.debug(
+        logger.info(
             'spid level {} - verifica ({})'.format(level, verify))
         if verify:
             # Verify the challenge
@@ -188,7 +187,7 @@ class IdpServer(object):
 
         :param authnreq: authentication request string
         """
-        self.app.logger.debug('store_request: {}'.format(authnreq))
+        logger.info('store_request: {}'.format(authnreq))
         # FIXME: improve this
         from lxml.etree import tostring
         key = sha1(tostring(authnreq._xml_doc)).hexdigest()
@@ -281,7 +280,7 @@ class IdpServer(object):
         """
         try:
             spid_request = self._parse_message(action='login')
-            self.app.logger.debug(
+            logger.info(
                 'AuthnRequest: \n{}'.format(spid_request.data.saml_request)
             )
             # Perform login
@@ -387,7 +386,7 @@ class IdpServer(object):
                 sp_id).assertion_consumer_service(index=acs_index)
             if acss:
                 destination = acss[0].get('Location')
-            self.app.logger.debug(
+            logger.debug(
                 'AssertionConsumerServiceIndex Location: {}'.format(
                     destination
                 )
@@ -395,7 +394,7 @@ class IdpServer(object):
         if destination is None:
             destination = getattr(req, 'assertion_consumer_service_url', None)
             if destination is not None and protocol_binding is not None:
-                self.app.logger.debug(
+                logger.debug(
                     'AssertionConsumerServiceURL: {}'.format(
                         destination
                     )
@@ -434,7 +433,7 @@ class IdpServer(object):
 
         key = from_session('request_key')
         relay_state = from_session('relay_state')
-        self.app.logger.debug('Request key: {}'.format(key))
+        logger.info('Request key: {}'.format(key))
         if key and key in self.ticket:
             authn_request = self.ticket[key]
             sp_id = authn_request.issuer.text
@@ -474,12 +473,12 @@ class IdpServer(object):
                     if user_id is not None:
                         # setup response
                         identity = user['attrs'].copy()
-                        self.app.logger.debug(
+                        logger.debug(
                             'Unfiltered data: {}'.format(identity)
                         )
                         atcs_idx = getattr(
                             authn_request, 'attribute_consuming_service_index', None)
-                        self.app.logger.debug(
+                        logger.info(
                             'AttributeConsumingServiceIndex: {}'.format(
                                 atcs_idx
                             )
@@ -502,7 +501,7 @@ class IdpServer(object):
                             optional
                         )
 
-                        self.app.logger.debug(
+                        logger.debug(
                             'Filtered data: {}'.format(_identity)
                         )
 
@@ -548,7 +547,7 @@ class IdpServer(object):
                             self._config.idp_key,
                             self._config.idp_certificate,
                         )
-                        self.app.logger.debug(
+                        logger.info(
                             'Response: \n{}'.format(response)
                         )
                         rendered_template = render_template(
@@ -599,7 +598,7 @@ class IdpServer(object):
                         'status_message': error_info[1]
                     }
                 ).to_xml()
-                self.app.logger.debug(
+                logger.info(
                     'Error response: \n{}'.format(response)
                 )
                 response = sign_http_post(
@@ -655,7 +654,7 @@ class IdpServer(object):
                         'status_message': error_info[1]
                     }
                 ).to_xml()
-                self.app.logger.debug(
+                logger.info(
                     'Error response: \n{}'.format(response)
                 )
                 response = sign_http_post(
@@ -687,8 +686,6 @@ class IdpServer(object):
         """
         SLO endpoint
         """
-
-        self.app.logger.debug("req: '%s'", request)
         try:
             spid_request = self._parse_message(action='logout')
             issuer_name = spid_request.saml_tree.issuer.text
@@ -701,7 +698,7 @@ class IdpServer(object):
                     )
                 )
             response_binding = _slo.get('Binding')
-            self.app.logger.debug(
+            logger.info(
                 'Response binding: \n{}'.format(
                     response_binding
                 )
