@@ -23,7 +23,7 @@ from testenv.parser import (
 from testenv.saml import create_error_response, create_idp_metadata, create_logout_response, create_response
 from testenv.settings import (
     AUTH_NO_CONSENT, BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, CHALLENGES_TIMEOUT, SPID_ATTRIBUTES, SPID_LEVELS,
-    STATUS_SUCCESS,
+    STATUS_AUTHN_FAILED, STATUS_SUCCESS,
 )
 from testenv.users import JsonUserManager
 from testenv.utils import Key, Slo, Sso, get_spid_error
@@ -473,6 +473,89 @@ class IdpServer(object):
                     )
                     if user_id is not None:
                         # setup response
+                        _audience = sp_id
+                        _destination = destination
+                        _recipient_subj = destination
+                        _issuer_text = self._config.entity_id
+                        _pkey = self._config.idp_key
+                        _cert = self._config.idp_certificate
+                        # setup custom response elements (if any)
+                        wrong_destination = request.form.get(
+                            'wrong_destination', False
+                        )
+                        if wrong_destination:
+                            _destination = '{}wrong/bad/'.format(_destination)
+                        wrong_relay_state = request.form.get(
+                            'wrong_relay_state', False
+                        )
+                        if wrong_relay_state:
+                            relay_state = '{}wrong'.format(relay_state)
+                        wrong_audience = request.form.get(
+                            'wrong_audience', False
+                        )
+                        if wrong_audience:
+                            _audience = '{}/wrong/bad/'.format(_audience)
+                        wrong_recipient_subj = request.form.get(
+                            'wrong_recipient_subj', False
+                        )
+                        if wrong_recipient_subj:
+                            _recipient_subj = 'badrecipient'
+                        wrong_issuer = request.form.get(
+                            'wrong_issuer', False
+                        )
+                        if wrong_issuer:
+                            _issuer_text = 'wrongissuer123'
+                        has_assertion = not request.form.get(
+                            'no_assertion', False
+                        )
+                        bad_status_code = request.form.get(
+                            'bad_status_code', False
+                        )
+                        wrong_conditions_notbefore = request.form.get(
+                            'wrong_conditions_notbefore'
+                        )
+                        wrong_conditions_notonorafter = request.form.get(
+                            'wrong_conditions_notonorafter'
+                        )
+                        wrong_subj_notonorafter = request.form.get(
+                            'wrong_subj_notonorafter'
+                        )
+                        wrong_subj_inresponseto = request.form.get(
+                            'wrong_subj_inresponseto'
+                        )
+                        custom_spid_level = request.form.get('spid_level')
+                        if custom_spid_level:
+                            spid_level = self._spid_levels[int(custom_spid_level)]
+                        sign_assertion = request.form.get('no_sign_assertion', False)
+                        sign_message = request.form.get('sign_message', False)
+
+                        custom_private_key = request.form.get('private_key')
+                        if custom_private_key:
+                            _pkey = bytes(custom_private_key.encode('utf-8'))
+                        custom_certificate = request.form.get('certificate')
+                        if custom_certificate:
+                            _pkey = bytes(custom_certificate.encode('utf-8'))
+
+                        _conditions = {
+                            'conditions': {
+                                'attrs': {
+                                }
+                            }
+                        }
+
+                        _subj_extra = {}
+                        if wrong_subj_inresponseto:
+                            _subj_extra['in_response_to'] = 'inresponsetowron134'
+
+                        if wrong_conditions_notbefore:
+                            _conditions['conditions']['attrs']['not_before'] = wrong_conditions_notbefore + ':00Z'
+                        if wrong_conditions_notonorafter:
+                            _conditions['conditions']['attrs']['not_on_or_after'] = wrong_conditions_notonorafter + ':00Z'
+                        if wrong_subj_notonorafter:
+                            _subj_extra['not_on_or_after'] = wrong_subj_notonorafter + ':00Z'
+
+                        _status_code = STATUS_AUTHN_FAILED if bad_status_code else STATUS_SUCCESS
+
                         identity = user['attrs'].copy()
                         self.app.logger.debug(
                             'Unfiltered data: {}'.format(identity)
@@ -506,47 +589,55 @@ class IdpServer(object):
                             'Filtered data: {}'.format(_identity)
                         )
 
-                        response_xmlstr = create_response(
-                            {
-                                'response': {
-                                    'attrs': {
-                                        'in_response_to': authn_request.id,
-                                        'destination': destination
-                                    }
-                                },
-                                'issuer': {
-                                    'attrs': {
-                                        'name_qualifier': self._config.entity_id,
-                                    },
-                                    'text': self._config.entity_id
-                                },
-                                'name_id': {
-                                    'attrs': {
-                                        'name_qualifier': self._config.entity_id,
-                                    }
-                                },
-
-                                'subject_confirmation_data': {
-                                    'attrs': {
-                                        'recipient': destination
-                                    }
-                                },
-                                'audience': {
-                                    'text': sp_id
-                                },
-                                'authn_context_class_ref': {
-                                    'text': spid_level
+                        _response_data = {
+                            'response': {
+                                'attrs': {
+                                    'in_response_to': authn_request.id,
+                                    'destination': _destination
                                 }
                             },
-                            {
-                                'status_code': STATUS_SUCCESS
+                            'issuer': {
+                                'attrs': {
+                                    'name_qualifier': self._config.entity_id,
+                                },
+                                'text': _issuer_text
                             },
-                            _identity.copy()
+                            'name_id': {
+                                'attrs': {
+                                    'name_qualifier': self._config.entity_id,
+                                }
+                            },
+                            'subject_confirmation_data': {
+                                'attrs': {
+                                    'recipient': _recipient_subj
+                                }
+                            },
+                            'audience': {
+                                'text': _audience
+                            },
+                            'authn_context_class_ref': {
+                                'text': spid_level
+                            }
+                        }
+
+                        _response_data.update(_conditions)
+                        if _subj_extra:
+                            _response_data['subject_confirmation_data']['attrs'].update(_subj_extra)
+
+                        response_xmlstr = create_response(
+                            _response_data,
+                            {
+                                'status_code': _status_code
+                            },
+                            _identity.copy(),
+                            has_assertion=has_assertion
                         ).to_xml()
                         response = sign_http_post(
                             response_xmlstr,
-                            self._config.idp_key,
-                            self._config.idp_certificate,
+                            _pkey,
+                            _cert,
+                            message=sign_message,
+                            assertion=sign_assertion
                         )
                         self.app.logger.debug(
                             'Response: \n{}'.format(response)

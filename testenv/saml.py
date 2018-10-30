@@ -264,7 +264,7 @@ def create_logout_response(data, response_status):
     return response
 
 
-def create_response(data, response_status, attributes={}):
+def create_response(data, response_status, attributes={}, has_assertion=True):
     issue_instant, not_before, not_on_or_after = generate_issue_instant()
     response_attrs = data.get('response').get('attrs')
     # Create a response
@@ -299,80 +299,91 @@ def create_response(data, response_status, attributes={}):
     response.append(status)
 
     # Create and setup the assertion
-    assertion = Assertion(
-        attrib=dict(
-            ID=generate_unique_id(),
-            IssueInstant=issue_instant,
+    if has_assertion:
+        assertion = Assertion(
+            attrib=dict(
+                ID=generate_unique_id(),
+                IssueInstant=issue_instant,
+            )
         )
-    )
-    # Setup subject data
-    subject = Subject()
-    name_id_attrs = data.get('name_id').get('attrs')
-    name_id = NameID(
-        attrib=dict(
-            NameQualifier=name_id_attrs.get('name_qualifier'),
-        ),
-        text=generate_unique_id()
-    )
-    subject.append(name_id)
-    subject_confirmation = SubjectConfirmation()
-    subject_confirmation_data_attrs = data.get(
-        'subject_confirmation_data').get('attrs')
-    subject_confirmation_data = SubjectConfirmationData(
-        attrib=dict(
-            Recipient=subject_confirmation_data_attrs.get('recipient'),
-            NotOnOrAfter=not_on_or_after,
-            InResponseTo=response_attrs.get('in_response_to')
+        # Setup subject data
+        subject = Subject()
+        name_id_attrs = data.get('name_id').get('attrs')
+        name_id = NameID(
+            attrib=dict(
+                NameQualifier=name_id_attrs.get('name_qualifier'),
+            ),
+            text=generate_unique_id()
         )
-    )
-    subject_confirmation.append(subject_confirmation_data)
-    subject.append(subject_confirmation)
-    assertion.append(deepcopy(issuer))
-    assertion.append(subject)
-    # Setup conditions data
-    conditions = Conditions(
-        attrib=dict(
-            NotBefore=not_before,
-            NotOnOrAfter=not_on_or_after
+        subject.append(name_id)
+        subject_confirmation = SubjectConfirmation()
+        subject_confirmation_data_attrs = data.get(
+            'subject_confirmation_data', {}).get('attrs', {})
+        subject_confirmation_data_in_response_to = subject_confirmation_data_attrs.get(
+            'in_response_to', response_attrs.get('in_response_to')
         )
-    )
-    audience_restriction = AudienceRestriction()
-    audience = Audience(text=data.get('audience').get('text'))
-    audience_restriction.append(audience)
-    conditions.append(audience_restriction)
-    assertion.append(conditions)
-    # Setup authn statement data
-    # FIXME: handle SessionIndex for real
-    authn_statement = AuthnStatement(
-        attrib=dict(
-            AuthnInstant=issue_instant,
-            SessionIndex=generate_unique_id()
+        subject_confirmation_data_not_on_or_after = subject_confirmation_data_attrs.get(
+            'not_on_or_after', not_on_or_after
         )
-    )
-    authn_context = AuthnContext()
-    authn_context_class_ref = AuthnContextClassRef(
-        text=data.get('authn_context_class_ref').get('text')
-    )
-    authn_context.append(authn_context_class_ref)
-    authn_statement.append(authn_context)
-    assertion.append(authn_statement)
-    # Setup attribute statement data (if attributes required)
-    if attributes:
-        attribute_statement = AttributeStatement()
-        for attr, info in attributes.items():
-            _attribute = Attribute(
-                attrib=dict(
-                    Name=attr
+        subject_confirmation_data = SubjectConfirmationData(
+            attrib=dict(
+                Recipient=subject_confirmation_data_attrs.get('recipient'),
+                NotOnOrAfter=subject_confirmation_data_not_on_or_after,
+                InResponseTo=subject_confirmation_data_in_response_to
+            )
+        )
+        subject_confirmation.append(subject_confirmation_data)
+        subject.append(subject_confirmation)
+        assertion.append(deepcopy(issuer))
+        assertion.append(subject)
+        # Setup conditions data
+        conditions_attrs = data.get(
+            'conditions', {}).get('attrs', {})
+        conditions_not_before = conditions_attrs.get('not_before', not_before)
+        conditions_not_on_or_after = conditions_attrs.get('not_on_or_after', not_before)
+        conditions = Conditions(
+            attrib=dict(
+                NotBefore=conditions_not_before,
+                NotOnOrAfter=conditions_not_on_or_after
+            )
+        )
+        audience_restriction = AudienceRestriction()
+        audience = Audience(text=data.get('audience').get('text'))
+        audience_restriction.append(audience)
+        conditions.append(audience_restriction)
+        assertion.append(conditions)
+        # Setup authn statement data
+        # FIXME: handle SessionIndex for real
+        authn_statement = AuthnStatement(
+            attrib=dict(
+                AuthnInstant=issue_instant,
+                SessionIndex=generate_unique_id()
+            )
+        )
+        authn_context = AuthnContext()
+        authn_context_class_ref = AuthnContextClassRef(
+            text=data.get('authn_context_class_ref').get('text')
+        )
+        authn_context.append(authn_context_class_ref)
+        authn_statement.append(authn_context)
+        assertion.append(authn_statement)
+        # Setup attribute statement data (if attributes required)
+        if attributes:
+            attribute_statement = AttributeStatement()
+            for attr, info in attributes.items():
+                _attribute = Attribute(
+                    attrib=dict(
+                        Name=attr
+                    )
                 )
-            )
-            _attribute_value = AttributeValue(
-                attrib={'{%s}type' % (XSI): 'xs:' + info[0]},
-                text=info[1]
-            )
-            _attribute.append(_attribute_value)
-            attribute_statement.append(_attribute)
-        assertion.append(attribute_statement)
-    response.append(assertion)
+                _attribute_value = AttributeValue(
+                    attrib={'{%s}type' % (XSI): 'xs:' + info[0]},
+                    text=info[1]
+                )
+                _attribute.append(_attribute_value)
+                attribute_statement.append(_attribute)
+            assertion.append(attribute_statement)
+        response.append(assertion)
     return response
 
 
