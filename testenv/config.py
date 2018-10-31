@@ -30,6 +30,7 @@ class ConfigValidator(object):
             'https_cert_file': str,
             'https_key_file': str,
             'users_file': str,
+            'behind_reverse_proxy': bool,
             'can_add_user': bool,
             'endpoints': {
                 'single_logout_service': str,
@@ -235,6 +236,10 @@ class Config(object):
                 'loglevel': 'debug',
             }
         }
+
+    @property
+    def behind_reverse_proxy(self):
+        return self._confdata.get('behind_reverse_proxy', False)
 
     def receivers(self, service):
         entity_id = self.entity_id.rstrip('/')

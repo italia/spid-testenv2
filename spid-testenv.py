@@ -7,6 +7,7 @@ import os
 import os.path
 
 from flask import Flask
+from werkzeug.contrib.fixers import ProxyFix
 
 from testenv import config, spmetadata
 from testenv.exceptions import BadConfiguration, DeserializationError, ValidationError
@@ -37,5 +38,8 @@ if __name__ == '__main__':
             for err in e.details:
                 logger.error(err)
         os.environ['FLASK_ENV'] = 'development'
-        server = IdpServer(app=Flask(__name__, static_url_path='/static'))
+        app = Flask(__name__, static_url_path='/static')
+        if config.params.behind_reverse_proxy:
+            app.wsgi_app = ProxyFix(app.wsgi_app)
+        server = IdpServer(app=app)
         server.start()
