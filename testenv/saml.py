@@ -264,7 +264,7 @@ def create_logout_response(data, response_status):
     return response
 
 
-def create_response(data, response_status, attributes={}):
+def create_response(data, response_status, attributes={}, has_assertion=True):
     issue_instant, not_before, not_on_or_after = generate_issue_instant()
     response_attrs = data.get('response').get('attrs')
     # Create a response
@@ -299,80 +299,91 @@ def create_response(data, response_status, attributes={}):
     response.append(status)
 
     # Create and setup the assertion
-    assertion = Assertion(
-        attrib=dict(
-            ID=generate_unique_id(),
-            IssueInstant=issue_instant,
+    if has_assertion:
+        assertion = Assertion(
+            attrib=dict(
+                ID=generate_unique_id(),
+                IssueInstant=issue_instant,
+            )
         )
-    )
-    # Setup subject data
-    subject = Subject()
-    name_id_attrs = data.get('name_id').get('attrs')
-    name_id = NameID(
-        attrib=dict(
-            NameQualifier=name_id_attrs.get('name_qualifier'),
-        ),
-        text=generate_unique_id()
-    )
-    subject.append(name_id)
-    subject_confirmation = SubjectConfirmation()
-    subject_confirmation_data_attrs = data.get(
-        'subject_confirmation_data').get('attrs')
-    subject_confirmation_data = SubjectConfirmationData(
-        attrib=dict(
-            Recipient=subject_confirmation_data_attrs.get('recipient'),
-            NotOnOrAfter=not_on_or_after,
-            InResponseTo=response_attrs.get('in_response_to')
+        # Setup subject data
+        subject = Subject()
+        name_id_attrs = data.get('name_id').get('attrs')
+        name_id = NameID(
+            attrib=dict(
+                NameQualifier=name_id_attrs.get('name_qualifier'),
+            ),
+            text=generate_unique_id()
         )
-    )
-    subject_confirmation.append(subject_confirmation_data)
-    subject.append(subject_confirmation)
-    assertion.append(deepcopy(issuer))
-    assertion.append(subject)
-    # Setup conditions data
-    conditions = Conditions(
-        attrib=dict(
-            NotBefore=not_before,
-            NotOnOrAfter=not_on_or_after
+        subject.append(name_id)
+        subject_confirmation = SubjectConfirmation()
+        subject_confirmation_data_attrs = data.get(
+            'subject_confirmation_data', {}).get('attrs', {})
+        subject_confirmation_data_in_response_to = subject_confirmation_data_attrs.get(
+            'in_response_to', response_attrs.get('in_response_to')
         )
-    )
-    audience_restriction = AudienceRestriction()
-    audience = Audience(text=data.get('audience').get('text'))
-    audience_restriction.append(audience)
-    conditions.append(audience_restriction)
-    assertion.append(conditions)
-    # Setup authn statement data
-    # FIXME: handle SessionIndex for real
-    authn_statement = AuthnStatement(
-        attrib=dict(
-            AuthnInstant=issue_instant,
-            SessionIndex=generate_unique_id()
+        subject_confirmation_data_not_on_or_after = subject_confirmation_data_attrs.get(
+            'not_on_or_after', not_on_or_after
         )
-    )
-    authn_context = AuthnContext()
-    authn_context_class_ref = AuthnContextClassRef(
-        text=data.get('authn_context_class_ref').get('text')
-    )
-    authn_context.append(authn_context_class_ref)
-    authn_statement.append(authn_context)
-    assertion.append(authn_statement)
-    # Setup attribute statement data (if attributes required)
-    if attributes:
-        attribute_statement = AttributeStatement()
-        for attr, info in attributes.items():
-            _attribute = Attribute(
-                attrib=dict(
-                    Name=attr
+        subject_confirmation_data = SubjectConfirmationData(
+            attrib=dict(
+                Recipient=subject_confirmation_data_attrs.get('recipient'),
+                NotOnOrAfter=subject_confirmation_data_not_on_or_after,
+                InResponseTo=subject_confirmation_data_in_response_to
+            )
+        )
+        subject_confirmation.append(subject_confirmation_data)
+        subject.append(subject_confirmation)
+        assertion.append(deepcopy(issuer))
+        assertion.append(subject)
+        # Setup conditions data
+        conditions_attrs = data.get(
+            'conditions', {}).get('attrs', {})
+        conditions_not_before = conditions_attrs.get('not_before', not_before)
+        conditions_not_on_or_after = conditions_attrs.get('not_on_or_after', not_before)
+        conditions = Conditions(
+            attrib=dict(
+                NotBefore=conditions_not_before,
+                NotOnOrAfter=conditions_not_on_or_after
+            )
+        )
+        audience_restriction = AudienceRestriction()
+        audience = Audience(text=data.get('audience').get('text'))
+        audience_restriction.append(audience)
+        conditions.append(audience_restriction)
+        assertion.append(conditions)
+        # Setup authn statement data
+        # FIXME: handle SessionIndex for real
+        authn_statement = AuthnStatement(
+            attrib=dict(
+                AuthnInstant=issue_instant,
+                SessionIndex=generate_unique_id()
+            )
+        )
+        authn_context = AuthnContext()
+        authn_context_class_ref = AuthnContextClassRef(
+            text=data.get('authn_context_class_ref').get('text')
+        )
+        authn_context.append(authn_context_class_ref)
+        authn_statement.append(authn_context)
+        assertion.append(authn_statement)
+        # Setup attribute statement data (if attributes required)
+        if attributes:
+            attribute_statement = AttributeStatement()
+            for attr, info in attributes.items():
+                _attribute = Attribute(
+                    attrib=dict(
+                        Name=attr
+                    )
                 )
-            )
-            _attribute_value = AttributeValue(
-                attrib={'{%s}type' % (XSI): 'xs:' + info[0]},
-                text=info[1]
-            )
-            _attribute.append(_attribute_value)
-            attribute_statement.append(_attribute)
-        assertion.append(attribute_statement)
-    response.append(assertion)
+                _attribute_value = AttributeValue(
+                    attrib={'{%s}type' % (XSI): 'xs:' + info[0]},
+                    text=info[1]
+                )
+                _attribute.append(_attribute_value)
+                attribute_statement.append(_attribute)
+            assertion.append(attribute_statement)
+        response.append(assertion)
     return response
 
 
@@ -422,14 +433,14 @@ class EntityDescriptor(SamlMixin):
 class IDPSSODescriptor(SamlMixin):
     saml_type = 'md'
     defaults = {
-        'protocolSupportEnumeration': SAML,
+        'protocolSupportEnumeration': SAMLP,
     }
 
 
 class SPSSODescriptor(SamlMixin):
     saml_type = 'md'
     defaults = {
-        'protocolSupportEnumeration': SAML,
+        'protocolSupportEnumeration': SAMLP,
     }
 
 
@@ -499,7 +510,7 @@ def create_idp_metadata(
     single_sign_on_services=None,
     single_logout_services=None,
     attributes=None,
-    org=None
+    org=None,
 ):
     entity_descriptor = EntityDescriptor(
         attrib=dict(
@@ -589,17 +600,23 @@ def create_sp_metadata(
     authn_request_signed,
     keys=None,
     assertion_consumer_services=None,
-    attribute_consuming_services=None
+    attribute_consuming_services=None,
+    single_logout_services=None,
+    md_id=None,
+    check_attributes=True,
+    name_format=True
 ):
+    _id = generate_unique_id() if md_id is None else md_id
     entity_descriptor = EntityDescriptor(
         attrib=dict(
-            entityID=entity_id
+            entityID=entity_id,
+            ID=_id
         )
     )
     # Setup idp sso descriptor
     sp_sso_descriptor = SPSSODescriptor(
         attrib=dict(
-            AuthnRequestSigned=authn_request_signed
+            AuthnRequestsSigned=authn_request_signed
         )
     )
     if keys is not None:
@@ -618,6 +635,21 @@ def create_sp_metadata(
             key_info.append(x509_data)
             key_descriptor.append(key_info)
             sp_sso_descriptor.append(key_descriptor)
+    # setup single logout service(s)
+    if single_logout_services is not None:
+        for _slo in single_logout_services:
+            single_logout_service = SingleLogoutService(
+                attrib=dict(
+                    Binding=_slo.binding,
+                    Location=_slo.location
+                )
+            )
+            sp_sso_descriptor.append(single_logout_service)
+    # setup name id
+    name_id_format = NameIDFormat(
+        text=NAMEID_FORMAT_TRANSIENT
+    )
+    sp_sso_descriptor.append(name_id_format)
     # Setup assertion consumer service(s)
     if assertion_consumer_services is not None:
         for idx, _ascs in enumerate(assertion_consumer_services):
@@ -640,15 +672,22 @@ def create_sp_metadata(
                 )
             )
             service_name = ServiceName(text=_atcs.service_name)
-            for attr_name in _atcs.attributes:
-                if attr_name in SPID_ATTRIBUTES['primary'] or attr_name in SPID_ATTRIBUTES['secondary']:
-                    requested_attribute = RequestedAttribute(
-                        attrib=dict(
-                            Name=attr_name
-                        )
-                    )
-                    service_name.append(requested_attribute)
             attribute_consuming_service.append(service_name)
+            for attr_name in _atcs.attributes:
+                if attr_name in SPID_ATTRIBUTES[
+                    'primary'
+                ] or attr_name in SPID_ATTRIBUTES[
+                    'secondary'
+                ] or not check_attributes:
+                    _attrib = {
+                        'Name': attr_name
+                    }
+                    if name_format:
+                        _attrib['NameFormat'] = NAME_FORMAT_BASIC
+                    requested_attribute = RequestedAttribute(
+                        attrib=_attrib
+                    )
+                    attribute_consuming_service.append(requested_attribute)
             sp_sso_descriptor.append(attribute_consuming_service)
     entity_descriptor.append(sp_sso_descriptor)
     return entity_descriptor

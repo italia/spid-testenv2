@@ -31,6 +31,7 @@ class ConfigValidator(object):
             'https_key_file': str,
             'users_file': str,
             'behind_reverse_proxy': bool,
+            'can_add_user': bool,
             'endpoints': {
                 'single_logout_service': str,
                 'single_sign_on_service': str,
@@ -165,6 +166,10 @@ class Config(object):
     @property
     def https_certificate_file_path(self):
         return self._confdata.get('https_cert_file')
+
+    @property
+    def can_add_user(self):
+        return self._confdata.get('can_add_user', True)
 
     @property
     def endpoints(self):

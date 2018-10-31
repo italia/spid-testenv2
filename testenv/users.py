@@ -53,7 +53,7 @@ class JsonUserManager(AbstractUserManager):
                 lastname = FAKER.last_name_male() if _is_even \
                     else FAKER.last_name_female()
                 fiscal_number = exrex.getone(
-                    '[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]'
+                    r'[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]'
                 )
                 self.users[FAKER.user_name() if idx > 0 else 'test'] = {
                     'attrs': {

@@ -4,8 +4,7 @@
 #
 #    pip-compile --output-file requirements.txt requirements.in
 #
---extra-index-url https://devpi.iast.it/nephila/dev/+simple/
---extra-index-url https://devpi.iast.it/nephila/dev/+simple
+
 
 asn1crypto==0.24.0        # via cryptography, signxml
 certifi==2018.8.24        # via requests, signxml
@@ -32,10 +31,10 @@ pycparser==2.18           # via cffi
 pyopenssl==17.5.0         # via signxml
 python-dateutil==2.7.3    # via faker
 pyyaml==3.12
-requests==2.19.1
+requests==2.20.0
 scandir==1.9.0            # via pathlib2
 signxml==2.5.2
-six==1.11.0               # via cryptography, faker, pathlib2, pyopenssl, python-dateutil
+six==1.11.0
 text-unidecode==1.2       # via faker
 typing==3.6.6             # via importlib-resources
 urllib3==1.23             # via requests

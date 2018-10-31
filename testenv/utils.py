@@ -14,7 +14,7 @@ from testenv.settings import MULTIPLE_OCCURRENCES_TAGS, SPID_ERRORS
 
 TIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 TIME_FORMAT_WITH_FRAGMENT = re.compile(
-    '^(\d{4,4}-\d{2,2}-\d{2,2}T\d{2,2}:\d{2,2}:\d{2,2})(\.\d*)?Z?$')
+    r'^(\d{4,4}-\d{2,2}-\d{2,2}T\d{2,2}:\d{2,2}:\d{2,2})(\.\d*)?Z?$')
 
 
 def get_spid_error(code):
@@ -41,13 +41,19 @@ check_url.error_msg = 'la url non è in formato corretto'
 
 
 def str_to_datetime(val):
-    try:
-        return datetime.strptime(val, '%Y-%m-%dT%H:%M:%S.%fZ')
-    except ValueError:
+    nanoseconds_fmt = '%Y-%m-%dT%H:%M:%S.%fZ'
+    seconds_fmt = '%Y-%m-%dT%H:%M:%SZ'
+    for fmt in (nanoseconds_fmt, seconds_fmt):
         try:
-            return datetime.strptime(val, '%Y-%m-%dT%H:%M:%SZ')
+            return datetime.strptime(val, fmt)
         except ValueError:
             pass
+
+    truncated_to_nanoseconds = '{}Z'.format(val[:26])
+    try:
+        return datetime.strptime(truncated_to_nanoseconds, nanoseconds_fmt)
+    except ValueError:
+        raise ValueError('Cannot parse date: {}'.format(val))
 
 
 def str_to_struct_time(timestr, format=TIME_FORMAT):
@@ -106,7 +112,14 @@ def saml_to_dict(xmlstr):
     }
 
 
+def get_today_utc_date():
+    now = datetime.utcnow()
+    return now
+
+
 Org = namedtuple('Org', ['name', 'url'])
 Key = namedtuple('Key', ['use', 'value'])
 Sso = namedtuple('SingleSignOn', ['binding', 'location'])
 Slo = namedtuple('SingleLogout', ['binding', 'location'])
+Atcs = namedtuple('AttributeConsumingService', ['service_name', 'attributes'])
+Acs = namedtuple('AssertionConsumerService', ['location'])

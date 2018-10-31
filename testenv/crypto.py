@@ -6,8 +6,8 @@ import zlib
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
+from cryptography.hazmat.primitives.hashes import SHA1, SHA224, SHA256, SHA384, SHA512
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.x509 import load_pem_x509_certificate
 from lxml import objectify
@@ -20,6 +20,7 @@ from testenv.settings import (
     DEPRECATED_ALGORITHMS, KEY_INFO, SAML, SIG_NS, SIG_RSA_SHA224, SIG_RSA_SHA256, SIG_RSA_SHA384, SIG_RSA_SHA512,
     SIGNATURE, SIGNATURE_METHOD, SIGNED_INFO, SIGNED_PARAMS, SUPPORTED_ALGORITHMS, X509_CERTIFICATE, X509_DATA,
 )
+from testenv.utils import get_today_utc_date
 
 try:
     from urllib import urlencode
@@ -55,6 +56,37 @@ def normalize_x509(cert):
     )
 
 
+def cleanup_certificate_string(certificate_string):
+    cert = certificate_string.split('\n')
+    cert = ''.join(cert)
+    return cert
+
+
+def load_certificate(cert):
+    cert = cleanup_certificate_string(cert)
+    return load_pem_x509_certificate(
+        pem_format(cert).encode('ascii'), backend=default_backend()
+    )
+
+
+def verify_certificate_expiration(cert):
+    now = get_today_utc_date()
+    return not(cert.not_valid_before <= now <= cert.not_valid_after)
+
+
+def verify_certificate_algorithm(cert):
+    valid_algorithm = False
+    for alg in [SHA224, SHA256, SHA256, SHA384, SHA512]:
+        if isinstance(cert.signature_hash_algorithm, alg):
+            valid_algorithm = True
+            break
+    return valid_algorithm
+
+
+def verify_bad_certificate_algorithm(cert):
+    return not isinstance(cert.signature_hash_algorithm, SHA1)
+
+
 class RSASigner(object):
 
     def __init__(self, digest, key=None, padding=None):
@@ -84,18 +116,18 @@ class RSAVerifier(object):
 
 
 RSA_VERIFIERS = {
-    SIG_RSA_SHA224: RSAVerifier(hashes.SHA224()),
-    SIG_RSA_SHA256: RSAVerifier(hashes.SHA256()),
-    SIG_RSA_SHA384: RSAVerifier(hashes.SHA384()),
-    SIG_RSA_SHA512: RSAVerifier(hashes.SHA512()),
+    SIG_RSA_SHA224: RSAVerifier(SHA224()),
+    SIG_RSA_SHA256: RSAVerifier(SHA256()),
+    SIG_RSA_SHA384: RSAVerifier(SHA384()),
+    SIG_RSA_SHA512: RSAVerifier(SHA512()),
 }
 
 
 RSA_SIGNERS = {
-    SIG_RSA_SHA224: RSASigner(hashes.SHA224()),
-    SIG_RSA_SHA256: RSASigner(hashes.SHA256()),
-    SIG_RSA_SHA384: RSASigner(hashes.SHA384()),
-    SIG_RSA_SHA512: RSASigner(hashes.SHA512()),
+    SIG_RSA_SHA224: RSASigner(SHA224()),
+    SIG_RSA_SHA256: RSASigner(SHA256()),
+    SIG_RSA_SHA384: RSASigner(SHA384()),
+    SIG_RSA_SHA512: RSASigner(SHA512()),
 }
 
 

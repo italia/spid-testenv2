@@ -10,9 +10,23 @@ from testenv import settings
 from testenv.exceptions import (
     SPIDValidationError, UnknownEntityIDError, XMLFormatValidationError, XMLSchemaValidationError,
 )
+from testenv.saml import create_sp_metadata
+from testenv.settings import BINDING_HTTP_POST
 from testenv.tests.data import sample_saml_requests as sample_requests
 from testenv.tests.utils import FakeRequest
-from testenv.validators import AuthnRequestXMLSchemaValidator, SpidValidator, XMLFormatValidator
+from testenv.utils import Acs, Atcs, Key, Slo
+from testenv.validators import (
+    AuthnRequestXMLSchemaValidator, SpidMetadataValidator, SpidRequestValidator, XMLFormatValidator,
+)
+
+try:
+    from unittest.mock import patch
+except ImportError:
+    from mock import patch
+
+
+def fake_check_certificate(cert):
+    return cert
 
 
 class FakeTranslator(object):
@@ -216,7 +230,7 @@ class AuthnRequestXMLSchemaValidatorTestCase(unittest.TestCase):
         )
 
 
-class SPIDValidatorTestCase(unittest.TestCase):
+class SpidRequestValidatorTestCase(unittest.TestCase):
 
     maxDiff = None
 
@@ -230,7 +244,7 @@ class SPIDValidatorTestCase(unittest.TestCase):
         })
         for binding, val in {settings.BINDING_HTTP_POST: sample_requests.fake_signature, settings.BINDING_HTTP_REDIRECT: ''}.items():
             request = FakeRequest(sample_requests.missing_issuer)
-            validator = SpidValidator('login', binding, registry, config)
+            validator = SpidRequestValidator('login', binding, registry, config)
             with pytest.raises(UnknownEntityIDError) as excinfo:
                 request.saml_request = request.saml_request % (val)
                 validator.validate(request)
@@ -250,7 +264,7 @@ class SPIDValidatorTestCase(unittest.TestCase):
             settings.BINDING_HTTP_POST: sample_requests.fake_signature,
             settings.BINDING_HTTP_REDIRECT: ''
         }.items():
-            validator = SpidValidator('login', binding, registry, config)
+            validator = SpidRequestValidator('login', binding, registry, config)
             request = FakeRequest(sample_requests.wrong_destination)
             with pytest.raises(SPIDValidationError) as excinfo:
                 request.saml_request = request.saml_request % (val)
@@ -269,7 +283,7 @@ class SPIDValidatorTestCase(unittest.TestCase):
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        validator = SpidValidator(
+        validator = SpidRequestValidator(
             'login', settings.BINDING_HTTP_POST, registry, config)
         with pytest.raises(SPIDValidationError) as excinfo:
             validator.validate(request)
@@ -291,7 +305,7 @@ class SPIDValidatorTestCase(unittest.TestCase):
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        validator = SpidValidator(
+        validator = SpidRequestValidator(
             'login', settings.BINDING_HTTP_POST, registry, config)
         validator.validate(request)
 
@@ -306,7 +320,7 @@ class SPIDValidatorTestCase(unittest.TestCase):
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        validator = SpidValidator(
+        validator = SpidRequestValidator(
             'login', settings.BINDING_HTTP_REDIRECT, registry, config)
         with pytest.raises(SPIDValidationError) as excinfo:
             validator.validate(request)
@@ -327,7 +341,7 @@ class SPIDValidatorTestCase(unittest.TestCase):
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        validator = SpidValidator(
+        validator = SpidRequestValidator(
             'login', settings.BINDING_HTTP_REDIRECT, registry, config)
         validator.validate(request)
 
@@ -341,7 +355,7 @@ class SPIDValidatorTestCase(unittest.TestCase):
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        validator = SpidValidator(
+        validator = SpidRequestValidator(
             'logout', settings.BINDING_HTTP_POST, registry, config)
         with pytest.raises(SPIDValidationError) as excinfo:
             validator.validate(request)
@@ -363,7 +377,7 @@ class SPIDValidatorTestCase(unittest.TestCase):
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        validator = SpidValidator(
+        validator = SpidRequestValidator(
             'logout', settings.BINDING_HTTP_POST, registry, config)
         validator.validate(request)
 
@@ -378,7 +392,7 @@ class SPIDValidatorTestCase(unittest.TestCase):
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        validator = SpidValidator(
+        validator = SpidRequestValidator(
             'logout', settings.BINDING_HTTP_REDIRECT, registry, config)
         with pytest.raises(SPIDValidationError) as excinfo:
             validator.validate(request)
@@ -399,6 +413,167 @@ class SPIDValidatorTestCase(unittest.TestCase):
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        validator = SpidValidator(
+        validator = SpidRequestValidator(
             'logout', settings.BINDING_HTTP_REDIRECT, registry, config)
         validator.validate(request)
+
+    @freeze_time('2018-08-18T06:55:22Z')
+    def test_logout_request_http_post_with_notonorafter_attr(self):
+        # https://github.com/italia/spid-testenv2/issues/159
+        config = FakeConfig('http://localhost:8088/sso',
+                            'http://localhost:8088/')
+        request = FakeRequest(sample_requests.logout_with_notonorafter_attr %
+                              (sample_requests.fake_signature))
+        registry = FakeRegistry({
+            'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
+        })
+        validator = SpidRequestValidator(
+            'logout', settings.BINDING_HTTP_POST, registry, config)
+        validator.validate(request)
+
+    @freeze_time('2018-08-18T06:55:22Z')
+    def test_logout_request_http_post_with_reason_attr(self):
+        # https://github.com/italia/spid-testenv2/issues/159
+        config = FakeConfig('http://localhost:8088/sso',
+                            'http://localhost:8088/')
+        request = FakeRequest(sample_requests.logout_with_reason_attr %
+                              (sample_requests.fake_signature))
+        registry = FakeRegistry({
+            'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
+        })
+        validator = SpidRequestValidator(
+            'logout', settings.BINDING_HTTP_POST, registry, config)
+        validator.validate(request)
+
+
+class SpidMetadataValidatorTestCase(unittest.TestCase):
+
+    maxDiff = None
+
+    @patch('testenv.validators._check_certificate', side_effect=fake_check_certificate)
+    def test_valid_metadata(self, mocked):
+        FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
+        validator = SpidMetadataValidator()
+        metadata = create_sp_metadata(
+            entity_id='http://test.sp',
+            authn_request_signed='true',
+            assertion_consumer_services=[Acs(location='http://test.sp/acs')],
+            attribute_consuming_services=[
+                Atcs(
+                    service_name='test_1',
+                    attributes=['spidCode']
+                )
+            ],
+            single_logout_services=[
+                Slo(binding=BINDING_HTTP_POST, location='http://test.sp/slo')
+            ],
+            keys=[Key('signing', 'somevalue123')]
+        ).to_xml()
+        validator.validate(metadata)
+
+    @patch('testenv.validators._check_certificate', side_effect=fake_check_certificate)
+    def test_missing_slo(self, mocked):
+        FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
+        validator = SpidMetadataValidator()
+        metadata = create_sp_metadata(
+            entity_id='http://test.sp',
+            authn_request_signed='true',
+            assertion_consumer_services=[Acs(location='http://test.sp/acs')],
+            attribute_consuming_services=[
+                Atcs(
+                    service_name='test_1',
+                    attributes=['spidCode']
+                )
+            ],
+            single_logout_services=[],
+            keys=[Key('signing', 'somevalue123')]
+        ).to_xml()
+        with pytest.raises(SPIDValidationError) as excinfo:
+            validator.validate(metadata)
+        exc = excinfo.value
+        self.assertEqual(
+            'xpath: {urn:oasis:names:tc:SAML:2.0:metadata}EntityDescriptor/{urn:oasis:names:tc:SAML:2.0:metadata}SPSSODescriptor/{urn:oasis:names:tc:SAML:2.0:metadata}SingleLogoutService',
+            exc.details[0].path
+        )
+        self.assertEqual('required key not provided', exc.details[0].message)
+
+    @patch('testenv.validators._check_certificate', side_effect=fake_check_certificate)
+    def test_keydescriptor_no_signing(self, mocked):
+        FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
+        validator = SpidMetadataValidator()
+        metadata = create_sp_metadata(
+            entity_id='http://test.sp',
+            authn_request_signed='true',
+            assertion_consumer_services=[Acs(location='http://test.sp/acs')],
+            attribute_consuming_services=[
+                Atcs(
+                    service_name='test_1',
+                    attributes=['spidCode']
+                )
+            ],
+            single_logout_services=[
+                Slo(binding=BINDING_HTTP_POST, location='http://test.sp/slo')
+            ],
+            keys=[Key('encryption', 'somevalue123')]
+        ).to_xml()
+        with pytest.raises(SPIDValidationError) as excinfo:
+            validator.validate(metadata)
+        exc = excinfo.value
+        self.assertEqual(
+            'xpath: {urn:oasis:names:tc:SAML:2.0:metadata}EntityDescriptor/{urn:oasis:names:tc:SAML:2.0:metadata}SPSSODescriptor/{urn:oasis:names:tc:SAML:2.0:metadata}KeyDescriptor',
+            exc.details[0].path
+        )
+        self.assertEqual('Deve essere presente almeno una chiave con attributo use uguale a "signing"',
+                         exc.details[0].message)
+
+    @patch('testenv.validators._check_certificate', side_effect=fake_check_certificate)
+    def test_bad_attributes(self, mocked):
+        FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
+        validator = SpidMetadataValidator()
+        metadata = create_sp_metadata(
+            entity_id='http://test.sp',
+            authn_request_signed='true',
+            assertion_consumer_services=[Acs(location='http://test.sp/acs')],
+            attribute_consuming_services=[
+                Atcs(
+                    service_name='test_1',
+                    attributes=['badAttr']
+                )
+            ],
+            single_logout_services=[
+                Slo(binding=BINDING_HTTP_POST, location='http://test.sp/slo')
+            ],
+            keys=[Key('signing', 'somevalue123')],
+            check_attributes=False
+        ).to_xml()
+        with pytest.raises(SPIDValidationError) as excinfo:
+            validator.validate(metadata)
+        exc = excinfo.value
+        self.assertEqual(
+            'xpath: {urn:oasis:names:tc:SAML:2.0:metadata}EntityDescriptor/{urn:oasis:names:tc:SAML:2.0:metadata}SPSSODescriptor/{urn:oasis:names:tc:SAML:2.0:metadata}AttributeConsumingService/0/{urn:oasis:names:tc:SAML:2.0:metadata}RequestedAttribute/0 - attribute: Name',
+            exc.details[0].path
+        )
+        self.assertEqual('non corrisponde a nessuno dei valori contenuti in {}'.format(
+            settings.SPID_ATTRIBUTES_NAMES), exc.details[0].message)
+
+    @patch('testenv.validators._check_certificate', side_effect=fake_check_certificate)
+    def test_no_name_format(self, mocked):
+        FakeConfig('http://localhost:8088/sso', 'http://localhost:8088/')
+        validator = SpidMetadataValidator()
+        metadata = create_sp_metadata(
+            entity_id='http://test.sp',
+            authn_request_signed='true',
+            assertion_consumer_services=[Acs(location='http://test.sp/acs')],
+            attribute_consuming_services=[
+                Atcs(
+                    service_name='test_1',
+                    attributes=['spidCode']
+                )
+            ],
+            single_logout_services=[
+                Slo(binding=BINDING_HTTP_POST, location='http://test.sp/slo')
+            ],
+            keys=[Key('signing', 'somevalue123')],
+            name_format=False
+        ).to_xml()
+        validator.validate(metadata)

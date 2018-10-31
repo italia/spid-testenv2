@@ -48,3 +48,6 @@ https: false
 endpoints:
   single_sign_on_service: "/sso"
   single_logout_service: "/slo"
+
+# Abilita (true) o disabilita (false) la possibilità di aggiungere nuovi utenti
+#can_add_user: false
