@@ -778,6 +778,28 @@ class SpidTestenvTest(unittest.TestCase):
         'testenv.parser.HTTPRedirectRequestParser._decode_saml_request',
         return_value=generate_authn_request(
             data={
+                'issuer__url': '    https://spid.test:8000  '},
+            acs_level=1))
+    @patch(
+        'testenv.crypto.HTTPRedirectSignatureVerifier.verify',
+        return_value=True)
+    def test_issuer_with_whitespace(self, unravel, verified):
+        # See: https://github.com/italia/spid-testenv2/issues/204
+        response = self.test_client.get(
+            '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(
+                quote(SIG_RSA_SHA256)), follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        response_text = response.get_data(as_text=True)
+        self.assertNotIn(
+            'non corrisponde a nessun Service Provider',
+            response_text
+        )
+
+    @freeze_time("2018-07-16T09:38:29Z")
+    @patch(
+        'testenv.parser.HTTPRedirectRequestParser._decode_saml_request',
+        return_value=generate_authn_request(
+            data={
                 'issuer__namequalifier': 'https://something.spid.test'},
             acs_level=1))
     @patch(
