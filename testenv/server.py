@@ -371,7 +371,7 @@ class IdpServer(object):
             **{
                 'sp_list': [
                     {
-                        "name": sp, "spId": sp
+                        "entityID": sp
                     } for sp in self._registry.service_providers
                 ],
             }
