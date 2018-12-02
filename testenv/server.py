@@ -437,7 +437,7 @@ class IdpServer(object):
         self.app.logger.debug('Request key: {}'.format(key))
         if key and key in self.ticket:
             authn_request = self.ticket[key]
-            sp_id = authn_request.issuer.text
+            sp_id = authn_request.issuer.text.strip()
             destination = self.get_destination(authn_request, sp_id)
             authn_context = authn_request.requested_authn_context
             spid_level = authn_context.authn_context_class_ref.text

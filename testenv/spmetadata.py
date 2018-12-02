@@ -244,6 +244,7 @@ class ServiceProviderMetadataRegistry(object):
         self._metadata[entity_id] = metadata
 
     def get(self, entity_id):
+        entity_id = entity_id.strip()
         try:
             return self._metadata[entity_id]
         except KeyError:
