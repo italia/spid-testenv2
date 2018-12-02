@@ -769,7 +769,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(len(self.idp_server.responses), 0)
         response_text = response.get_data(as_text=True)
         self.assertIn(
-            'entity ID https://something.spid.test non registrato',
+            'non corrisponde a nessun Service Provider',
             response_text
         )
 
