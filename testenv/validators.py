@@ -495,7 +495,7 @@ class SpidRequestValidator(object):
             )
         if issuer_name and issuer_name not in self._registry.service_providers:
             raise UnknownEntityIDError(
-                'entity ID {} non registrato'.format(issuer_name)
+                'L\'entity ID "{}" indicato nell\'elemento <Issuer> non corrisponde a nessun Service Provider registrato in questo Identity Provider di test.'.format(issuer_name)
             )
         sp_metadata = self._registry.get(issuer_name)
         if sp_metadata is not None:
