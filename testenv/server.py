@@ -440,7 +440,7 @@ class IdpServer(object):
             sp_id = authn_request.issuer.text.strip()
             destination = self.get_destination(authn_request, sp_id)
             authn_context = authn_request.requested_authn_context
-            spid_level = authn_context.authn_context_class_ref.text
+            spid_level = authn_context.authn_context_class_ref.text.strip()
             if request.method == 'GET':
                 # inject extra data in form login based on spid level
                 extra_challenge = self._verify_spid(
