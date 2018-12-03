@@ -125,12 +125,13 @@ Gli utenti di test sono configurati nel file _users.json_ e possono essere aggiu
 
 Il log del flusso di login / logout viene registrato nel file idp.log (tramite configurazione pysaml2) e inviato in STDOUT insieme al log del web server.
 
-## Maintainer
+## Autori
 
-Questo repository è mantenuto da AgID - Agenzia per l'Italia Digitale con l'ausilio del Team per la Trasformazione Digitale.
+Questo software è stato sviluppato dal [Team per la Trasformazione Digitale](https://teamdigitale.governo.it/), ed è mantenuto con l'ausilio della community di [Developers Italia](https://developers.italia.it/).
 
 ## Link utili
 
+* [Regole tecniche consolidate](https://docs.italia.it/italia/spid/spid-regole-tecniche/)
 * [Sito ufficiale SPID](https://www.spid.gov.it/)
 * [Sezione SPID su Developers Italia](https://developers.italia.it/it/spid/)
 * [Sezione SPID su AgID](https://www.agid.gov.it/it/piattaforme/spid)
