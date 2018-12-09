@@ -340,7 +340,7 @@ def create_response(data, response_status, attributes={}, has_assertion=True):
         conditions_attrs = data.get(
             'conditions', {}).get('attrs', {})
         conditions_not_before = conditions_attrs.get('not_before', not_before)
-        conditions_not_on_or_after = conditions_attrs.get('not_on_or_after', not_before)
+        conditions_not_on_or_after = conditions_attrs.get('not_on_or_after', not_on_or_after)
         conditions = Conditions(
             attrib=dict(
                 NotBefore=conditions_not_before,
