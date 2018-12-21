@@ -20,7 +20,11 @@
             <tr>
                 <td class="spid-error__elem" id="{{err.path}}">{{err.path}}</td>
                 <td>
-                    {{err.value}} {{err.message}}
+                    {{err.message}}
+
+                    {% if err.value is not none %}
+                    <pre>{{err.value}}</pre>
+                    {% endif %}
                 </td>
             </tr>
         {% endfor %}

@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 import importlib_resources
 from lxml import etree
+import re
 from voluptuous import All, In, Invalid, Length, MultipleInvalid, Optional, Schema
 from voluptuous.validators import Equal
 
@@ -75,6 +76,8 @@ def _check_certificate(cert):
         raise MultipleInvalid(errors=_errors)
     return cert
 
+def _strip_namespaces(string):
+    return re.sub(r'\{(urn|http):.+?\}', '', string)
 
 class ValidatorGroup(object):
 
@@ -211,6 +214,7 @@ class BaseXMLSchemaValidator(object):
 
     def _handle_errors(self, error_log):
         errors = self._build_errors(error_log)
+        print(errors)
         localized_errors = self._localize_messages(errors)
         raise XMLSchemaValidationError(localized_errors)
 
@@ -218,7 +222,7 @@ class BaseXMLSchemaValidator(object):
     def _build_errors(error_log):
         return [
             ValidationDetail(None, err.line, err.column, err.domain_name,
-                             err.type_name, err.message, err.path)
+                             err.type_name, _strip_namespaces(err.message), err.path)
             for err in error_log
         ]
 
@@ -423,9 +427,10 @@ class SpidMetadataValidator(object):
                             except IndexError:
                                 _attr = ''
                             break
-                        _paths.append(str(_path))
+                            
+                        # strip namespaces for better readability
+                        _paths.append(_strip_namespaces(str(_path)))
                 path = '/'.join(_paths)
-                path = 'xpath: {}'.format(path)
                 if _attr is not None:
                     path = '{} - attribute: {}'.format(path, _attr)
                 for _ in err.path:
@@ -791,7 +796,6 @@ class SpidRequestValidator(object):
             saml_schema(data)
         except MultipleInvalid as e:
             for err in e.errors:
-                _val = data
                 _paths = []
                 _attr = None
                 for idx, _path in enumerate(err.path):
@@ -802,11 +806,16 @@ class SpidRequestValidator(object):
                             except IndexError:
                                 _attr = ''
                             break
-                        _paths.append(str(_path))
+                        
+                        # strip namespaces for better readability
+                        _paths.append(_strip_namespaces(str(_path)))
                 path = '/'.join(_paths)
-                path = 'xpath: {}'.format(path)
                 if _attr is not None:
-                    path = '{} - attribute: {}'.format(path, _attr)
+                    path += " - attribute: " + _attr
+                
+                # find value to show (iterate multiple times inside data
+                # until we find the sub-element or attribute)
+                _val = data
                 for _ in err.path:
                     try:
                         _val = _val[_]
@@ -814,9 +823,16 @@ class SpidRequestValidator(object):
                         _val = None
                     except ValueError:
                         _val = None
+                
+                # no need to show value if the error is the presence of the element
+                _msg = err.msg
+                if "extra keys not allowed" in _msg:
+                    _val = None
+                    _msg = "item not allowed"
+                
                 errors.append(
                     ValidationDetail(
-                        _val, None, None, None, None, err.msg, path
+                        _val, None, None, None, None, _msg, path
                     )
                 )
             raise SPIDValidationError(details=errors)

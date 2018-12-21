@@ -205,9 +205,9 @@ class AuthnRequestXMLSchemaValidatorTestCase(unittest.TestCase):
         exc = excinfo.value
         self.assertEqual(len(exc.details), 1)
         self.assertIn(
-            "Element '{urn:oasis:names:tc:SAML:2.0:assertion}AuthnContextClassRef': "
-            "This element is not expected. Expected is one of ( {urn:oasis:names:tc:SAML:2.0:assertion}"
-            "Conditions, {urn:oasis:names:tc:SAML:2.0:protocol}RequestedAuthnContext, {urn:oasis:names:tc:SAML:2.0:protocol}Scoping ).",
+            "Element 'AuthnContextClassRef': "
+            "This element is not expected. Expected is one of {"
+            "Conditions, RequestedAuthnContext, Scoping}.",
             exc.details[0].message
         )
 
@@ -289,7 +289,7 @@ class SpidRequestValidatorTestCase(unittest.TestCase):
             validator.validate(request)
         exc = excinfo.value
         self.assertEqual(
-            'xpath: {urn:oasis:names:tc:SAML:2.0:protocol}AuthnRequest/{http://www.w3.org/2000/09/xmldsig#}Signature',
+            'AuthnRequest/Signature',
             exc.details[0].path
         )
         self.assertEqual('required key not provided', exc.details[0].message)
@@ -326,10 +326,10 @@ class SpidRequestValidatorTestCase(unittest.TestCase):
             validator.validate(request)
         exc = excinfo.value
         self.assertEqual(
-            'xpath: {urn:oasis:names:tc:SAML:2.0:protocol}AuthnRequest/{http://www.w3.org/2000/09/xmldsig#}Signature',
+            'AuthnRequest/Signature',
             exc.details[0].path
         )
-        self.assertEqual('extra keys not allowed', exc.details[0].message)
+        self.assertEqual('item not allowed', exc.details[0].message)
 
     @freeze_time('2018-08-18T06:55:22Z')
     def test_authn_request_http_redirect_without_signature(self):
@@ -361,7 +361,7 @@ class SpidRequestValidatorTestCase(unittest.TestCase):
             validator.validate(request)
         exc = excinfo.value
         self.assertEqual(
-            'xpath: {urn:oasis:names:tc:SAML:2.0:protocol}LogoutRequest/{http://www.w3.org/2000/09/xmldsig#}Signature',
+            'LogoutRequest/Signature',
             exc.details[0].path
         )
         self.assertEqual('required key not provided', exc.details[0].message)
@@ -398,10 +398,10 @@ class SpidRequestValidatorTestCase(unittest.TestCase):
             validator.validate(request)
         exc = excinfo.value
         self.assertEqual(
-            'xpath: {urn:oasis:names:tc:SAML:2.0:protocol}LogoutRequest/{http://www.w3.org/2000/09/xmldsig#}Signature',
+            'LogoutRequest/Signature',
             exc.details[0].path
         )
-        self.assertEqual('extra keys not allowed', exc.details[0].message)
+        self.assertEqual('item not allowed', exc.details[0].message)
 
     @freeze_time('2018-08-18T06:55:22Z')
     def test_logout_request_http_redirect_without_signature(self):
@@ -492,7 +492,7 @@ class SpidMetadataValidatorTestCase(unittest.TestCase):
             validator.validate(metadata)
         exc = excinfo.value
         self.assertEqual(
-            'xpath: {urn:oasis:names:tc:SAML:2.0:metadata}EntityDescriptor/{urn:oasis:names:tc:SAML:2.0:metadata}SPSSODescriptor/{urn:oasis:names:tc:SAML:2.0:metadata}SingleLogoutService',
+            'EntityDescriptor/SPSSODescriptor/SingleLogoutService',
             exc.details[0].path
         )
         self.assertEqual('required key not provided', exc.details[0].message)
@@ -520,7 +520,7 @@ class SpidMetadataValidatorTestCase(unittest.TestCase):
             validator.validate(metadata)
         exc = excinfo.value
         self.assertEqual(
-            'xpath: {urn:oasis:names:tc:SAML:2.0:metadata}EntityDescriptor/{urn:oasis:names:tc:SAML:2.0:metadata}SPSSODescriptor/{urn:oasis:names:tc:SAML:2.0:metadata}KeyDescriptor',
+            'EntityDescriptor/SPSSODescriptor/KeyDescriptor',
             exc.details[0].path
         )
         self.assertEqual('Deve essere presente almeno una chiave con attributo use uguale a "signing"',
@@ -550,7 +550,7 @@ class SpidMetadataValidatorTestCase(unittest.TestCase):
             validator.validate(metadata)
         exc = excinfo.value
         self.assertEqual(
-            'xpath: {urn:oasis:names:tc:SAML:2.0:metadata}EntityDescriptor/{urn:oasis:names:tc:SAML:2.0:metadata}SPSSODescriptor/{urn:oasis:names:tc:SAML:2.0:metadata}AttributeConsumingService/0/{urn:oasis:names:tc:SAML:2.0:metadata}RequestedAttribute/0 - attribute: Name',
+            'EntityDescriptor/SPSSODescriptor/AttributeConsumingService/0/RequestedAttribute/0 - attribute: Name',
             exc.details[0].path
         )
         self.assertEqual('non corrisponde a nessuno dei valori contenuti in {}'.format(

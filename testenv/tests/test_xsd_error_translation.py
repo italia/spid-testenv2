@@ -17,14 +17,14 @@ class Libxml2ItalianTranslationTestCase(unittest.TestCase):
         ('SCHEMASV', 'SCHEMAV_CVC_COMPLEX_TYPE_4',
          "Element '{urn:oasis:names:tc:SAML:2.0:protocol}AuthnRequest': "
          "The attribute 'IssueInstant' is required but missing."):
-        "Elemento '{urn:oasis:names:tc:SAML:2.0:protocol}AuthnRequest': "
+        "Elemento 'AuthnRequest': "
         "L'attributo 'IssueInstant' è mandatorio ma non presente.",
 
         ('SCHEMASV', 'SCHEMAV_CVC_DATATYPE_VALID_1_2_1',
          "Element '{urn:oasis:names:tc:SAML:2.0:protocol}AuthnRequest', "
          "attribute 'ID': '123456' is not a valid value of the atomic type "
          "'xs:ID'."):
-        "Elemento '{urn:oasis:names:tc:SAML:2.0:protocol}AuthnRequest', "
+        "Elemento 'AuthnRequest', "
         "attributo 'ID': Il valore dell'attributo ID può iniziare solo con una lettera o con un underscore, "
         "e può contenere solo lettere, numeri, underscore, trattini e punti.",
 
@@ -32,7 +32,7 @@ class Libxml2ItalianTranslationTestCase(unittest.TestCase):
          "Element '{urn:oasis:names:tc:SAML:2.0:protocol}RequestedAuthnContext', "
          "attribute 'Comparison': [facet 'enumeration'] The value 'invalid' is "
          "not an element of the set {'exact', 'minimum', 'maximum', 'better'}."):
-        "Elemento '{urn:oasis:names:tc:SAML:2.0:protocol}RequestedAuthnContext', "
+        "Elemento 'RequestedAuthnContext', "
         "attributo 'Comparison': [facet 'enumeration'] Il valore 'invalid' non è "
         "un elemento dell'insieme {'exact', 'minimum', 'maximum', 'better'}.",
     }
