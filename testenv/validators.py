@@ -267,7 +267,7 @@ class SpidMetadataValidator(object):
                     'attrs': Schema({
                         'use': All(str, In(
                             KEYDESCRIPTOR_USES,
-                            msg=DEFAULT_LIST_VALUE_ERROR.format(KEYDESCRIPTOR_USES))
+                            msg=DEFAULT_LIST_VALUE_ERROR.format(', '.join(KEYDESCRIPTOR_USES)))
                         ),
                     }, required=True),
                     'children': {
@@ -331,7 +331,7 @@ class SpidMetadataValidator(object):
                         '{%s}RequestedAttribute' % (METADATA): All(
                             [{
                                 'attrs': {
-                                    'Name': All(str, In(SPID_ATTRIBUTES_NAMES, msg=DEFAULT_LIST_VALUE_ERROR.format(SPID_ATTRIBUTES_NAMES))),
+                                    'Name': All(str, In(SPID_ATTRIBUTES_NAMES, msg=DEFAULT_LIST_VALUE_ERROR.format(', '.join(SPID_ATTRIBUTES_NAMES)))),
                                     Optional('NameFormat'): Equal(
                                         NAME_FORMAT_BASIC, msg=DEFAULT_VALUE_ERROR.format(
                                             NAME_FORMAT_BASIC)
@@ -584,7 +584,7 @@ class SpidRequestValidator(object):
             {
                 'attrs': {},
                 'children': {},
-                'text': All(str, In(SPID_LEVELS, msg=DEFAULT_LIST_VALUE_ERROR.format(SPID_LEVELS)))
+                'text': All(str, In(SPID_LEVELS, msg=DEFAULT_LIST_VALUE_ERROR.format(', '.join(SPID_LEVELS))))
             },
             required=True,
         )
@@ -666,7 +666,7 @@ class SpidRequestValidator(object):
                 if attrs['AssertionConsumerServiceIndex'] not in assertion_consumer_service_indexes:
                     raise Invalid(
                         DEFAULT_LIST_VALUE_ERROR.format(
-                            assertion_consumer_service_indexes),
+                            ', '.join(assertion_consumer_service_indexes)),
                         path=['AssertionConsumerServiceIndex'])
                 return attrs
 
@@ -687,7 +687,7 @@ class SpidRequestValidator(object):
                     Optional('AttributeConsumingServiceIndex'): In(
                         attribute_consuming_service_indexes,
                         msg=DEFAULT_LIST_VALUE_ERROR.format(
-                            attribute_consuming_service_indexes)
+                            ', '.join(attribute_consuming_service_indexes))
                     ),
                     Optional('AssertionConsumerServiceIndex'): str,
                     Optional('AssertionConsumerServiceURL'): str,

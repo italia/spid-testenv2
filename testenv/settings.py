@@ -91,9 +91,9 @@ BINDING_HTTP_REDIRECT = 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect'
 
 MANDATORY_ERROR = 'L\'attributo è obbligatorio'
 NO_WANT_ERROR = 'L\'attributo non è richiesto'
-DEFAULT_VALUE_ERROR = 'è diverso dal valore di riferimento {}'
-DEFAULT_LIST_VALUE_ERROR = 'non corrisponde a nessuno '\
-                           'dei valori contenuti in {}'
+DEFAULT_VALUE_ERROR = 'Il valore dell\'elemento è diverso dal valore atteso ({}):'
+DEFAULT_LIST_VALUE_ERROR = 'Il valore dell\'elemento non corrisponde a nessuno '\
+                           'dei valori attesi ({}):'
 
 
 # Crypto
