@@ -200,7 +200,7 @@ class IdpServer(object):
         rendered_error_response = render_template(
             'spid_error.html',
             **{
-                'lines': xmlstr.splitlines(),
+                'lines': xmlstr.decode("utf-8").splitlines(),
                 'errors': errors
             }
         )

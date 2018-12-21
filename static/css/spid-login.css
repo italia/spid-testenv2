@@ -763,3 +763,8 @@ input[type="text"], input[type="password"] {
     color: #5c6f82;
     box-shadow: inset 0 0 0 1px #e6e9f2;
 }
+
+#message {
+  margin-top: 50px;
+  font-size: 13px;
+}
