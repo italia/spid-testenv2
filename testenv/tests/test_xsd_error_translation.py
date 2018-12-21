@@ -15,13 +15,13 @@ class Libxml2ItalianTranslationTestCase(unittest.TestCase):
         'Il documento è vuoto.',
 
         ('SCHEMASV', 'SCHEMAV_CVC_COMPLEX_TYPE_4',
-         "Element '{urn:oasis:names:tc:SAML:2.0:protocol}AuthnRequest': "
+         "Element 'AuthnRequest': "
          "The attribute 'IssueInstant' is required but missing."):
         "Elemento 'AuthnRequest': "
         "L'attributo 'IssueInstant' è mandatorio ma non presente.",
 
         ('SCHEMASV', 'SCHEMAV_CVC_DATATYPE_VALID_1_2_1',
-         "Element '{urn:oasis:names:tc:SAML:2.0:protocol}AuthnRequest', "
+         "Element 'AuthnRequest', "
          "attribute 'ID': '123456' is not a valid value of the atomic type "
          "'xs:ID'."):
         "Elemento 'AuthnRequest', "
@@ -29,7 +29,7 @@ class Libxml2ItalianTranslationTestCase(unittest.TestCase):
         "e può contenere solo lettere, numeri, underscore, trattini e punti.",
 
         ('SCHEMASV', 'SCHEMAV_CVC_ENUMERATION_VALID',
-         "Element '{urn:oasis:names:tc:SAML:2.0:protocol}RequestedAuthnContext', "
+         "Element 'RequestedAuthnContext', "
          "attribute 'Comparison': [facet 'enumeration'] The value 'invalid' is "
          "not an element of the set {'exact', 'minimum', 'maximum', 'better'}."):
         "Elemento 'RequestedAuthnContext', "

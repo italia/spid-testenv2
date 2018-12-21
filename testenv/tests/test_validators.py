@@ -206,8 +206,8 @@ class AuthnRequestXMLSchemaValidatorTestCase(unittest.TestCase):
         self.assertEqual(len(exc.details), 1)
         self.assertIn(
             "Element 'AuthnContextClassRef': "
-            "This element is not expected. Expected is one of {"
-            "Conditions, RequestedAuthnContext, Scoping}.",
+            "This element is not expected. Expected is one of ( "
+            "Conditions, RequestedAuthnContext, Scoping ).",
             exc.details[0].message
         )
 
@@ -271,7 +271,7 @@ class SpidRequestValidatorTestCase(unittest.TestCase):
                 validator.validate(request)
             exc = excinfo.value
             self.assertEqual(
-                'è diverso dal valore di riferimento http://localhost:9999/', exc.details[0].message)
+                'Il valore dell\'elemento è diverso dal valore atteso (http://localhost:9999/):', exc.details[0].message)
 
     @freeze_time('2018-08-18T06:55:22Z')
     def test_authn_request_http_post_without_signature(self):
@@ -553,8 +553,8 @@ class SpidMetadataValidatorTestCase(unittest.TestCase):
             'EntityDescriptor/SPSSODescriptor/AttributeConsumingService/0/RequestedAttribute/0 - attribute: Name',
             exc.details[0].path
         )
-        self.assertEqual('non corrisponde a nessuno dei valori contenuti in {}'.format(
-            settings.SPID_ATTRIBUTES_NAMES), exc.details[0].message)
+        self.assertEqual('Il valore dell\'elemento non corrisponde a nessuno dei valori attesi ({}):'.format(
+            ', '.join(settings.SPID_ATTRIBUTES_NAMES)), exc.details[0].message)
 
     @patch('testenv.validators._check_certificate', side_effect=fake_check_certificate)
     def test_no_name_format(self, mocked):
