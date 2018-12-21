@@ -151,7 +151,7 @@ def sign_http_post(xmlstr, key, cert, message=False, assertion=True):
             signature = _assertion.find('%sSignature' % SIG_NS)
             issuer.addnext(signature)
             assertion.getparent().replace(assertion, _assertion)
-    response = tostring(root)
+    response = tostring(root, pretty_print=True)
     return base64.b64encode(response).decode('ascii')
 
 

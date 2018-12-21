@@ -61,7 +61,7 @@ class SamlMixin(object):
         return self.__class__.__name__
 
     def to_xml(self):
-        return tostring(self.tree)
+        return tostring(self.tree, pretty_print=True)
 
     @property
     def tree(self):

@@ -788,3 +788,7 @@ input[type="text"], input[type="password"] {
   font-size: 13px;
   background-color: #EFEFEF;
 }
+
+#spid-message pre {
+  white-space: pre;
+}

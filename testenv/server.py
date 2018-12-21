@@ -657,9 +657,7 @@ class IdpServer(object):
                             'confirm.html',
                             **{
                                 'destination_service': sp_id,
-                                'lines': escape(
-                                    response_xmlstr.decode('ascii')
-                                ).splitlines(),
+                                'lines': escape(response_xmlstr.decode('utf-8')).splitlines(),
                                 'attrs': _identity.keys(),
                                 'action': '/continue-response',
                                 'request_key': key
