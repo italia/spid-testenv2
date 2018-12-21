@@ -560,6 +560,7 @@ class SpidRequestValidator(object):
                         NAMEID_FORMAT_TRANSIENT, msg=DEFAULT_VALUE_ERROR.format(
                             NAMEID_FORMAT_TRANSIENT)
                     ),
+                    Optional('SPNameQualifier'): str,
                 },
                 'children': {},
                 'text': None,
