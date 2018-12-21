@@ -1,7 +1,8 @@
 {% extends 'main_page.html' %}
 {% block content %}
-<h2>Errori di validazione</h2>
-    <table class="spid-error" border=1>
+<main class="main u-layout u-layout-medium u-layoutCenter">
+    <h2>Errori di validazione</h2>
+    <table id="spid-errors">
         <thead>
             <tr>
                 <th>Elemento</th>
@@ -11,7 +12,7 @@
         <tbody>
             {% for err in errors %}
             <tr>
-                <td class="elem">{{err.path}}</td>
+                <td class="spid-elem">{{err.path}}</td>
                 <td>
                     {{err.message}}
 
@@ -24,17 +25,18 @@
         </tbody>
     </table>
 
-    <div id="message">
+    <div id="spid-message">
         {% for line in lines %}
             <pre class="xml-line">{{line}}</pre>
         {% endfor %}
     </div>
+</main>
 {% endblock %}
 
 {% block js %}
 <script type="text/javascript">
     $(document).ready(function(){
-        $.each($('.spid-error .elem'), function(){
+        $.each($('#spid-errors .spid-elem'), function(){
             var elem = $(this).text().split(/[\s :]/).slice(-1)[0];
             $('.xml-line:contains("' + elem + '")')
                 .css('background-color', 'yellow');

@@ -51,11 +51,9 @@
                 -->
             </div>
         </header>
-        <main class="main u-layout u-layout-extrasmall u-layoutCenter ">
-            {% block content %}
-        </main>
-            {% endblock %}
-        </section>
+        
+        {% block content %}{% endblock %}
+    </section>
         <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
         <script src="{{ url_for('static', filename='js/spid-login.js') }}"></script>
             {% block js %}
