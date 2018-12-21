@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import importlib_resources
 from lxml import etree
 import re
-from voluptuous import All, In, Invalid, Length, MultipleInvalid, Optional, Schema, Url
+from voluptuous import All, Any, Match, In, Invalid, Length, MultipleInvalid, Optional, Schema, Url
 from voluptuous.validators import Equal
 
 from testenv import config
@@ -528,8 +528,8 @@ class SpidRequestValidator(object):
                         NAMEID_FORMAT_ENTITY, msg=DEFAULT_VALUE_ERROR.format(
                             NAMEID_FORMAT_ENTITY)
                     ),
-                    'NameQualifier': Url(
-                        msg="Invalid URI"
+                    'NameQualifier': Any(
+                        Url(), Match(r'^urn:'), msg="Invalid URI"
                     ),
                 },
                 'children': {},
