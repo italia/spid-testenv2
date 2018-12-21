@@ -21,6 +21,19 @@
                 </label>
             </div>
             {{extra_challenge|safe}}
+
+            <div class="FixedSmall u-padding-top-m u-padding-bottom-m">
+                <button type="submit" name="confirm" class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-primary u-margin-bottom-xs js-cta" >Invia</button>
+                <button type="submit" name="delete" class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-quaternary">Annulla</button>
+            </div>
+            
+            <h2>Opzioni avanzate</h2>
+            <p>Le opzioni di seguito possono essere usate per alterare la Response fornita
+                introducendo errori.
+                Si raccomanda, per la massima sicurezza, di eseguire anche questi test 
+                verificando che la propria implementazione rigetti la risposta.
+            </p>
+
             <div class="Form-field form-animate-fields">
                 <input
                        id="wrong_destination" name="wrong_destination" type="checkbox">
@@ -129,10 +142,6 @@
                 <label class="Form-label is-required u-text-r-xs u-textWeight-400 u-color-grey-40 " for="public_key">
                     <span class="form-label-content">Certificato </span>
                 </label>
-            </div>
-            <div class="FixedSmall u-padding-top-m u-padding-bottom-m">
-                <button type="submit" name="confirm" class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-primary u-margin-bottom-xs js-cta" >Invia</button>
-                <button type="submit" name="delete" class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-quaternary">Annulla</button>
             </div>
         </form>
     </article>
