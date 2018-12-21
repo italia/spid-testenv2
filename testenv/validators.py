@@ -47,7 +47,7 @@ def _check_date_in_range(self, date):
     upper = now + timedelta(minutes=TIMEDELTA)
     if date < lower or date > upper:
         raise Invalid(
-            '{} non è compreso tra {} e {}'.format(
+            'Il valore non è compreso tra {} e {}'.format(
                 date, lower, upper
             )
         )
@@ -467,7 +467,7 @@ class SpidRequestValidator(object):
         upper = now + timedelta(minutes=TIMEDELTA)
         if date < lower or date > upper:
             raise Invalid(
-                '{} non è compreso tra {} e {}'.format(
+                'Il valore non è compreso tra {} e {}'.format(
                     date, lower, upper
                 )
             )

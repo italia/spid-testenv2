@@ -277,7 +277,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertIn(
-            '2018-07-16 09:38:29 non è compreso tra 2018-07-16 10:36:29 e 2018-07-16 10:40:29',
+            'Il valore non è compreso tra 2018-07-16 10:36:29 e 2018-07-16 10:40:29',
             response_text)
         self.assertNotIn(
             'la data non è in formato UTC',
@@ -297,7 +297,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertNotIn(
-            '2018-07-16 09:38:29 non è compreso tra 2018-07-16 09:36:29 e 2018-07-16 09:40:29',
+            'Il valore non è compreso tra 2018-07-16 09:36:29 e 2018-07-16 09:40:29',
             response_text)
         self.assertNotIn(
             'la data non è in formato UTC',
@@ -317,7 +317,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertNotIn(
-            '2018-07-16 09:38:29 non è compreso tra 2018-07-16 09:36:29 e 2018-07-16 09:40:29',
+            'Il valore non è compreso tra 2018-07-16 09:36:29 e 2018-07-16 09:40:29',
             response_text)
         self.assertNotIn(
             'la data non è in formato UTC',
