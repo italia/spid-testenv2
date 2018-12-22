@@ -48,7 +48,7 @@ def _check_date_in_range(self, date):
     if date < lower or date > upper:
         raise Invalid(
             'Il valore non è compreso tra {} e {}'.format(
-                date, lower, upper
+                lower, upper
             )
         )
     return date
