@@ -151,8 +151,7 @@ def sign_http_post(xmlstr, key, cert, message=False, assertion=True):
             signature = _assertion.find('%sSignature' % SIG_NS)
             issuer.addnext(signature)
             assertion.getparent().replace(assertion, _assertion)
-    response = tostring(root, pretty_print=True)
-    return base64.b64encode(response).decode('ascii')
+    return tostring(root, pretty_print=True)
 
 
 def sign_http_redirect(xmlstr, key, relay_state=None, req_type='SAMLResponse'):

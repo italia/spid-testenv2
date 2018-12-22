@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import base64
 import random
 import string
 from collections import namedtuple
@@ -624,16 +625,16 @@ class IdpServer(object):
                         if _subj_extra:
                             _response_data['subject_confirmation_data']['attrs'].update(_subj_extra)
 
-                        response_xmlstr = create_response(
+                        response = create_response(
                             _response_data,
                             {
                                 'status_code': _status_code
                             },
                             _identity.copy(),
                             has_assertion=has_assertion
-                        ).to_xml()
+                        )
                         response = sign_http_post(
-                            response_xmlstr,
+                            response.to_xml(),
                             _pkey,
                             _cert,
                             message=sign_message,
@@ -647,7 +648,7 @@ class IdpServer(object):
                             **{
                                 'action': destination,
                                 'relay_state': relay_state,
-                                'message': response,
+                                'message': base64.b64encode(response).decode('ascii'),
                                 'message_type': 'SAMLResponse'
                             }
                         )
@@ -657,7 +658,7 @@ class IdpServer(object):
                             'confirm.html',
                             **{
                                 'destination_service': sp_id,
-                                'lines': escape(response_xmlstr.decode('utf-8')).splitlines(),
+                                'lines': escape(response.decode('utf-8')).splitlines(),
                                 'attrs': _identity.keys(),
                                 'action': '/continue-response',
                                 'request_key': key
@@ -702,7 +703,7 @@ class IdpServer(object):
                     **{
                         'action': destination,
                         'relay_state': relay_state,
-                        'message': response,
+                        'message': base64.b64encode(response).decode('ascii'),
                         'message_type': 'SAMLResponse'
                     }
                 )
@@ -757,7 +758,7 @@ class IdpServer(object):
                     **{
                         'action': destination,
                         'relay_state': relay_state,
-                        'message': response,
+                        'message': base64.b64encode(response).decode('ascii'),
                         'message_type': 'SAMLResponse'
                     }
                 )
@@ -828,7 +829,7 @@ class IdpServer(object):
                     **{
                         'action': destination,
                         'relay_state': relay_state,
-                        'message': response,
+                        'message': base64.b64encode(response).decode('ascii'),
                         'message_type': 'SAMLResponse'
                     }
                 )
