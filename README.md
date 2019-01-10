@@ -4,17 +4,13 @@
 [![Get invited](https://slack.developers.italia.it/badge.svg)](https://slack.developers.italia.it/)
 [![SPID on forum.italia.it](https://img.shields.io/badge/Forum-SPID-blue.svg)](https://forum.italia.it/c/spid) [![Build Status](https://travis-ci.org/italia/spid-testenv2.svg?branch=master)](https://travis-ci.org/italia/spid-testenv2)
 
-> ⚠️ **WORK IN PROGRESS** ⚠️
-
 # spid-testenv2
 
 ## Identity Provider di test per SPID
 
-Questo repository ospita lo sviluppo di un nuovo Identity Provider di test per consentire agli sviluppatori di verificare le proprie integrazioni con [SPID](https://www.spid.gov.it) in modo semplice, ottenendo messaggi diagnostici chiari ed essere certi dell'interoperabilità.
+Questo Identity Provider consente agli sviluppatori di verificare le proprie integrazioni con [SPID](https://www.spid.gov.it) in modo semplice, ottenendo messaggi diagnostici chiari ed assicurandosi dell'interoperabilità.
 
-Ad oggi questo pacchetto è funzionante ma è in corso un lavoro di evoluzione e documentazione. Se ne raccomanda l'uso, ed eventuali problemi possono essere segnalati aprendo issue.
-
-In alternativa è possibile usare il [precedente IdP di test](https://github.com/italia/spid-testenv).
+Può essere facilmente eseguito in locale o su un proprio server seguendo le istruzioni di seguito riportate.
 
 ## Requisiti
 
