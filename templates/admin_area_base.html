@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
     <!-- CSS -->
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/spid-login.css')}}">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap-italia.min.css')}}">
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/italia-icon-font.css')}}">
   </head>
@@ -15,7 +16,7 @@
         <div class="row">
           <div class="col-8 col-md-6">
           <div class="media header-title">
-            <img class="img-fluid mr-3" src="{{ url_for('static', filename='img/spid-logo.svg') }}" style="width: 80px">
+            <img class="spid-logo img-fluid mr-3" src="{{ url_for('static', filename='img/spid-logo.svg') }}" />
             <div class="media-body">
               <h1 class="display-3">Test Identity Provider</h1>
             </div>

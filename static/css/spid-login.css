@@ -792,3 +792,7 @@ input[type="text"], input[type="password"] {
 #spid-message pre {
   white-space: pre;
 }
+
+.spid-logo {
+  width: 80px;
+}
