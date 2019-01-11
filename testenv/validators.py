@@ -336,6 +336,7 @@ class SpidMetadataValidator(object):
                                         NAME_FORMAT_BASIC, msg=DEFAULT_VALUE_ERROR.format(
                                             NAME_FORMAT_BASIC)
                                     ),
+                                    Optional('FriendlyName'): str,
                                     Optional('isRequired'): str
                                 },
                                 'children': {},
