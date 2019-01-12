@@ -44,16 +44,18 @@
                             Password
                         </label>
                     </div>
-                    <div class="form-group">
-                        <select class="form-control" id="service_provider" name="service_provider">
-                            <option value>- tutti -</option>
-                            {% for sp in sp_list %}
-                                <option value="{{sp}}">{{sp}}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="bootstrap-select-wrapper">
                         <label for="service_provider">
                             Service Provider
                         </label>
+                        <div class="dropdown bootstrap-select">
+                            <select class="form-control" id="service_provider" name="service_provider">
+                                <option value>- tutti -</option>
+                                {% for sp in sp_list %}
+                                    <option value="{{sp}}">{{sp}}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
                     <h3 class="u-text-r-xs u-lineHeight-l u-color-grey-40 u-textWeight-800">Attributi Primari</h3>
                     {% for attribute in primary_attributes %}
