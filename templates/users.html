@@ -59,13 +59,27 @@
                     </div>
                     <h3 class="u-text-r-xs u-lineHeight-l u-color-grey-40 u-textWeight-800">Attributi Primari</h3>
                     {% for attribute in primary_attributes %}
-                        <div class="form-group">
-                            <input class="form-control"
-                                id="{{attribute}}" name="{{attribute}}" aria-required="false" minlength="4" type="text" >
-                            <label for="{{attribute}}">
-                                {{attribute}}
-                            </label>
-                        </div>
+                        {% if attribute == 'gender' %}
+                            <div class="bootstrap-select-wrapper">
+                                <label for="gender">
+                                    gender
+                                </label>
+                                <div class="dropdown bootstrap-select">
+                                    <select class="form-control" name="gender">
+                                        <option>M</option>
+                                        <option>F</option>
+                                    </select>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="form-group">
+                                <input class="form-control"
+                                    id="{{attribute}}" name="{{attribute}}" aria-required="false" minlength="4" type="text" >
+                                <label for="{{attribute}}">
+                                    {{attribute}}
+                                </label>
+                            </div>
+                        {% endif %}
                     {% endfor %}
         
                     <h2 class="u-text-r-xs u-lineHeight-l u-color-grey-40 u-textWeight-800">Attributi secondari</h2>
