@@ -111,9 +111,7 @@ class AttributeStatement(SamlMixin):
 
 class Attribute(SamlMixin):
     saml_type = 'saml'
-    defaults = {
-        'NameFormat': NAME_FORMAT_BASIC
-    }
+    defaults = {}
 
 
 class AttributeValue(SamlMixin):
@@ -540,7 +538,7 @@ def create_idp_metadata(
             key_info.append(x509_data)
             key_descriptor.append(key_info)
             idp_sso_descriptor.append(key_descriptor)
-    
+
     # setup single logout service(s)
     if single_logout_services is not None:
         for _slo in single_logout_services:
@@ -551,7 +549,7 @@ def create_idp_metadata(
                 )
             )
             idp_sso_descriptor.append(single_logout_service)
-    
+
     # setup name id
     name_id_format = NameIDFormat(
         text=NAMEID_FORMAT_TRANSIENT
@@ -568,7 +566,7 @@ def create_idp_metadata(
                 )
             )
             idp_sso_descriptor.append(single_sign_on_service)
-    
+
     # setup attributes
     if not attributes:
         attributes = list(SPID_ATTRIBUTES['primary'].keys())
