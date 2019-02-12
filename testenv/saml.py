@@ -540,21 +540,7 @@ def create_idp_metadata(
             key_info.append(x509_data)
             key_descriptor.append(key_info)
             idp_sso_descriptor.append(key_descriptor)
-    # setup name id
-    name_id_format = NameIDFormat(
-        text=NAMEID_FORMAT_TRANSIENT
-    )
-    idp_sso_descriptor.append(name_id_format)
-    # setup single sign on service(s)
-    if single_sign_on_services is not None:
-        for _sso in single_sign_on_services:
-            single_sign_on_service = SingleSignOnService(
-                attrib=dict(
-                    Binding=_sso.binding,
-                    Location=_sso.location
-                )
-            )
-            idp_sso_descriptor.append(single_sign_on_service)
+    
     # setup single logout service(s)
     if single_logout_services is not None:
         for _slo in single_logout_services:
@@ -565,6 +551,24 @@ def create_idp_metadata(
                 )
             )
             idp_sso_descriptor.append(single_logout_service)
+    
+    # setup name id
+    name_id_format = NameIDFormat(
+        text=NAMEID_FORMAT_TRANSIENT
+    )
+    idp_sso_descriptor.append(name_id_format)
+
+    # setup single sign on service(s)
+    if single_sign_on_services is not None:
+        for _sso in single_sign_on_services:
+            single_sign_on_service = SingleSignOnService(
+                attrib=dict(
+                    Binding=_sso.binding,
+                    Location=_sso.location
+                )
+            )
+            idp_sso_descriptor.append(single_sign_on_service)
+    
     # setup attributes
     if not attributes:
         attributes = list(SPID_ATTRIBUTES['primary'].keys())
