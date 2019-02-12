@@ -580,7 +580,8 @@ def create_idp_metadata(
             continue
         _attrib = {
             'Name': attr_name,
-            '{%s}type' % (XSI): 'xs:' + attr_type
+            # This does not pass XSD validation; it looks like an error in the spec
+            # '{%s}type' % (XSI): 'xs:' + attr_type
         }
         attribute = Attribute(
             attrib=_attrib
