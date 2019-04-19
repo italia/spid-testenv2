@@ -577,7 +577,7 @@ def create_idp_metadata(
         # elif attr_name in SPID_ATTRIBUTES['secondary']:
         #    attr_type = SPID_ATTRIBUTES['secondary'][attr_name]
         # else:
-            continue
+        #    continue
         _attrib = {
             'Name': attr_name,
             # This does not pass XSD validation; it looks like an error in the spec
