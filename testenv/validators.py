@@ -76,8 +76,10 @@ def _check_certificate(cert):
         raise MultipleInvalid(errors=_errors)
     return cert
 
+
 def _strip_namespaces(string):
     return re.sub(r'\{(urn|http):.+?\}', '', string)
+
 
 class ValidatorGroup(object):
 
@@ -428,7 +430,7 @@ class SpidMetadataValidator(object):
                             except IndexError:
                                 _attr = ''
                             break
-                            
+
                         # strip namespaces for better readability
                         _paths.append(_strip_namespaces(str(_path)))
                 path = '/'.join(_paths)
@@ -807,13 +809,13 @@ class SpidRequestValidator(object):
                             except IndexError:
                                 _attr = ''
                             break
-                        
+
                         # strip namespaces for better readability
                         _paths.append(_strip_namespaces(str(_path)))
                 path = '/'.join(_paths)
                 if _attr is not None:
                     path += " - attribute: " + _attr
-                
+
                 # find value to show (iterate multiple times inside data
                 # until we find the sub-element or attribute)
                 _val = data
@@ -824,13 +826,13 @@ class SpidRequestValidator(object):
                         _val = None
                     except ValueError:
                         _val = None
-                
+
                 # no need to show value if the error is the presence of the element
                 _msg = err.msg
                 if "extra keys not allowed" in _msg:
                     _val = None
                     _msg = "item not allowed"
-                
+
                 errors.append(
                     ValidationDetail(
                         _val, None, None, None, None, _msg, path

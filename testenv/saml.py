@@ -572,11 +572,11 @@ def create_idp_metadata(
         attributes = list(SPID_ATTRIBUTES['primary'].keys())
         attributes.extend(list(SPID_ATTRIBUTES['secondary'].keys()))
     for attr_name in attributes:
-        if attr_name in SPID_ATTRIBUTES['primary']:
-            attr_type = SPID_ATTRIBUTES['primary'][attr_name]
-        elif attr_name in SPID_ATTRIBUTES['secondary']:
-            attr_type = SPID_ATTRIBUTES['secondary'][attr_name]
-        else:
+        # if attr_name in SPID_ATTRIBUTES['primary']:
+        #    attr_type = SPID_ATTRIBUTES['primary'][attr_name]
+        # elif attr_name in SPID_ATTRIBUTES['secondary']:
+        #    attr_type = SPID_ATTRIBUTES['secondary'][attr_name]
+        # else:
             continue
         _attrib = {
             'Name': attr_name,

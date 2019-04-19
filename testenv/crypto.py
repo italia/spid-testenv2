@@ -17,7 +17,7 @@ from signxml.exceptions import InvalidDigest, InvalidSignature as InvalidSignatu
 
 from testenv.exceptions import SignatureVerificationError
 from testenv.settings import (
-    DEPRECATED_ALGORITHMS, KEY_INFO, SAML, SIG_NS, SIG_RSA_SHA224, SIG_RSA_SHA256, SIG_RSA_SHA384, SIG_RSA_SHA512,
+    DEPRECATED_ALGORITHMS, KEY_INFO, SAML, SIG_RSA_SHA224, SIG_RSA_SHA256, SIG_RSA_SHA384, SIG_RSA_SHA512,
     SIGNATURE, SIGNATURE_METHOD, SIGNED_INFO, SIGNED_PARAMS, SUPPORTED_ALGORITHMS, X509_CERTIFICATE, X509_DATA,
 )
 from testenv.utils import get_today_utc_date
@@ -142,11 +142,13 @@ def sign_http_post(xmlstr, key, cert, message=False, assertion=True):
         assertions = root.findall('{%s}Assertion' % SAML)
         for assertion in assertions:
             issuer = assertion.find('{%s}Issuer' % SAML)
-            issuer.addnext(fromstring('<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Id="placeholder"></ds:Signature>'))
+            issuer.addnext(fromstring(
+                '<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Id="placeholder"></ds:Signature>'))
             root = signer.sign(root, reference_uri=assertion.attrib['ID'], key=key, cert=cert)
     if message:
         issuer = root.find('{%s}Issuer' % SAML)
-        issuer.addnext(fromstring('<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Id="placeholder"></ds:Signature>'))
+        issuer.addnext(fromstring(
+            '<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Id="placeholder"></ds:Signature>'))
         root = signer.sign(root, key=key, cert=cert)
     return tostring(root, pretty_print=False)
 
