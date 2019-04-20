@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import re
 from collections import namedtuple
 from datetime import datetime, timedelta
 
 import importlib_resources
 from lxml import etree
-import re
-from voluptuous import All, Any, Match, In, Invalid, Length, MultipleInvalid, Optional, Schema, Url
+from voluptuous import All, Any, In, Invalid, Length, Match, MultipleInvalid, Optional, Schema, Url
 from voluptuous.validators import Equal
 
 from testenv import config
