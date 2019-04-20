@@ -1,21 +1,17 @@
 {% extends 'admin_area_base.html' %}
 {% block content %}
-    <h3 class="border-bottom mt-2 mb-2 border-italia"> Lista Service provider Test </h3>
+    <h3 class="border-bottom mt-2 mb-2 border-italia">Service Provider configurati</h3>
     <table class="table">
       <thead>
         <tr>
-          <th scope="col">Nome</th>
-          <th scope="col">Service Provider Id</th>
+          <th scope="col">entityID</th>
         </tr>
       </thead>
       <tbody>
         {% for item in sp_list %}
             <tr>
                 <td >
-                  {{ item['name'] }}
-                </td>
-                <td >
-                   {{ item['spId'] }}
+                   {{ item['entityID'] }}
                 </td>
            </tr>
         {% endfor %}

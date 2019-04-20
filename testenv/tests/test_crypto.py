@@ -359,14 +359,13 @@ class SignedResponseTestCase(unittest.TestCase):
             pkey = fp.read().encode('utf-8')
             cert = fp2.read().encode('utf-8')
             # No signature at all
-            response = sign_http_post(
+            decoded_response = sign_http_post(
                 response_xmlstr,
                 pkey,
                 cert,
                 message=False,
                 assertion=False
             )
-            decoded_response = b64decode(response)
             tree = etree.fromstring(decoded_response)
             signature_values = tree.findall(
                 './/{http://www.w3.org/2000/09/xmldsig#}SignatureValue')
@@ -377,14 +376,13 @@ class SignedResponseTestCase(unittest.TestCase):
             with pytest.raises(InvalidInput) as excinfo:  # noqa: F841
                 XMLVerifier().verify(tree, x509_cert=cert)
             # Signed response
-            response = sign_http_post(
+            decoded_response = sign_http_post(
                 response_xmlstr,
                 pkey,
                 cert,
                 message=True,
                 assertion=False
             )
-            decoded_response = b64decode(response)
             tree = etree.fromstring(decoded_response)
             signature_values = tree.findall(
                 './/{http://www.w3.org/2000/09/xmldsig#}SignatureValue')
@@ -394,14 +392,13 @@ class SignedResponseTestCase(unittest.TestCase):
             self.assertEqual(len(digest_values), 1)
             XMLVerifier().verify(tree, x509_cert=cert)
             # Signed assertion
-            response = sign_http_post(
+            decoded_response = sign_http_post(
                 response_xmlstr,
                 pkey,
                 cert,
                 message=False,
                 assertion=True
             )
-            decoded_response = b64decode(response)
             tree = etree.fromstring(decoded_response)
             signature_values = tree.findall(
                 './/{http://www.w3.org/2000/09/xmldsig#}SignatureValue')
@@ -411,14 +408,13 @@ class SignedResponseTestCase(unittest.TestCase):
             self.assertEqual(len(digest_values), 1)
             XMLVerifier().verify(tree, x509_cert=cert)
             # Signed response and assertion together
-            response = sign_http_post(
+            decoded_response = sign_http_post(
                 response_xmlstr,
                 pkey,
                 cert,
                 message=True,
                 assertion=True
             )
-            decoded_response = b64decode(response)
             tree = etree.fromstring(decoded_response)
             signature_values = tree.findall(
                 './/{http://www.w3.org/2000/09/xmldsig#}SignatureValue')

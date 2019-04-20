@@ -38,22 +38,22 @@
             <div class="main-header__inner Grid Grid--fill Grid--withGutter Grid--equalHeight Grid--alignMiddle">
                 <div class="u-size1of2">
                     <div>
-                    <img src="{{ url_for('static', filename='img/spid-level3-logo-bb.svg') }}" class="main-header__spidlogo v2"
+                    <img src="{{ url_for('static', filename='img/spid-logo.svg') }}" class="main-header__spidlogo v2"
                     onerror="this.src='img/spid-level3-logo-bb.png'; this.onerror=null;" alt="SPID Logo" >
                     </div>
                 </div>
+                <!--
                 <div class="u-size1of2">
                     <div class="u-textRight">
                     <span class="u-text-r-xs u-color-grey-40 u-padding-all-xs u-border-all-xxs" >LOGO IDP</span>
                     </div>
                 </div>
+                -->
             </div>
         </header>
-        <main class="main u-layout u-layout-extrasmall u-layoutCenter ">
-            {% block content %}
-        </main>
-            {% endblock %}
-        </section>
+        
+        {% block content %}{% endblock %}
+    </section>
         <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
         <script src="{{ url_for('static', filename='js/spid-login.js') }}"></script>
             {% block js %}

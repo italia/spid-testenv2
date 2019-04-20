@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import base64
 import random
 import string
 from collections import namedtuple
@@ -221,7 +222,7 @@ class IdpServer(object):
         rendered_error_response = render_template(
             'spid_error.html',
             **{
-                'lines': xmlstr.splitlines(),
+                'lines': xmlstr.decode("utf-8").splitlines(),
                 'errors': errors
             }
         )
@@ -380,9 +381,8 @@ class IdpServer(object):
                 spid_value = request.form.get(spid_field)
                 if spid_value:
                     extra[spid_field] = spid_value
-            if 'fiscalNumber' in extra:
-                extra[
-                    'fiscalNumber'] = 'TINIT-{}'.format(extra['fiscalNumber'])
+            if 'fiscalNumber' in extra and not extra['fiscalNumber'].startswith('TINIT-'):
+                extra['fiscalNumber'] = 'TINIT-{}'.format(extra['fiscalNumber'])
             self.user_manager.add(username, password, sp, extra.copy())
         return redirect(url_for('users'))
 
@@ -392,7 +392,7 @@ class IdpServer(object):
             **{
                 'sp_list': [
                     {
-                        "name": sp, "spId": sp
+                        "entityID": sp
                     } for sp in self._registry.service_providers
                 ],
             }
@@ -458,10 +458,10 @@ class IdpServer(object):
         self.app.logger.debug('Request key: {}'.format(key))
         if key and key in self.ticket:
             authn_request = self.ticket[key]
-            sp_id = authn_request.issuer.text
+            sp_id = authn_request.issuer.text.strip()
             destination = self.get_destination(authn_request, sp_id)
             authn_context = authn_request.requested_authn_context
-            spid_level = authn_context.authn_context_class_ref.text
+            spid_level = authn_context.authn_context_class_ref.text.strip()
             if request.method == 'GET':
                 # inject extra data in form login based on spid level
                 extra_challenge = self._verify_spid(
@@ -645,16 +645,16 @@ class IdpServer(object):
                         if _subj_extra:
                             _response_data['subject_confirmation_data']['attrs'].update(_subj_extra)
 
-                        response_xmlstr = create_response(
+                        response = create_response(
                             _response_data,
                             {
                                 'status_code': _status_code
                             },
                             _identity.copy(),
                             has_assertion=has_assertion
-                        ).to_xml()
+                        )
                         response = sign_http_post(
-                            response_xmlstr,
+                            response.to_xml(),
                             _pkey,
                             _cert,
                             message=sign_message,
@@ -668,7 +668,7 @@ class IdpServer(object):
                             **{
                                 'action': destination,
                                 'relay_state': relay_state,
-                                'message': response,
+                                'message': base64.b64encode(response).decode('ascii'),
                                 'message_type': 'SAMLResponse'
                             }
                         )
@@ -678,9 +678,7 @@ class IdpServer(object):
                             'confirm.html',
                             **{
                                 'destination_service': sp_id,
-                                'lines': escape(
-                                    response_xmlstr.decode('ascii')
-                                ).splitlines(),
+                                'lines': escape(response.decode('utf-8')).splitlines(),
                                 'attrs': _identity.keys(),
                                 'action': '/continue-response',
                                 'request_key': key
@@ -725,7 +723,7 @@ class IdpServer(object):
                     **{
                         'action': destination,
                         'relay_state': relay_state,
-                        'message': response,
+                        'message': base64.b64encode(response).decode('ascii'),
                         'message_type': 'SAMLResponse'
                     }
                 )
@@ -780,7 +778,7 @@ class IdpServer(object):
                     **{
                         'action': destination,
                         'relay_state': relay_state,
-                        'message': response,
+                        'message': base64.b64encode(response).decode('ascii'),
                         'message_type': 'SAMLResponse'
                     }
                 )
@@ -851,7 +849,7 @@ class IdpServer(object):
                     **{
                         'action': destination,
                         'relay_state': relay_state,
-                        'message': response,
+                        'message': base64.b64encode(response).decode('ascii'),
                         'message_type': 'SAMLResponse'
                     }
                 )

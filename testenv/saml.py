@@ -61,7 +61,7 @@ class SamlMixin(object):
         return self.__class__.__name__
 
     def to_xml(self):
-        return tostring(self.tree)
+        return tostring(self.tree, pretty_print=True)
 
     @property
     def tree(self):
@@ -111,9 +111,7 @@ class AttributeStatement(SamlMixin):
 
 class Attribute(SamlMixin):
     saml_type = 'saml'
-    defaults = {
-        'NameFormat': NAME_FORMAT_BASIC
-    }
+    defaults = {}
 
 
 class AttributeValue(SamlMixin):
@@ -340,7 +338,7 @@ def create_response(data, response_status, attributes={}, has_assertion=True):
         conditions_attrs = data.get(
             'conditions', {}).get('attrs', {})
         conditions_not_before = conditions_attrs.get('not_before', not_before)
-        conditions_not_on_or_after = conditions_attrs.get('not_on_or_after', not_before)
+        conditions_not_on_or_after = conditions_attrs.get('not_on_or_after', not_on_or_after)
         conditions = Conditions(
             attrib=dict(
                 NotBefore=conditions_not_before,
@@ -540,21 +538,7 @@ def create_idp_metadata(
             key_info.append(x509_data)
             key_descriptor.append(key_info)
             idp_sso_descriptor.append(key_descriptor)
-    # setup name id
-    name_id_format = NameIDFormat(
-        text=NAMEID_FORMAT_TRANSIENT
-    )
-    idp_sso_descriptor.append(name_id_format)
-    # setup single sign on service(s)
-    if single_sign_on_services is not None:
-        for _sso in single_sign_on_services:
-            single_sign_on_service = SingleSignOnService(
-                attrib=dict(
-                    Binding=_sso.binding,
-                    Location=_sso.location
-                )
-            )
-            idp_sso_descriptor.append(single_sign_on_service)
+
     # setup single logout service(s)
     if single_logout_services is not None:
         for _slo in single_logout_services:
@@ -565,20 +549,39 @@ def create_idp_metadata(
                 )
             )
             idp_sso_descriptor.append(single_logout_service)
+
+    # setup name id
+    name_id_format = NameIDFormat(
+        text=NAMEID_FORMAT_TRANSIENT
+    )
+    idp_sso_descriptor.append(name_id_format)
+
+    # setup single sign on service(s)
+    if single_sign_on_services is not None:
+        for _sso in single_sign_on_services:
+            single_sign_on_service = SingleSignOnService(
+                attrib=dict(
+                    Binding=_sso.binding,
+                    Location=_sso.location
+                )
+            )
+            idp_sso_descriptor.append(single_sign_on_service)
+
     # setup attributes
     if not attributes:
         attributes = list(SPID_ATTRIBUTES['primary'].keys())
         attributes.extend(list(SPID_ATTRIBUTES['secondary'].keys()))
     for attr_name in attributes:
-        if attr_name in SPID_ATTRIBUTES['primary']:
-            attr_type = SPID_ATTRIBUTES['primary'][attr_name]
-        elif attr_name in SPID_ATTRIBUTES['secondary']:
-            attr_type = SPID_ATTRIBUTES['secondary'][attr_name]
-        else:
-            continue
+        # if attr_name in SPID_ATTRIBUTES['primary']:
+        #    attr_type = SPID_ATTRIBUTES['primary'][attr_name]
+        # elif attr_name in SPID_ATTRIBUTES['secondary']:
+        #    attr_type = SPID_ATTRIBUTES['secondary'][attr_name]
+        # else:
+        #    continue
         _attrib = {
             'Name': attr_name,
-            '{%s}type' % (XSI): 'xs:' + attr_type
+            # This does not pass XSD validation; it looks like an error in the spec
+            # '{%s}type' % (XSI): 'xs:' + attr_type
         }
         attribute = Attribute(
             attrib=_attrib

@@ -125,10 +125,6 @@ $(window).load(function () {
 	  minValidator($inputs) ? $cta.removeAttr('disabled') : $cta.attr('disabled', 'disabled');
 	});
 
-	$('button[name="show_response"]').on('click', function(){
-		$('#message').toggle();
-	});
-
 	/* Animazione input */
 	$(function() {
 		var formAnimatedInput = $('.form-animate-fields .Form-input');
@@ -147,7 +143,5 @@ $(window).load(function () {
 		});
 	});
 	});
-
-	$('#message').hide();
 });
 

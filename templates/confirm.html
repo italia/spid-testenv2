@@ -1,5 +1,6 @@
 {% extends 'main_page.html' %}
 {% block content %}
+<main class="main u-layout u-layout-medium u-layoutCenter">
     <article class="main-bodytext u-padding-all-xl">
 
         <h1 class="u-text-r-xl u-margin-bottom-l">Autorizzi l'invio dei dati?</h1>
@@ -16,11 +17,12 @@
                 <button type="submit" name="delete" class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-quaternary">Annulla</button>
             </div>
         </form>
-        <button name="show_response" class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-quaternary">Mostra Response</button>
-        <div id="message">
+
+        <div id="spid-message">
             {% for line in lines %}
                 <pre class="xml-line">{{line}}</pre>
             {% endfor %}
         </div>
     </article>
+</main>
 {% endblock %}

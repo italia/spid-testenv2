@@ -4,17 +4,13 @@
 [![Get invited](https://slack.developers.italia.it/badge.svg)](https://slack.developers.italia.it/)
 [![SPID on forum.italia.it](https://img.shields.io/badge/Forum-SPID-blue.svg)](https://forum.italia.it/c/spid) [![Build Status](https://travis-ci.org/italia/spid-testenv2.svg?branch=master)](https://travis-ci.org/italia/spid-testenv2)
 
-> ⚠️ **WORK IN PROGRESS** ⚠️
-
 # spid-testenv2
 
 ## Identity Provider di test per SPID
 
-Questo repository ospita lo sviluppo di un nuovo Identity Provider di test per consentire agli sviluppatori di verificare le proprie integrazioni con [SPID](https://www.spid.gov.it) in modo semplice, ottenendo messaggi diagnostici chiari ed essere certi dell'interoperabilità.
+Questo Identity Provider consente agli sviluppatori di verificare le proprie integrazioni con [SPID](https://www.spid.gov.it) in modo semplice, ottenendo messaggi diagnostici chiari ed assicurandosi dell'interoperabilità.
 
-Ad oggi questo pacchetto è funzionante ma è in corso un lavoro di evoluzione e documentazione. Se ne raccomanda l'uso, ed eventuali problemi possono essere segnalati aprendo issue.
-
-In alternativa è possibile usare il [precedente IdP di test](https://github.com/italia/spid-testenv).
+Può essere facilmente eseguito in locale o su un proprio server seguendo le istruzioni di seguito riportate.
 
 ## Requisiti
 
@@ -125,12 +121,13 @@ Gli utenti di test sono configurati nel file _users.json_ e possono essere aggiu
 
 Il log del flusso di login / logout viene registrato nel file idp.log (tramite configurazione pysaml2) e inviato in STDOUT insieme al log del web server.
 
-## Maintainer
+## Autori
 
-Questo repository è mantenuto da AgID - Agenzia per l'Italia Digitale con l'ausilio del Team per la Trasformazione Digitale.
+Questo software è stato sviluppato dal [Team per la Trasformazione Digitale](https://teamdigitale.governo.it/), ed è mantenuto con l'ausilio della community di [Developers Italia](https://developers.italia.it/).
 
 ## Link utili
 
+* [Regole tecniche consolidate](https://docs.italia.it/italia/spid/spid-regole-tecniche/)
 * [Sito ufficiale SPID](https://www.spid.gov.it/)
 * [Sezione SPID su Developers Italia](https://developers.italia.it/it/spid/)
 * [Sezione SPID su AgID](https://www.agid.gov.it/it/piattaforme/spid)
