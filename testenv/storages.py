@@ -221,7 +221,7 @@ class UserManager(object):
 
 
 class SpMetadataModelView(ModelView):
-    form_columns = ('entity_id','body')
+    form_columns = ('entity_id', 'body')
     excluded_list_columns = None
 
     def __init__(self, model, session,
@@ -229,11 +229,12 @@ class SpMetadataModelView(ModelView):
                  menu_class_name=None, menu_icon_type=None, menu_icon_value=None, manager=None):
         self._manager = manager
         super(SpMetadataModelView, self).__init__(model, session,
-                 name=None, category=None, endpoint=None, url=None, static_folder=None,
-                 menu_class_name=None, menu_icon_type=None, menu_icon_value=None)
+                                                  name=None, category=None, endpoint=None, url=None, static_folder=None,
+                                                  menu_class_name=None, menu_icon_type=None, menu_icon_value=None)
 
     def after_model_change(self, form, model, is_created):
-        loader = spmetadata.ServiceProviderMetadataDbLoader(model.entity_id, spmetadata.VALIDATORS, **{'manager': self._manager})
+        loader = spmetadata.ServiceProviderMetadataDbLoader(
+            model.entity_id, spmetadata.VALIDATORS, **{'manager': self._manager})
         metadata = spmetadata.ServiceProviderMetadata(loader)
         spmetadata.registry.register(metadata)
 

@@ -16,9 +16,8 @@ from testenv import config, spmetadata
 from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect
 from testenv.exceptions import (
     DeserializationError, MetadataLoadError, NoCertificateError, RequestParserError, SignatureVerificationError,
-    ValidationError, UnknownEntityIDError,
+    UnknownEntityIDError, ValidationError,
 )
-
 from testenv.parser import (
     HTTPPostRequestParser, HTTPRedirectRequestParser, get_http_post_request_deserializer,
     get_http_redirect_request_deserializer,

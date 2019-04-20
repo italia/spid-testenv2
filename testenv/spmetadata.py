@@ -305,6 +305,7 @@ VALIDATORS = ValidatorGroup(
     [XMLMetadataFormatValidator(), ServiceProviderMetadataXMLSchemaValidator(), SpidMetadataValidator()]
 )
 
+
 def _get_loader(source_type, source_params, **kwargs):
     Loader = {
         'local': ServiceProviderMetadataFileLoader,
@@ -312,4 +313,4 @@ def _get_loader(source_type, source_params, **kwargs):
         'db': ServiceProviderMetadataDbLoader,
     }[source_type]
     validator = VALIDATORS
-    return Loader(source_params, validator,**kwargs)
+    return Loader(source_params, validator, **kwargs)
