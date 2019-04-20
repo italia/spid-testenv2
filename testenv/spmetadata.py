@@ -301,16 +301,15 @@ def _populate_registry_from_db(registry, manager):
         registry.register(metadata)
 
 
-VALIDATORS = ValidatorGroup(
-    [XMLMetadataFormatValidator(), ServiceProviderMetadataXMLSchemaValidator(), SpidMetadataValidator()]
-)
-
-
 def _get_loader(source_type, source_params, **kwargs):
     Loader = {
         'local': ServiceProviderMetadataFileLoader,
         'remote': ServiceProviderMetadataHTTPLoader,
         'db': ServiceProviderMetadataDbLoader,
     }[source_type]
-    validator = VALIDATORS
+    validator = ValidatorGroup([
+        XMLMetadataFormatValidator(),
+        ServiceProviderMetadataXMLSchemaValidator(),
+        SpidMetadataValidator(),
+    ])
     return Loader(source_params, validator, **kwargs)
