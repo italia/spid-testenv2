@@ -48,6 +48,14 @@ class FakeConfig(object):
     def entity_id(self, *args, **kwargs):
         return self._entity_id
 
+    @property
+    def absolute_sso_url(self):
+        return self._endpoint
+
+    @property
+    def absolute_slo_url(self):
+        return self._endpoint
+
 
 class FakeMetadata(dict):
 

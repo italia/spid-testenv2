@@ -102,7 +102,7 @@ missing_issuer = """\
 """
 
 wrong_destination = """\
-<saml2p:AuthnRequest ForceAuthn="false" AssertionConsumerServiceURL="http://localhost:3000/spid-sso" ID="_980c46de183f4818b1f765dfb22fd1dc" Destination="http://localhost:8088/sso" IssueInstant="2018-08-18T06:57:22Z" ProtocolBinding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Version="2.0" xmlns:saml2p="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
+<saml2p:AuthnRequest ForceAuthn="false" AssertionConsumerServiceURL="http://localhost:3000/spid-sso" ID="_980c46de183f4818b1f765dfb22fd1dc" Destination="http://localhost:8088/foobar" IssueInstant="2018-08-18T06:57:22Z" ProtocolBinding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Version="2.0" xmlns:saml2p="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">
     <saml2:Issuer Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity" NameQualifier="https://localhost:8088/">https://localhost:8088/</saml2:Issuer>%s<saml2p:NameIDPolicy Format="urn:oasis:names:tc:SAML:2.0:nameid-format:transient"></saml2p:NameIDPolicy>
     <saml2p:RequestedAuthnContext Comparison="minimum">
         <saml2:AuthnContextClassRef>https://www.spid.gov.it/SpidL1</saml2:AuthnContextClassRef>
