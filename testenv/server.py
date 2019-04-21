@@ -16,7 +16,7 @@ from testenv import config, spmetadata
 from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect
 from testenv.exceptions import (
     DeserializationError, MetadataLoadError, NoCertificateError, RequestParserError, SignatureVerificationError,
-    UnknownEntityIDError, ValidationError,
+    UnknownEntityIDError,
 )
 from testenv.parser import (
     HTTPPostRequestParser, HTTPRedirectRequestParser, get_http_post_request_deserializer,
@@ -27,7 +27,7 @@ from testenv.settings import (
     AUTH_NO_CONSENT, BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, CHALLENGES_TIMEOUT, SPID_ATTRIBUTES, SPID_LEVELS,
     STATUS_AUTHN_FAILED, STATUS_SUCCESS,
 )
-from testenv.storages import SpMetadataManager, UserManager
+from testenv.storages import DatabaseSPProvider, UserProvider
 from testenv.utils import Key, Slo, Sso, get_spid_error
 
 # FIXME: move to a the parser.py module after metadata refactoring
@@ -72,25 +72,23 @@ class IdpServer(object):
         self.app.logger.addHandler(handler)
         self._prepare_server()
         self.sp_metadata_manager = None
-        self.user_manager = UserManager.factory()
+        self.user_manager = UserProvider.factory()
         self._setup_managers()
 
     def _setup_managers(self):
+        if not self._config.database_admin_interface:
+            return
+
         self.app.config['FLASK_ADMIN_SWATCH'] = 'cerulean'
         self.admin = Admin(
             self.app,
-            name='Ambiente di test Spid - Interfaccia di amministrazione',
+            name='Ambiente di test SPID - Interfaccia di amministrazione',
             template_mode='bootstrap3'
         )
         self.user_manager.register_admin(self.admin)
-        if self._config.storage == 'postgres':
-            self.sp_metadata_manager = SpMetadataManager()
+        if 'db' in self._config.metadata:
+            self.sp_metadata_manager = DatabaseSPProvider(self._config.metadata['db'])
             self.sp_metadata_manager.register_admin(self.admin)
-            try:
-                spmetadata._populate_registry_from_db(self._registry, self.sp_metadata_manager)
-            except (ValidationError, DeserializationError) as e:
-                for err in e.details:
-                    self.app.logger.error(err)
 
     @property
     def _mode(self):
@@ -355,7 +353,7 @@ class IdpServer(object):
                 'primary_attributes': spid_main_fields,
                 'secondary_attributes': spid_secondary_fields,
                 'users': self.user_manager.all(),
-                'sp_list': self._registry.service_providers,
+                'sp_list': self._registry.all(),
                 'can_add_user': can_add_user
             }
         )
@@ -392,7 +390,7 @@ class IdpServer(object):
                 'sp_list': [
                     {
                         "entityID": sp
-                    } for sp in self._registry.service_providers
+                    } for sp in self._registry.all()
                 ],
             }
         )

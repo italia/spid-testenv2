@@ -14,16 +14,14 @@ cert_file: "./conf/idp.crt"
 
 # Si possono configurare più Service Provider. Per leggere i metadati da un 
 # file .xml è sufficiente inserirne il path sotto "local"; per leggerli da 
-# un URL remoto bisogna invece inserirlo sotto "remote" (insieme al path di
-# una copia locale del certificato del Service Provider, che per sicurezza 
-# deve coincidere con quello presente nei metadati).
-# cfr. https://pysaml2.readthedocs.io/en/latest/howto/config.html#metadata
+# un URL remoto bisogna invece inserirlo sotto "remote".
 metadata:
 #  local:
-#  - "./conf/sp_metadata.xml"
+#    - "./conf/sp_metadata.xml"
 #  remote:
-#  - url: "http://spid-sp/metadata"
-#    cert: "./conf/spid-sp.cert"
+#    - "http://spid-sp/metadata"
+#  db: 'postgresql+psycopg2://postgres:@localhost:5432/exampledb'
+     
 
 
 # CONFIGURAZIONE TESTENV WEB SERVER
@@ -49,9 +47,15 @@ endpoints:
   single_sign_on_service: "/sso"
   single_logout_service: "/slo"
 
-# Abilita (true) o disabilita (false) la possibilità di aggiungere nuovi utenti
-#can_add_user: false
+# File contenente le identità degli utenti di test
+users_file: "conf/users.json"
 
-# Indica il tipo di memorizzazione e l'eventuale path
-storage: 'postgres'
-db_url: 'postgresql+psycopg2://postgres:@localhost:5432/exampledb'
+# Eventuale database da usare per le identità degli utenti di test
+# (la tabella viene creata automaticamente al primo avvio)
+#users_db: 'postgresql+psycopg2://postgres:@localhost:5432/exampledb'
+
+# Abilita (true) o disabilita (false) la possibilità di aggiungere nuovi utenti
+can_add_user: true
+
+# Abilita (true) o disbilita (false) l'interfaccia /admin che consente di gestire gli oggetti nel database
+database_admin_interface: false

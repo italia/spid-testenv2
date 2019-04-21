@@ -15,8 +15,8 @@ from testenv.crypto import (
     load_certificate, verify_bad_certificate_algorithm, verify_certificate_algorithm, verify_certificate_expiration,
 )
 from testenv.exceptions import (
-    GroupValidationError, SPIDValidationError, StopValidation, UnknownEntityIDError, ValidationError,
-    XMLFormatValidationError, XMLSchemaValidationError,
+    GroupValidationError, MetadataNotFoundError, SPIDValidationError, StopValidation, UnknownEntityIDError,
+    ValidationError, XMLFormatValidationError, XMLSchemaValidationError,
 )
 from testenv.settings import (
     BINDING_HTTP_POST, DEFAULT_LIST_VALUE_ERROR, DEFAULT_VALUE_ERROR, DS as SIGNATURE, KEYDESCRIPTOR_USES,
@@ -501,27 +501,25 @@ class SpidRequestValidator(object):
             raise UnknownEntityIDError(
                 'Issuer non presente nella {}'.format(req_type)
             )
-        if issuer_name and issuer_name not in self._registry.service_providers:
+        try:
+            sp_metadata = self._registry.get(issuer_name)
+        except MetadataNotFoundError:
             raise UnknownEntityIDError(
                 'L\'entity ID "{}" indicato nell\'elemento <Issuer> non corrisponde a nessun Service Provider registrato in questo Identity Provider di test.'.format(issuer_name)
             )
-        sp_metadata = self._registry.get(issuer_name)
-        if sp_metadata is not None:
-            atcss = sp_metadata.attribute_consuming_services
-            attribute_consuming_service_indexes = [
-                str(
-                    el.get('attrs').get('index')
-                ) for el in atcss if 'index' in el.get('attrs', {})
-            ]
-            ascss = sp_metadata.assertion_consumer_services
-            assertion_consumer_service_indexes = [
-                str(el.get('index')) for el in ascss]
-            assertion_consumer_service_urls = [
-                str(el.get('Location')) for el in ascss]
-        else:
-            attribute_consuming_service_indexes = []
-            assertion_consumer_service_indexes = []
-            assertion_consumer_service_urls = []
+
+        atcss = sp_metadata.attribute_consuming_services
+        attribute_consuming_service_indexes = [
+            str(
+                el.get('attrs').get('index')
+            ) for el in atcss if 'index' in el.get('attrs', {})
+        ]
+        ascss = sp_metadata.assertion_consumer_services
+        assertion_consumer_service_indexes = [
+            str(el.get('index')) for el in ascss]
+        assertion_consumer_service_urls = [
+            str(el.get('Location')) for el in ascss]
+
         entity_id = self._config.entity_id
 
         issuer = Schema(

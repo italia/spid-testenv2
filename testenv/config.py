@@ -174,12 +174,8 @@ class Config(object):
         return self._confdata.get('can_add_user', True)
 
     @property
-    def storage(self):
-        return self._confdata.get('storage', 'file')
-
-    @property
-    def db_url(self):
-        return self._confdata.get('db_url', 'postgresql+psycopg2://postgres:@localhost:5432/spidtestenv')
+    def database_admin_interface(self):
+        return self._confdata.get('database_admin_interface', False)
 
     @property
     def endpoints(self):
@@ -190,25 +186,25 @@ class Config(object):
 
     @property
     def metadata(self):
-        metadata = {
-            mdtype: self._confdata.get('metadata', {}).get(mdtype, [])
-            for mdtype in ('local', 'remote')
-        }
-        return deepcopy(metadata)
+        return deepcopy(self._confdata.get('metadata', {}))
 
     @property
     def users_file_path(self):
         return self._confdata.get('users_file', 'conf/users.json')
 
     @property
+    def users_db(self):
+        return self._confdata.get('users_db', None)
+
+    @property
     def pysaml2compat(self):
         # FIXME remove after pysaml2 drop
         return {
             'entityid': self.entity_id,
-            'description': 'Spid Test IdP',
+            'description': 'SPID Test IdP',
             'service': {
                 'idp': {
-                    'name': 'Spid Testenv',
+                    'name': 'SPID Testenv',
                     'endpoints': {
                         'single_sign_on_service': [
                             ('{}{}'.format(self.entity_id, self.endpoints.get('single_sign_on_service') or ''),
