@@ -277,7 +277,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertIn(
-            '2018-07-16 09:38:29 non è compreso tra 2018-07-16 10:36:29 e 2018-07-16 10:40:29',
+            'Il valore non è compreso tra 2018-07-16 10:36:29 e 2018-07-16 10:40:29',
             response_text)
         self.assertNotIn(
             'la data non è in formato UTC',
@@ -297,7 +297,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertNotIn(
-            '2018-07-16 09:38:29 non è compreso tra 2018-07-16 09:36:29 e 2018-07-16 09:40:29',
+            'Il valore non è compreso tra 2018-07-16 09:36:29 e 2018-07-16 09:40:29',
             response_text)
         self.assertNotIn(
             'la data non è in formato UTC',
@@ -317,7 +317,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertNotIn(
-            '2018-07-16 09:38:29 non è compreso tra 2018-07-16 09:36:29 e 2018-07-16 09:40:29',
+            'Il valore non è compreso tra 2018-07-16 09:36:29 e 2018-07-16 09:40:29',
             response_text)
         self.assertNotIn(
             'la data non è in formato UTC',
@@ -337,7 +337,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertIn(
-            'è diverso dal valore di riferimento {}'.format(BINDING_HTTP_POST),
+            'è diverso dal valore atteso ({})'.format(BINDING_HTTP_POST),
             response_text
         )
 
@@ -354,7 +354,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertNotIn(
-            '{} è diverso dal valore di riferimento {}'.format(
+            '{} è diverso dal valore atteso ({})'.format(
                 BINDING_HTTP_REDIRECT, BINDING_HTTP_POST),
             response_text
         )
@@ -550,7 +550,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertIn(
-            "12345 non corrisponde a nessuno dei valori contenuti in [&#39;0&#39;]",
+            "Il valore dell&#39;elemento non corrisponde a nessuno dei valori attesi (0):",
             response_text)
 
     @freeze_time("2018-07-16T09:38:29Z")
@@ -570,7 +570,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         response_text = response.get_data(as_text=True)
         self.assertNotIn(
-            "non corrisponde a nessuno dei valori contenuti in",
+            "non corrisponde a nessuno dei valori attesi",
             response_text
         )
 
@@ -769,7 +769,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(len(self.idp_server.responses), 0)
         response_text = response.get_data(as_text=True)
         self.assertIn(
-            'entity ID https://something.spid.test non registrato',
+            'non corrisponde a nessun Service Provider',
             response_text
         )
 
@@ -778,23 +778,22 @@ class SpidTestenvTest(unittest.TestCase):
         'testenv.parser.HTTPRedirectRequestParser._decode_saml_request',
         return_value=generate_authn_request(
             data={
-                'issuer__namequalifier': 'https://something.spid.test'},
+                'issuer__url': '    https://spid.test:8000  '},
             acs_level=1))
     @patch(
         'testenv.crypto.HTTPRedirectSignatureVerifier.verify',
         return_value=True)
-    def test_wrong_issuer_namequalifier(self, unravel, verified):
-        # See: https://github.com/italia/spid-testenv2/issues/77
+    def test_issuer_with_whitespace(self, unravel, verified):
+        # See: https://github.com/italia/spid-testenv2/issues/204
         response = self.test_client.get(
             '/sso-test?SAMLRequest=b64encodedrequest&SigAlg={}&Signature=sign'.format(
                 quote(SIG_RSA_SHA256)), follow_redirects=True)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(self.idp_server.ticket), 0)
-        self.assertEqual(len(self.idp_server.responses), 0)
         response_text = response.get_data(as_text=True)
-        self.assertIn(
-            'https://something.spid.test è diverso dal valore di riferimento https://spid.test:8000',
-            response_text)
+        self.assertNotIn(
+            'non corrisponde a nessun Service Provider',
+            response_text
+        )
 
     @freeze_time("2018-07-16T09:38:29Z")
     @patch('testenv.parser.HTTPRedirectRequestParser._decode_saml_request',
@@ -923,7 +922,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(len(self.idp_server.responses), 0)
         response_text = response.get_data(as_text=True)
         self.assertIn(
-            'someacs è diverso dal valore di riferimento [&#39;http://127.0.0.1:8000/acs-test&#39;]',
+            'Il valore dell&#39;elemento è diverso dal valore atteso ([&#39;http://127.0.0.1:8000/acs-test&#39;]):',
             response_text)
 
     @freeze_time("2018-07-16T09:38:29Z")

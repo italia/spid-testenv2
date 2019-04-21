@@ -5,7 +5,7 @@ import json
 from copy import deepcopy
 
 import yaml
-from voluptuous import ALLOW_EXTRA, All, Any, Invalid, Length, Required, Schema, Url
+from voluptuous import ALLOW_EXTRA, All, Any, In, Invalid, Length, Required, Schema, Url
 
 from testenv import settings
 from testenv.exceptions import BadConfiguration
@@ -30,7 +30,10 @@ class ConfigValidator(object):
             'https_cert_file': str,
             'https_key_file': str,
             'users_file': str,
+            'behind_reverse_proxy': bool,
             'can_add_user': bool,
+            'storage': All(str, In(['file', 'postgres'])),
+            'db_url': str,
             'endpoints': {
                 'single_logout_service': str,
                 'single_sign_on_service': str,
@@ -171,6 +174,10 @@ class Config(object):
         return self._confdata.get('can_add_user', True)
 
     @property
+    def database_admin_interface(self):
+        return self._confdata.get('database_admin_interface', False)
+
+    @property
     def endpoints(self):
         return {
             ep: self._confdata.get('endpoints', {}).get(ep)
@@ -179,25 +186,25 @@ class Config(object):
 
     @property
     def metadata(self):
-        metadata = {
-            mdtype: self._confdata.get('metadata', {}).get(mdtype, [])
-            for mdtype in ('local', 'remote')
-        }
-        return deepcopy(metadata)
+        return deepcopy(self._confdata.get('metadata', {}))
 
     @property
     def users_file_path(self):
         return self._confdata.get('users_file', 'conf/users.json')
 
     @property
+    def users_db(self):
+        return self._confdata.get('users_db', None)
+
+    @property
     def pysaml2compat(self):
         # FIXME remove after pysaml2 drop
         return {
             'entityid': self.entity_id,
-            'description': 'Spid Test IdP',
+            'description': 'SPID Test IdP',
             'service': {
                 'idp': {
-                    'name': 'Spid Testenv',
+                    'name': 'SPID Testenv',
                     'endpoints': {
                         'single_sign_on_service': [
                             ('{}{}'.format(self.entity_id, self.endpoints.get('single_sign_on_service') or ''),
@@ -235,6 +242,10 @@ class Config(object):
                 'loglevel': 'debug',
             }
         }
+
+    @property
+    def behind_reverse_proxy(self):
+        return self._confdata.get('behind_reverse_proxy', False)
 
     def receivers(self, service):
         entity_id = self.entity_id.rstrip('/')

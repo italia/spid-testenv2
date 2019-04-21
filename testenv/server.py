@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import base64
 import logging
 import random
 import string
@@ -9,6 +10,7 @@ from datetime import datetime
 from hashlib import sha1
 
 from flask import Response, abort, escape, redirect, render_template, request, session, url_for
+from flask_admin import Admin
 
 from testenv import config, log, spmetadata
 from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect
@@ -23,9 +25,9 @@ from testenv.parser import (
 from testenv.saml import create_error_response, create_idp_metadata, create_logout_response, create_response
 from testenv.settings import (
     AUTH_NO_CONSENT, BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, CHALLENGES_TIMEOUT, SPID_ATTRIBUTES, SPID_LEVELS,
-    STATUS_SUCCESS,
+    STATUS_AUTHN_FAILED, STATUS_SUCCESS,
 )
-from testenv.users import JsonUserManager
+from testenv.storages import DatabaseSPProvider, UserProvider
 from testenv.utils import Key, Slo, Sso, get_spid_error
 
 # FIXME: move to a the parser.py module after metadata refactoring
@@ -63,12 +65,29 @@ class IdpServer(object):
         """
         # bind Flask app
         self.app = app
-        self.user_manager = JsonUserManager()
         # setup
         self._config = conf or config.params
         self._registry = registry or spmetadata.registry
         self.app.secret_key = 'sosecret'
         self._prepare_server()
+        self.sp_metadata_manager = None
+        self.user_manager = UserProvider.factory(self._config)
+        self._setup_managers()
+
+    def _setup_managers(self):
+        if not self._config.database_admin_interface:
+            return
+
+        self.app.config['FLASK_ADMIN_SWATCH'] = 'cerulean'
+        self.admin = Admin(
+            self.app,
+            name='Ambiente di test SPID - Interfaccia di amministrazione',
+            template_mode='bootstrap3'
+        )
+        self.user_manager.register_admin(self.admin)
+        if 'db' in self._config.metadata:
+            self.sp_metadata_manager = DatabaseSPProvider(self._config.metadata['db'])
+            self.sp_metadata_manager.register_admin(self.admin)
 
     @property
     def _mode(self):
@@ -199,7 +218,7 @@ class IdpServer(object):
         rendered_error_response = render_template(
             'spid_error.html',
             **{
-                'lines': xmlstr.splitlines(),
+                'lines': xmlstr.decode("utf-8").splitlines(),
                 'errors': errors
             }
         )
@@ -333,7 +352,7 @@ class IdpServer(object):
                 'primary_attributes': spid_main_fields,
                 'secondary_attributes': spid_secondary_fields,
                 'users': self.user_manager.all(),
-                'sp_list': self._registry.service_providers,
+                'sp_list': self._registry.all(),
                 'can_add_user': can_add_user
             }
         )
@@ -358,9 +377,8 @@ class IdpServer(object):
                 spid_value = request.form.get(spid_field)
                 if spid_value:
                     extra[spid_field] = spid_value
-            if 'fiscalNumber' in extra:
-                extra[
-                    'fiscalNumber'] = 'TINIT-{}'.format(extra['fiscalNumber'])
+            if 'fiscalNumber' in extra and not extra['fiscalNumber'].startswith('TINIT-'):
+                extra['fiscalNumber'] = 'TINIT-{}'.format(extra['fiscalNumber'])
             self.user_manager.add(username, password, sp, extra.copy())
         return redirect(url_for('users'))
 
@@ -370,8 +388,8 @@ class IdpServer(object):
             **{
                 'sp_list': [
                     {
-                        "name": sp, "spId": sp
-                    } for sp in self._registry.service_providers
+                        "entityID": sp
+                    } for sp in self._registry.all()
                 ],
             }
         )
@@ -436,10 +454,10 @@ class IdpServer(object):
         logger.info('Request key: {}'.format(key))
         if key and key in self.ticket:
             authn_request = self.ticket[key]
-            sp_id = authn_request.issuer.text
+            sp_id = authn_request.issuer.text.strip()
             destination = self.get_destination(authn_request, sp_id)
             authn_context = authn_request.requested_authn_context
-            spid_level = authn_context.authn_context_class_ref.text
+            spid_level = authn_context.authn_context_class_ref.text.strip()
             if request.method == 'GET':
                 # inject extra data in form login based on spid level
                 extra_challenge = self._verify_spid(
@@ -472,6 +490,89 @@ class IdpServer(object):
                     )
                     if user_id is not None:
                         # setup response
+                        _audience = sp_id
+                        _destination = destination
+                        _recipient_subj = destination
+                        _issuer_text = self._config.entity_id
+                        _pkey = self._config.idp_key
+                        _cert = self._config.idp_certificate
+                        # setup custom response elements (if any)
+                        wrong_destination = request.form.get(
+                            'wrong_destination', False
+                        )
+                        if wrong_destination:
+                            _destination = '{}wrong/bad/'.format(_destination)
+                        wrong_relay_state = request.form.get(
+                            'wrong_relay_state', False
+                        )
+                        if wrong_relay_state:
+                            relay_state = '{}wrong'.format(relay_state)
+                        wrong_audience = request.form.get(
+                            'wrong_audience', False
+                        )
+                        if wrong_audience:
+                            _audience = '{}/wrong/bad/'.format(_audience)
+                        wrong_recipient_subj = request.form.get(
+                            'wrong_recipient_subj', False
+                        )
+                        if wrong_recipient_subj:
+                            _recipient_subj = 'badrecipient'
+                        wrong_issuer = request.form.get(
+                            'wrong_issuer', False
+                        )
+                        if wrong_issuer:
+                            _issuer_text = 'wrongissuer123'
+                        has_assertion = not request.form.get(
+                            'no_assertion', False
+                        )
+                        bad_status_code = request.form.get(
+                            'bad_status_code', False
+                        )
+                        wrong_conditions_notbefore = request.form.get(
+                            'wrong_conditions_notbefore'
+                        )
+                        wrong_conditions_notonorafter = request.form.get(
+                            'wrong_conditions_notonorafter'
+                        )
+                        wrong_subj_notonorafter = request.form.get(
+                            'wrong_subj_notonorafter'
+                        )
+                        wrong_subj_inresponseto = request.form.get(
+                            'wrong_subj_inresponseto'
+                        )
+                        custom_spid_level = request.form.get('spid_level')
+                        if custom_spid_level:
+                            spid_level = self._spid_levels[int(custom_spid_level)]
+                        sign_assertion = request.form.get('no_sign_assertion', False)
+                        sign_message = request.form.get('sign_message', False)
+
+                        custom_private_key = request.form.get('private_key')
+                        if custom_private_key:
+                            _pkey = bytes(custom_private_key.encode('utf-8'))
+                        custom_certificate = request.form.get('certificate')
+                        if custom_certificate:
+                            _pkey = bytes(custom_certificate.encode('utf-8'))
+
+                        _conditions = {
+                            'conditions': {
+                                'attrs': {
+                                }
+                            }
+                        }
+
+                        _subj_extra = {}
+                        if wrong_subj_inresponseto:
+                            _subj_extra['in_response_to'] = 'inresponsetowron134'
+
+                        if wrong_conditions_notbefore:
+                            _conditions['conditions']['attrs']['not_before'] = wrong_conditions_notbefore + ':00Z'
+                        if wrong_conditions_notonorafter:
+                            _conditions['conditions']['attrs']['not_on_or_after'] = wrong_conditions_notonorafter + ':00Z'
+                        if wrong_subj_notonorafter:
+                            _subj_extra['not_on_or_after'] = wrong_subj_notonorafter + ':00Z'
+
+                        _status_code = STATUS_AUTHN_FAILED if bad_status_code else STATUS_SUCCESS
+
                         identity = user['attrs'].copy()
                         logger.debug(
                             'Unfiltered data: {}'.format(identity)
@@ -505,47 +606,55 @@ class IdpServer(object):
                             'Filtered data: {}'.format(_identity)
                         )
 
-                        response_xmlstr = create_response(
-                            {
-                                'response': {
-                                    'attrs': {
-                                        'in_response_to': authn_request.id,
-                                        'destination': destination
-                                    }
-                                },
-                                'issuer': {
-                                    'attrs': {
-                                        'name_qualifier': self._config.entity_id,
-                                    },
-                                    'text': self._config.entity_id
-                                },
-                                'name_id': {
-                                    'attrs': {
-                                        'name_qualifier': self._config.entity_id,
-                                    }
-                                },
-
-                                'subject_confirmation_data': {
-                                    'attrs': {
-                                        'recipient': destination
-                                    }
-                                },
-                                'audience': {
-                                    'text': sp_id
-                                },
-                                'authn_context_class_ref': {
-                                    'text': spid_level
+                        _response_data = {
+                            'response': {
+                                'attrs': {
+                                    'in_response_to': authn_request.id,
+                                    'destination': _destination
                                 }
                             },
-                            {
-                                'status_code': STATUS_SUCCESS
+                            'issuer': {
+                                'attrs': {
+                                    'name_qualifier': self._config.entity_id,
+                                },
+                                'text': _issuer_text
                             },
-                            _identity.copy()
-                        ).to_xml()
+                            'name_id': {
+                                'attrs': {
+                                    'name_qualifier': self._config.entity_id,
+                                }
+                            },
+                            'subject_confirmation_data': {
+                                'attrs': {
+                                    'recipient': _recipient_subj
+                                }
+                            },
+                            'audience': {
+                                'text': _audience
+                            },
+                            'authn_context_class_ref': {
+                                'text': spid_level
+                            }
+                        }
+
+                        _response_data.update(_conditions)
+                        if _subj_extra:
+                            _response_data['subject_confirmation_data']['attrs'].update(_subj_extra)
+
+                        response = create_response(
+                            _response_data,
+                            {
+                                'status_code': _status_code
+                            },
+                            _identity.copy(),
+                            has_assertion=has_assertion
+                        )
                         response = sign_http_post(
-                            response_xmlstr,
-                            self._config.idp_key,
-                            self._config.idp_certificate,
+                            response.to_xml(),
+                            _pkey,
+                            _cert,
+                            message=sign_message,
+                            assertion=sign_assertion
                         )
                         logger.info(
                             'Response: \n{}'.format(response)
@@ -555,7 +664,7 @@ class IdpServer(object):
                             **{
                                 'action': destination,
                                 'relay_state': relay_state,
-                                'message': response,
+                                'message': base64.b64encode(response).decode('ascii'),
                                 'message_type': 'SAMLResponse'
                             }
                         )
@@ -565,9 +674,7 @@ class IdpServer(object):
                             'confirm.html',
                             **{
                                 'destination_service': sp_id,
-                                'lines': escape(
-                                    response_xmlstr.decode('ascii')
-                                ).splitlines(),
+                                'lines': escape(response.decode('utf-8')).splitlines(),
                                 'attrs': _identity.keys(),
                                 'action': '/continue-response',
                                 'request_key': key
@@ -612,7 +719,7 @@ class IdpServer(object):
                     **{
                         'action': destination,
                         'relay_state': relay_state,
-                        'message': response,
+                        'message': base64.b64encode(response).decode('ascii'),
                         'message_type': 'SAMLResponse'
                     }
                 )
@@ -667,7 +774,7 @@ class IdpServer(object):
                     **{
                         'action': destination,
                         'relay_state': relay_state,
-                        'message': response,
+                        'message': base64.b64encode(response).decode('ascii'),
                         'message_type': 'SAMLResponse'
                     }
                 )
@@ -736,7 +843,7 @@ class IdpServer(object):
                     **{
                         'action': destination,
                         'relay_state': relay_state,
-                        'message': response,
+                        'message': base64.b64encode(response).decode('ascii'),
                         'message_type': 'SAMLResponse'
                     }
                 )

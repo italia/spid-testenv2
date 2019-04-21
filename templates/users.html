@@ -27,47 +27,67 @@
     {% if can_add_user %}
         <article class="main-bodytext u-padding-all-xl">
                 <h1 class="mt-2 mb-5 text-center">Crea nuovo utente</h1>
+<p>Puoi consultare la <a href="https://docs.italia.it/italia/spid/spid-regole-tecniche/it/stabile/attributi.html">documentazione relativa agli attributi</a>.</p>
+
                 <form class="Form Form--spaced u-margin-bottom-l" name="add_user" method="post" action="{{action}}">
         
-                    <h3 class="u-text-r-xs u-lineHeight-l u-color-grey-40 u-textWeight-800">Credenziali</h3>
-                    <div class="form-group">
-                        <input class="form-control"
-                            id="username" name="username" minlength="4" type="text" required>
-                        <label for="username">
-                            Username
-                        </label>
+                    <h3>Credenziali</h3>
+                    <div class="row">
+                        <div class="form-group col-md-6">
+                            <input class="form-control"
+                                id="username" name="username" minlength="4" type="text" required>
+                            <label for="username">
+                                Username
+                            </label>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <input class="form-control"
+                                id="password" name="password" minlength="4" type="text" required>
+                            <label for="password">
+                                Password
+                            </label>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <input class="form-control"
-                            id="password" name="password" minlength="4" type="text" required>
-                        <label for="password">
-                            Password
-                        </label>
-                    </div>
-                    <div class="form-group">
-                        <select class="form-control" id="service_provider" name="service_provider">
-                            <option value>- tutti -</option>
-                            {% for sp in sp_list %}
-                                <option value="{{sp}}">{{sp}}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="bootstrap-select-wrapper">
                         <label for="service_provider">
                             Service Provider
                         </label>
-                    </div>
-                    <h3 class="u-text-r-xs u-lineHeight-l u-color-grey-40 u-textWeight-800">Attributi Primari</h3>
-                    {% for attribute in primary_attributes %}
-                        <div class="form-group">
-                            <input class="form-control"
-                                id="{{attribute}}" name="{{attribute}}" aria-required="false" minlength="4" type="text" >
-                            <label for="{{attribute}}">
-                                {{attribute}}
-                            </label>
+                        <div class="dropdown bootstrap-select">
+                            <select class="form-control" id="service_provider" name="service_provider">
+                                <option value>- tutti -</option>
+                                {% for sp in sp_list %}
+                                    <option value="{{sp}}">{{sp}}</option>
+                                {% endfor %}
+                            </select>
                         </div>
+                    </div>
+
+                    <h3>Attributi Primari</h3>
+                    {% for attribute in primary_attributes %}
+                        {% if attribute == 'gender' %}
+                            <div class="bootstrap-select-wrapper">
+                                <label for="gender">
+                                    gender
+                                </label>
+                                <div class="dropdown bootstrap-select">
+                                    <select class="form-control" name="gender">
+                                        <option>M</option>
+                                        <option>F</option>
+                                    </select>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="form-group">
+                                <input class="form-control"
+                                    id="{{attribute}}" name="{{attribute}}" aria-required="false" minlength="4" type="text" >
+                                <label for="{{attribute}}">
+                                    {{attribute}}
+                                </label>
+                            </div>
+                        {% endif %}
                     {% endfor %}
         
-                    <h2 class="u-text-r-xs u-lineHeight-l u-color-grey-40 u-textWeight-800">Attributi secondari</h2>
-        
+                    <h3>Attributi secondari</h3>
                     {% for attribute in secondary_attributes %}
                         <div class="form-group">
                             <input class="form-control"
@@ -78,7 +98,7 @@
                         </div>
                     {% endfor %}
                     <div class="">
-                        <button type="submit" class="btn btn-primary" >Invia</button>
+                        <button type="submit" class="btn btn-primary" >Registra</button>
                         <button type="button" class="btn btn-outline-primary">Annulla</button>
                     </div>
                 </form>

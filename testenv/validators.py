@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+import re
 from collections import namedtuple
 from datetime import datetime, timedelta
 
 import importlib_resources
 from lxml import etree
-from voluptuous import All, In, Invalid, Length, MultipleInvalid, Optional, Schema
+from voluptuous import All, Any, In, Invalid, Length, Match, MultipleInvalid, Optional, Schema, Url
 from voluptuous.validators import Equal
 
 from testenv import config
@@ -14,8 +15,8 @@ from testenv.crypto import (
     load_certificate, verify_bad_certificate_algorithm, verify_certificate_algorithm, verify_certificate_expiration,
 )
 from testenv.exceptions import (
-    GroupValidationError, SPIDValidationError, StopValidation, UnknownEntityIDError, ValidationError,
-    XMLFormatValidationError, XMLSchemaValidationError,
+    GroupValidationError, MetadataNotFoundError, SPIDValidationError, StopValidation, UnknownEntityIDError,
+    ValidationError, XMLFormatValidationError, XMLSchemaValidationError,
 )
 from testenv.settings import (
     BINDING_HTTP_POST, DEFAULT_LIST_VALUE_ERROR, DEFAULT_VALUE_ERROR, DS as SIGNATURE, KEYDESCRIPTOR_USES,
@@ -46,8 +47,8 @@ def _check_date_in_range(self, date):
     upper = now + timedelta(minutes=TIMEDELTA)
     if date < lower or date > upper:
         raise Invalid(
-            '{} non è compreso tra {} e {}'.format(
-                date, lower, upper
+            'Il valore non è compreso tra {} e {}'.format(
+                lower, upper
             )
         )
     return date
@@ -74,6 +75,10 @@ def _check_certificate(cert):
     if _errors:
         raise MultipleInvalid(errors=_errors)
     return cert
+
+
+def _strip_namespaces(string):
+    return re.sub(r'\{(urn|http):.+?\}', '', string)
 
 
 class ValidatorGroup(object):
@@ -211,6 +216,7 @@ class BaseXMLSchemaValidator(object):
 
     def _handle_errors(self, error_log):
         errors = self._build_errors(error_log)
+        print(errors)
         localized_errors = self._localize_messages(errors)
         raise XMLSchemaValidationError(localized_errors)
 
@@ -218,7 +224,7 @@ class BaseXMLSchemaValidator(object):
     def _build_errors(error_log):
         return [
             ValidationDetail(None, err.line, err.column, err.domain_name,
-                             err.type_name, err.message, err.path)
+                             err.type_name, _strip_namespaces(err.message), err.path)
             for err in error_log
         ]
 
@@ -263,7 +269,7 @@ class SpidMetadataValidator(object):
                     'attrs': Schema({
                         'use': All(str, In(
                             KEYDESCRIPTOR_USES,
-                            msg=DEFAULT_LIST_VALUE_ERROR.format(KEYDESCRIPTOR_USES))
+                            msg=DEFAULT_LIST_VALUE_ERROR.format(', '.join(KEYDESCRIPTOR_USES)))
                         ),
                     }, required=True),
                     'children': {
@@ -327,11 +333,12 @@ class SpidMetadataValidator(object):
                         '{%s}RequestedAttribute' % (METADATA): All(
                             [{
                                 'attrs': {
-                                    'Name': All(str, In(SPID_ATTRIBUTES_NAMES, msg=DEFAULT_LIST_VALUE_ERROR.format(SPID_ATTRIBUTES_NAMES))),
+                                    'Name': All(str, In(SPID_ATTRIBUTES_NAMES, msg=DEFAULT_LIST_VALUE_ERROR.format(', '.join(SPID_ATTRIBUTES_NAMES)))),
                                     Optional('NameFormat'): Equal(
                                         NAME_FORMAT_BASIC, msg=DEFAULT_VALUE_ERROR.format(
                                             NAME_FORMAT_BASIC)
                                     ),
+                                    Optional('FriendlyName'): str,
                                     Optional('isRequired'): str
                                 },
                                 'children': {},
@@ -423,9 +430,10 @@ class SpidMetadataValidator(object):
                             except IndexError:
                                 _attr = ''
                             break
-                        _paths.append(str(_path))
+
+                        # strip namespaces for better readability
+                        _paths.append(_strip_namespaces(str(_path)))
                 path = '/'.join(_paths)
-                path = 'xpath: {}'.format(path)
                 if _attr is not None:
                     path = '{} - attribute: {}'.format(path, _attr)
                 for _ in err.path:
@@ -462,8 +470,8 @@ class SpidRequestValidator(object):
         upper = now + timedelta(minutes=TIMEDELTA)
         if date < lower or date > upper:
             raise Invalid(
-                '{} non è compreso tra {} e {}'.format(
-                    date, lower, upper
+                'Il valore non è compreso tra {} e {}'.format(
+                    lower, upper
                 )
             )
         return date
@@ -493,27 +501,25 @@ class SpidRequestValidator(object):
             raise UnknownEntityIDError(
                 'Issuer non presente nella {}'.format(req_type)
             )
-        if issuer_name and issuer_name not in self._registry.service_providers:
+        try:
+            sp_metadata = self._registry.get(issuer_name)
+        except MetadataNotFoundError:
             raise UnknownEntityIDError(
-                'entity ID {} non registrato'.format(issuer_name)
+                'L\'entity ID "{}" indicato nell\'elemento <Issuer> non corrisponde a nessun Service Provider registrato in questo Identity Provider di test.'.format(issuer_name)
             )
-        sp_metadata = self._registry.get(issuer_name)
-        if sp_metadata is not None:
-            atcss = sp_metadata.attribute_consuming_services
-            attribute_consuming_service_indexes = [
-                str(
-                    el.get('attrs').get('index')
-                ) for el in atcss if 'index' in el.get('attrs', {})
-            ]
-            ascss = sp_metadata.assertion_consumer_services
-            assertion_consumer_service_indexes = [
-                str(el.get('index')) for el in ascss]
-            assertion_consumer_service_urls = [
-                str(el.get('Location')) for el in ascss]
-        else:
-            attribute_consuming_service_indexes = []
-            assertion_consumer_service_indexes = []
-            assertion_consumer_service_urls = []
+
+        atcss = sp_metadata.attribute_consuming_services
+        attribute_consuming_service_indexes = [
+            str(
+                el.get('attrs').get('index')
+            ) for el in atcss if 'index' in el.get('attrs', {})
+        ]
+        ascss = sp_metadata.assertion_consumer_services
+        assertion_consumer_service_indexes = [
+            str(el.get('index')) for el in ascss]
+        assertion_consumer_service_urls = [
+            str(el.get('Location')) for el in ascss]
+
         entity_id = self._config.entity_id
 
         issuer = Schema(
@@ -523,9 +529,8 @@ class SpidRequestValidator(object):
                         NAMEID_FORMAT_ENTITY, msg=DEFAULT_VALUE_ERROR.format(
                             NAMEID_FORMAT_ENTITY)
                     ),
-                    'NameQualifier': Equal(
-                        issuer_name, msg=DEFAULT_VALUE_ERROR.format(
-                            issuer_name)
+                    'NameQualifier': Any(
+                        Url(), Match(r'^urn:'), msg="Invalid URI"
                     ),
                 },
                 'children': {},
@@ -556,6 +561,7 @@ class SpidRequestValidator(object):
                         NAMEID_FORMAT_TRANSIENT, msg=DEFAULT_VALUE_ERROR.format(
                             NAMEID_FORMAT_TRANSIENT)
                     ),
+                    Optional('SPNameQualifier'): str,
                 },
                 'children': {},
                 'text': None,
@@ -579,7 +585,7 @@ class SpidRequestValidator(object):
             {
                 'attrs': {},
                 'children': {},
-                'text': All(str, In(SPID_LEVELS, msg=DEFAULT_LIST_VALUE_ERROR.format(SPID_LEVELS)))
+                'text': All(str, In(SPID_LEVELS, msg=DEFAULT_LIST_VALUE_ERROR.format(', '.join(SPID_LEVELS))))
             },
             required=True,
         )
@@ -661,7 +667,7 @@ class SpidRequestValidator(object):
                 if attrs['AssertionConsumerServiceIndex'] not in assertion_consumer_service_indexes:
                     raise Invalid(
                         DEFAULT_LIST_VALUE_ERROR.format(
-                            assertion_consumer_service_indexes),
+                            ', '.join(assertion_consumer_service_indexes)),
                         path=['AssertionConsumerServiceIndex'])
                 return attrs
 
@@ -682,7 +688,7 @@ class SpidRequestValidator(object):
                     Optional('AttributeConsumingServiceIndex'): In(
                         attribute_consuming_service_indexes,
                         msg=DEFAULT_LIST_VALUE_ERROR.format(
-                            attribute_consuming_service_indexes)
+                            ', '.join(attribute_consuming_service_indexes))
                     ),
                     Optional('AssertionConsumerServiceIndex'): str,
                     Optional('AssertionConsumerServiceURL'): str,
@@ -791,7 +797,6 @@ class SpidRequestValidator(object):
             saml_schema(data)
         except MultipleInvalid as e:
             for err in e.errors:
-                _val = data
                 _paths = []
                 _attr = None
                 for idx, _path in enumerate(err.path):
@@ -802,11 +807,16 @@ class SpidRequestValidator(object):
                             except IndexError:
                                 _attr = ''
                             break
-                        _paths.append(str(_path))
+
+                        # strip namespaces for better readability
+                        _paths.append(_strip_namespaces(str(_path)))
                 path = '/'.join(_paths)
-                path = 'xpath: {}'.format(path)
                 if _attr is not None:
-                    path = '{} - attribute: {}'.format(path, _attr)
+                    path += " - attribute: " + _attr
+
+                # find value to show (iterate multiple times inside data
+                # until we find the sub-element or attribute)
+                _val = data
                 for _ in err.path:
                     try:
                         _val = _val[_]
@@ -814,9 +824,16 @@ class SpidRequestValidator(object):
                         _val = None
                     except ValueError:
                         _val = None
+
+                # no need to show value if the error is the presence of the element
+                _msg = err.msg
+                if "extra keys not allowed" in _msg:
+                    _val = None
+                    _msg = "item not allowed"
+
                 errors.append(
                     ValidationDetail(
-                        _val, None, None, None, None, err.msg, path
+                        _val, None, None, None, None, _msg, path
                     )
                 )
             raise SPIDValidationError(details=errors)

@@ -61,7 +61,7 @@ class SamlMixin(object):
         return self.__class__.__name__
 
     def to_xml(self):
-        return tostring(self.tree)
+        return tostring(self.tree, pretty_print=True)
 
     @property
     def tree(self):
@@ -111,9 +111,7 @@ class AttributeStatement(SamlMixin):
 
 class Attribute(SamlMixin):
     saml_type = 'saml'
-    defaults = {
-        'NameFormat': NAME_FORMAT_BASIC
-    }
+    defaults = {}
 
 
 class AttributeValue(SamlMixin):
@@ -264,7 +262,7 @@ def create_logout_response(data, response_status):
     return response
 
 
-def create_response(data, response_status, attributes={}):
+def create_response(data, response_status, attributes={}, has_assertion=True):
     issue_instant, not_before, not_on_or_after = generate_issue_instant()
     response_attrs = data.get('response').get('attrs')
     # Create a response
@@ -299,80 +297,91 @@ def create_response(data, response_status, attributes={}):
     response.append(status)
 
     # Create and setup the assertion
-    assertion = Assertion(
-        attrib=dict(
-            ID=generate_unique_id(),
-            IssueInstant=issue_instant,
+    if has_assertion:
+        assertion = Assertion(
+            attrib=dict(
+                ID=generate_unique_id(),
+                IssueInstant=issue_instant,
+            )
         )
-    )
-    # Setup subject data
-    subject = Subject()
-    name_id_attrs = data.get('name_id').get('attrs')
-    name_id = NameID(
-        attrib=dict(
-            NameQualifier=name_id_attrs.get('name_qualifier'),
-        ),
-        text=generate_unique_id()
-    )
-    subject.append(name_id)
-    subject_confirmation = SubjectConfirmation()
-    subject_confirmation_data_attrs = data.get(
-        'subject_confirmation_data').get('attrs')
-    subject_confirmation_data = SubjectConfirmationData(
-        attrib=dict(
-            Recipient=subject_confirmation_data_attrs.get('recipient'),
-            NotOnOrAfter=not_on_or_after,
-            InResponseTo=response_attrs.get('in_response_to')
+        # Setup subject data
+        subject = Subject()
+        name_id_attrs = data.get('name_id').get('attrs')
+        name_id = NameID(
+            attrib=dict(
+                NameQualifier=name_id_attrs.get('name_qualifier'),
+            ),
+            text=generate_unique_id()
         )
-    )
-    subject_confirmation.append(subject_confirmation_data)
-    subject.append(subject_confirmation)
-    assertion.append(deepcopy(issuer))
-    assertion.append(subject)
-    # Setup conditions data
-    conditions = Conditions(
-        attrib=dict(
-            NotBefore=not_before,
-            NotOnOrAfter=not_on_or_after
+        subject.append(name_id)
+        subject_confirmation = SubjectConfirmation()
+        subject_confirmation_data_attrs = data.get(
+            'subject_confirmation_data', {}).get('attrs', {})
+        subject_confirmation_data_in_response_to = subject_confirmation_data_attrs.get(
+            'in_response_to', response_attrs.get('in_response_to')
         )
-    )
-    audience_restriction = AudienceRestriction()
-    audience = Audience(text=data.get('audience').get('text'))
-    audience_restriction.append(audience)
-    conditions.append(audience_restriction)
-    assertion.append(conditions)
-    # Setup authn statement data
-    # FIXME: handle SessionIndex for real
-    authn_statement = AuthnStatement(
-        attrib=dict(
-            AuthnInstant=issue_instant,
-            SessionIndex=generate_unique_id()
+        subject_confirmation_data_not_on_or_after = subject_confirmation_data_attrs.get(
+            'not_on_or_after', not_on_or_after
         )
-    )
-    authn_context = AuthnContext()
-    authn_context_class_ref = AuthnContextClassRef(
-        text=data.get('authn_context_class_ref').get('text')
-    )
-    authn_context.append(authn_context_class_ref)
-    authn_statement.append(authn_context)
-    assertion.append(authn_statement)
-    # Setup attribute statement data (if attributes required)
-    if attributes:
-        attribute_statement = AttributeStatement()
-        for attr, info in attributes.items():
-            _attribute = Attribute(
-                attrib=dict(
-                    Name=attr
+        subject_confirmation_data = SubjectConfirmationData(
+            attrib=dict(
+                Recipient=subject_confirmation_data_attrs.get('recipient'),
+                NotOnOrAfter=subject_confirmation_data_not_on_or_after,
+                InResponseTo=subject_confirmation_data_in_response_to
+            )
+        )
+        subject_confirmation.append(subject_confirmation_data)
+        subject.append(subject_confirmation)
+        assertion.append(deepcopy(issuer))
+        assertion.append(subject)
+        # Setup conditions data
+        conditions_attrs = data.get(
+            'conditions', {}).get('attrs', {})
+        conditions_not_before = conditions_attrs.get('not_before', not_before)
+        conditions_not_on_or_after = conditions_attrs.get('not_on_or_after', not_on_or_after)
+        conditions = Conditions(
+            attrib=dict(
+                NotBefore=conditions_not_before,
+                NotOnOrAfter=conditions_not_on_or_after
+            )
+        )
+        audience_restriction = AudienceRestriction()
+        audience = Audience(text=data.get('audience').get('text'))
+        audience_restriction.append(audience)
+        conditions.append(audience_restriction)
+        assertion.append(conditions)
+        # Setup authn statement data
+        # FIXME: handle SessionIndex for real
+        authn_statement = AuthnStatement(
+            attrib=dict(
+                AuthnInstant=issue_instant,
+                SessionIndex=generate_unique_id()
+            )
+        )
+        authn_context = AuthnContext()
+        authn_context_class_ref = AuthnContextClassRef(
+            text=data.get('authn_context_class_ref').get('text')
+        )
+        authn_context.append(authn_context_class_ref)
+        authn_statement.append(authn_context)
+        assertion.append(authn_statement)
+        # Setup attribute statement data (if attributes required)
+        if attributes:
+            attribute_statement = AttributeStatement()
+            for attr, info in attributes.items():
+                _attribute = Attribute(
+                    attrib=dict(
+                        Name=attr
+                    )
                 )
-            )
-            _attribute_value = AttributeValue(
-                attrib={'{%s}type' % (XSI): 'xs:' + info[0]},
-                text=info[1]
-            )
-            _attribute.append(_attribute_value)
-            attribute_statement.append(_attribute)
-        assertion.append(attribute_statement)
-    response.append(assertion)
+                _attribute_value = AttributeValue(
+                    attrib={'{%s}type' % (XSI): 'xs:' + info[0]},
+                    text=info[1]
+                )
+                _attribute.append(_attribute_value)
+                attribute_statement.append(_attribute)
+            assertion.append(attribute_statement)
+        response.append(assertion)
     return response
 
 
@@ -529,21 +538,7 @@ def create_idp_metadata(
             key_info.append(x509_data)
             key_descriptor.append(key_info)
             idp_sso_descriptor.append(key_descriptor)
-    # setup name id
-    name_id_format = NameIDFormat(
-        text=NAMEID_FORMAT_TRANSIENT
-    )
-    idp_sso_descriptor.append(name_id_format)
-    # setup single sign on service(s)
-    if single_sign_on_services is not None:
-        for _sso in single_sign_on_services:
-            single_sign_on_service = SingleSignOnService(
-                attrib=dict(
-                    Binding=_sso.binding,
-                    Location=_sso.location
-                )
-            )
-            idp_sso_descriptor.append(single_sign_on_service)
+
     # setup single logout service(s)
     if single_logout_services is not None:
         for _slo in single_logout_services:
@@ -554,20 +549,39 @@ def create_idp_metadata(
                 )
             )
             idp_sso_descriptor.append(single_logout_service)
+
+    # setup name id
+    name_id_format = NameIDFormat(
+        text=NAMEID_FORMAT_TRANSIENT
+    )
+    idp_sso_descriptor.append(name_id_format)
+
+    # setup single sign on service(s)
+    if single_sign_on_services is not None:
+        for _sso in single_sign_on_services:
+            single_sign_on_service = SingleSignOnService(
+                attrib=dict(
+                    Binding=_sso.binding,
+                    Location=_sso.location
+                )
+            )
+            idp_sso_descriptor.append(single_sign_on_service)
+
     # setup attributes
     if not attributes:
         attributes = list(SPID_ATTRIBUTES['primary'].keys())
         attributes.extend(list(SPID_ATTRIBUTES['secondary'].keys()))
     for attr_name in attributes:
-        if attr_name in SPID_ATTRIBUTES['primary']:
-            attr_type = SPID_ATTRIBUTES['primary'][attr_name]
-        elif attr_name in SPID_ATTRIBUTES['secondary']:
-            attr_type = SPID_ATTRIBUTES['secondary'][attr_name]
-        else:
-            continue
+        # if attr_name in SPID_ATTRIBUTES['primary']:
+        #    attr_type = SPID_ATTRIBUTES['primary'][attr_name]
+        # elif attr_name in SPID_ATTRIBUTES['secondary']:
+        #    attr_type = SPID_ATTRIBUTES['secondary'][attr_name]
+        # else:
+        #    continue
         _attrib = {
             'Name': attr_name,
-            '{%s}type' % (XSI): 'xs:' + attr_type
+            # This does not pass XSD validation; it looks like an error in the spec
+            # '{%s}type' % (XSI): 'xs:' + attr_type
         }
         attribute = Attribute(
             attrib=_attrib

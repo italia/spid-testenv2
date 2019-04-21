@@ -18,8 +18,8 @@ from signxml.exceptions import InvalidDigest, InvalidSignature as InvalidSignatu
 from testenv import log
 from testenv.exceptions import SignatureVerificationError
 from testenv.settings import (
-    DEPRECATED_ALGORITHMS, KEY_INFO, SAML, SIG_NS, SIG_RSA_SHA224, SIG_RSA_SHA256, SIG_RSA_SHA384, SIG_RSA_SHA512,
-    SIGNATURE, SIGNATURE_METHOD, SIGNED_INFO, SIGNED_PARAMS, SUPPORTED_ALGORITHMS, X509_CERTIFICATE, X509_DATA,
+    DEPRECATED_ALGORITHMS, KEY_INFO, SAML, SIG_RSA_SHA224, SIG_RSA_SHA256, SIG_RSA_SHA384, SIG_RSA_SHA512, SIGNATURE,
+    SIGNATURE_METHOD, SIGNED_INFO, SIGNED_PARAMS, SUPPORTED_ALGORITHMS, X509_CERTIFICATE, X509_DATA,
 )
 from testenv.utils import get_today_utc_date
 
@@ -136,31 +136,29 @@ RSA_SIGNERS = {
 
 
 def sign_http_post(xmlstr, key, cert, message=False, assertion=True):
-    # We have to use xml-exc-c14n# because when we isolate the Assertion
-    # element below, a superfluous xmlns:samlp attribute gets added by etree.tostring()
-    # which is not removed by xml-c14n11 (thus generating a wrong digest).
     logger.debug('http-post signing')
+
     signer = XMLSigner(
         signature_algorithm='rsa-sha256',
         digest_algorithm='sha256',
         c14n_algorithm='http://www.w3.org/2001/10/xml-exc-c14n#',
     )
     root = fromstring(xmlstr)
-    if message:
-        logger.debug('signing message')
-        root = signer.sign(root, key=key, cert=cert)
+
     if assertion:
         logger.debug('signing assertion')
         assertions = root.findall('{%s}Assertion' % SAML)
         for assertion in assertions:
-            _assertion = signer.sign(assertion, key=key, cert=cert)
-            issuer = _assertion.find('{%s}Issuer' % SAML)
-            signature = _assertion.find('%sSignature' % SIG_NS)
-            issuer.addnext(signature)
-            assertion.getparent().replace(assertion, _assertion)
-    response = tostring(root)
-    logger.debug('Signed message: {}'.format(response))
-    return base64.b64encode(response).decode('ascii')
+            issuer = assertion.find('{%s}Issuer' % SAML)
+            issuer.addnext(fromstring(
+                '<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Id="placeholder"></ds:Signature>'))
+            root = signer.sign(root, reference_uri=assertion.attrib['ID'], key=key, cert=cert)
+    if message:
+        issuer = root.find('{%s}Issuer' % SAML)
+        issuer.addnext(fromstring(
+            '<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Id="placeholder"></ds:Signature>'))
+        root = signer.sign(root, key=key, cert=cert)
+    return tostring(root, pretty_print=False)
 
 
 def sign_http_redirect(xmlstr, key, relay_state=None, req_type='SAMLResponse'):

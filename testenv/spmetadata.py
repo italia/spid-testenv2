@@ -11,6 +11,7 @@ from testenv.saml import (
     AssertionConsumerService, AttributeConsumingService, EntityDescriptor, KeyDescriptor, KeyInfo, RequestedAttribute,
     SingleLogoutService, SPSSODescriptor, X509Certificate, X509Data,
 )
+from testenv.storages import DatabaseSPProvider
 from testenv.utils import saml_to_dict
 from testenv.validators import (
     ServiceProviderMetadataXMLSchemaValidator, SpidMetadataValidator, ValidatorGroup, XMLMetadataFormatValidator,
@@ -30,72 +31,136 @@ REQUESTEDATTRIBUTE = RequestedAttribute.tag()
 SINGLE_LOGOUT_SERVICE = SingleLogoutService.tag()
 
 
-class ServiceProviderMetadataBaseLoader(object):
+class ServiceProviderMetadataRegistry(object):
+    def __init__(self):
+        self._loaders = []
+        for source_type, source_params in config.params.metadata.items():
+            self._loaders.append({
+                'local': ServiceProviderMetadataFileLoader,
+                'remote': ServiceProviderMetadataHTTPLoader,
+                'db': ServiceProviderMetadataDbLoader,
+            }[source_type](source_params))
+        self._validators = ValidatorGroup([
+            XMLMetadataFormatValidator(),
+            ServiceProviderMetadataXMLSchemaValidator(),
+            SpidMetadataValidator(),
+        ])
 
-    def __init__(self, conf, validator):
-        self._config = conf
-        self._validator = validator
+    def get(self, entity_id):
+        entity_id = entity_id.strip()
+        for loader in self._loaders:
+            try:
+                metadata = loader.get(entity_id)
+                try:
+                    self._validators.validate(metadata.xml)
+                    return metadata
+                except ValidationError as e:
+                    raise DeserializationError(metadata, e.details)
+            except MetadataNotFoundError:
+                continue
 
-    def load(self):
-        metadata = self._load()
-        self._validate(metadata)
-        return metadata
+        raise MetadataNotFoundError(entity_id)
 
-    def _validate(self, metadata):
+    def all(self):
+        """Returns the list of entityIDs of all the known Service Providers"""
+        return [i for l in self._loaders for i in l.all()]
+
+
+registry = None
+
+
+def build_metadata_registry():
+    global registry
+    registry = ServiceProviderMetadataRegistry()
+
+
+class ServiceProviderMetadataFileLoader(object):
+    """Loads metadata from the configured files
+
+    This could be improved in two ways:
+    1. support wildcards (e.g. conf/*.xml)
+    2. automatic reload of metadata when file timestamps change"""
+
+    def __init__(self, conf):
+        self._metadata = {}
+        for file in conf:
+            try:
+                with open(file, 'rb') as fp:
+                    metadata = ServiceProviderMetadata(fp.read())
+                    self._metadata[metadata.entity_id] = metadata
+                    logger.debug("Loaded metadata for: " + metadata.entity_id)
+            except Exception as e:
+                raise MetadataLoadError(
+                    "Impossibile leggere il file '{}': '{}'".format(file, e)
+                )
+
+    def get(self, entity_id):
         try:
-            self._validator.validate(metadata)
-        except ValidationError as e:
-            raise DeserializationError(metadata, e.details)
+            return self._metadata[entity_id]
+        except KeyError:
+            raise MetadataNotFoundError(entity_id)
+
+    def all(self):
+        return self._metadata.keys()
 
 
-class ServiceProviderMetadataFileLoader(ServiceProviderMetadataBaseLoader):
+class ServiceProviderMetadataHTTPLoader(object):
+    """Loads metadata from the configured URLs"""
 
-    def _load(self):
+    def __init__(self, conf):
+        self._metadata = {}
+        for url in conf:
+            try:
+                response = requests.get(url)
+                response.raise_for_status()
+                metadata = ServiceProviderMetadata(response.content)
+                self._metadata[metadata.entity_id] = metadata
+            except Exception as e:
+                raise MetadataLoadError(
+                    "La richiesta all'endpoint HTTP '{}': '{}'".format(url, e)
+                )
+
+    def get(self, entity_id):
         try:
-            return self._read_file_text()
-        except Exception as e:
-            raise MetadataLoadError(
-                "Impossibile leggere il file '{}': '{}'"
-                .format(self._config, e)
-            )
+            return self._metadata[entity_id]
+        except KeyError:
+            raise MetadataNotFoundError(entity_id)
 
-    def _read_file_text(self):
-        path = self._config
-        with open(path, 'rb') as fp:
-            return fp.read()
+    def all(self):
+        return self._metadata.keys()
 
 
-class ServiceProviderMetadataHTTPLoader(ServiceProviderMetadataBaseLoader):
+class ServiceProviderMetadataDbLoader(object):
+    """Loads metadata from the configured database"""
 
-    def _load(self):
-        try:
-            return self._make_request()
-        except Exception as e:
-            raise MetadataLoadError(
-                "La richiesta all'endpoint HTTP '{}' è fallita: '{}'"
-                .format(self._config.get('url'), e)
-            )
+    def __init__(self, conf):
+        self._provider = DatabaseSPProvider(conf)
 
-    def _make_request(self):
-        response = requests.get(self._config.get('url'))
-        response.raise_for_status()
-        return response.content
+    def get(self, entity_id):
+        metadata = self._provider.get(entity_id)
+        if metadata is None:
+            raise MetadataNotFoundError(entity_id)
+        return ServiceProviderMetadata(metadata)
+
+    def all(self):
+        return self._provider.all().keys()
 
 
 class ServiceProviderMetadata(object):
 
-    def __init__(self, loader):
-        self._loader = loader
-
-    @property
-    def root_tag(self):
-        return ENTITYDESCRIPTOR
+    def __init__(self, xml):
+        self.xml = xml
+        self._metadata = saml_to_dict(xml)
 
     @property
     def root(self):
         return self._metadata.get(
             self.root_tag, {}
         )
+
+    @property
+    def root_tag(self):
+        return ENTITYDESCRIPTOR
 
     @property
     def entity_id(self):
@@ -219,63 +284,3 @@ class ServiceProviderMetadata(object):
         return [
             slo for slo in self.single_logout_services if slo.get('Binding') == binding
         ]
-
-    @property
-    def _metadata(self):
-        metadata = self._loader.load()
-        return saml_to_dict(metadata)
-
-
-class ServiceProviderMetadataRegistry(object):
-
-    def __init__(self):
-        self._metadata = {}
-
-    def register(self, metadata):
-        try:
-            self._register(metadata)
-        except MetadataLoadError as e:
-            logger.error(
-                "Impossibile aggiungere metadata al registry: '{}'".format(e))
-
-    def _register(self, metadata):
-        entity_id = metadata.entity_id
-        self._metadata[entity_id] = metadata
-
-    def get(self, entity_id):
-        try:
-            return self._metadata[entity_id]
-        except KeyError:
-            raise MetadataNotFoundError(entity_id)
-
-    @property
-    def service_providers(self):
-        return list(self._metadata.keys())
-
-
-registry = None
-
-
-def build_metadata_registry():
-    global registry
-    registry = ServiceProviderMetadataRegistry()
-    _populate_registry(registry)
-
-
-def _populate_registry(registry):
-    for source_type, source_params in config.params.metadata.items():
-        for param in source_params:
-            loader = _get_loader(source_type, param)
-            metadata = ServiceProviderMetadata(loader)
-            registry.register(metadata)
-
-
-def _get_loader(source_type, source_params):
-    Loader = {
-        'local': ServiceProviderMetadataFileLoader,
-        'remote': ServiceProviderMetadataHTTPLoader,
-    }[source_type]
-    validator = ValidatorGroup(
-        [XMLMetadataFormatValidator(), ServiceProviderMetadataXMLSchemaValidator(), SpidMetadataValidator()]
-    )
-    return Loader(source_params, validator)

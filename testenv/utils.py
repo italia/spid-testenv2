@@ -101,10 +101,14 @@ def saml_to_dict(xmlstr):
             else:
                 children[child.tag] = subdict
 
+        text = elem.text
+        if text is not None:
+            text = text.strip()
+
         return {
             'attrs': dict(elem.attrib),
             'children': children,
-            'text': elem.text,
+            'text': text,
         }
 
     return {

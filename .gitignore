@@ -52,6 +52,7 @@ coverage.xml
 
 # Django stuff:
 *.log
+*.log.*
 local_settings.py
 
 # Flask stuff:
@@ -115,3 +116,9 @@ ansible/site.retry
 
 #Idea
 .idea
+
+# macOS stuff
+.DS_Store
+
+# Editors
+.vscode

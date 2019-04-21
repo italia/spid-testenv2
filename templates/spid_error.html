@@ -1,14 +1,8 @@
 {% extends 'main_page.html' %}
 {% block content %}
-<button name="show_response" class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-quaternary">Mostra Request</button>
-<div id="message">
-    {% for line in lines %}
-        <pre class="xml-line">{{line}}</pre>
-    {% endfor %}
-</div>
-<h2>Errori di validazione</h2>
-{% if errors %}
-    <table class="spid-error" border=1>
+<main class="main u-layout u-layout-medium u-layoutCenter">
+    <h2>Errori di validazione</h2>
+    <table id="spid-errors">
         <thead>
             <tr>
                 <th>Elemento</th>
@@ -18,24 +12,34 @@
         <tbody>
             {% for err in errors %}
             <tr>
-                <td class="spid-error__elem" id="{{err.path}}">{{err.path}}</td>
+                <td class="spid-elem">{{err.path}}</td>
                 <td>
-                    {{err.value}} {{err.message}}
+                    {{err.message}}
+
+                    {% if err.value is not none %}
+                    <pre>{{err.value}}</pre>
+                    {% endif %}
                 </td>
             </tr>
         {% endfor %}
         </tbody>
     </table>
-{% endif %}
+
+    <div id="spid-message">
+        {% for line in lines %}
+            <pre class="xml-line">{{line}}</pre>
+        {% endfor %}
+    </div>
+</main>
 {% endblock %}
+
 {% block js %}
 <script type="text/javascript">
     $(document).ready(function(){
-        $.each($('.spid-error__elem'), function(){
-            var id = $(this).attr('id');
-            var line = $('.xml-line:contains("<' + id + '")');
-            var tag = line[0];
-            $(tag).css('background-color', 'red');
+        $.each($('#spid-errors .spid-elem'), function(){
+            var elem = $(this).text().split(/[\s :]/).slice(-1)[0];
+            $('.xml-line:contains("' + elem + '")')
+                .css('background-color', 'yellow');
         });
     });
 </script>

@@ -1,5 +1,6 @@
 {% extends 'main_page.html' %}
 {% block content %}
+<main class="main u-layout u-layout-extrasmall u-layoutCenter">
 <article class="main-bodytext u-padding-all-xl">
     <div class="u-textCenter">
     <img src="{{ url_for('static', filename='img/icons/error.png')}}" class="icon-error"
@@ -9,4 +10,5 @@
 
     <p class="u-text-r-xs u-color-grey-40 u-textWeight-400 u-lineHeight-l">{{extra}}</p>
 </article>
+</main>
 {% endblock %}

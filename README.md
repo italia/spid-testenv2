@@ -4,17 +4,13 @@
 [![Get invited](https://slack.developers.italia.it/badge.svg)](https://slack.developers.italia.it/)
 [![SPID on forum.italia.it](https://img.shields.io/badge/Forum-SPID-blue.svg)](https://forum.italia.it/c/spid) [![Build Status](https://travis-ci.org/italia/spid-testenv2.svg?branch=master)](https://travis-ci.org/italia/spid-testenv2)
 
-> ⚠️ **WORK IN PROGRESS** ⚠️
-
 # spid-testenv2
 
 ## Identity Provider di test per SPID
 
-Questo repository ospita lo sviluppo di un nuovo Identity Provider di test per consentire agli sviluppatori di verificare le proprie integrazioni con [SPID](https://www.spid.gov.it) in modo semplice, ottenendo messaggi diagnostici chiari ed essere certi dell'interoperabilità.
+Questo Identity Provider consente agli sviluppatori di verificare le proprie integrazioni con [SPID](https://www.spid.gov.it) in modo semplice, ottenendo messaggi diagnostici chiari ed assicurandosi dell'interoperabilità.
 
-Ad oggi questo pacchetto è funzionante ma è in corso un lavoro di evoluzione e documentazione. Se ne raccomanda l'uso, ed eventuali problemi possono essere segnalati aprendo issue.
-
-In alternativa è possibile usare il [precedente IdP di test](https://github.com/italia/spid-testenv).
+Può essere facilmente eseguito in locale o su un proprio server seguendo le istruzioni di seguito riportate.
 
 ## Requisiti
 
@@ -97,11 +93,21 @@ Creare e configurare il file config.yaml.
 cp conf/config.yaml.example conf/config.yaml
 ```
 
-L'unico valore che è necessario modificare rispetto ai default è `metadata`, che contiene i metadata dei Service Provider che si intendono collegare all'IdP di test. Per generare tali metadati vi sono tre possibilità:
+### Caricamento metadata Service Provider
+
+L'unico valore che è necessario modificare rispetto ai default è `metadata`, che indica i metadata dei Service Provider che si intendono collegare all'IdP di test. Per generare tali metadati vi sono tre possibilità:
 
 1. compilarli a mano a partire dal file [sp_metadata.xml.example](conf/sp_metadata.xml.example);
 2. compilarli usando l'interfaccia disponibile in https://idp.spid.gov.it:8080/
 3. generarli (ed esporli) automaticamente dalla propria implementazione Service Provider (ad esempio https://www.mioserviceprovider.it/spid/metadata).
+
+Il testenv2 supporta il caricamento in tre modalità, che possono essere combinate tra loro:
+
+* `local`: i metadati vengono letti da file locali (all'avviamento del testenv2);
+* `remote`: i metadati vengono letti da URL HTTP remote (all'avviamento del testenv2);
+* `db`: i metadati vengono letti da un database PostgreSQL (alla ricezione di ciascuna richiesta).
+
+Nel caso in cui si usi la modalità `db` è sufficiente creare il database e poi spid-testenv2 creerà automaticamente la tabella. Abilitando l'opzione `database_admin_interface` spid-testenv2 esporrà una semplice interfaccia di gestione all'indirizzo /admin; è possibile ovviamente usare un qualsiasi tool di gestione esterno.
 
 ## Avvio
 
@@ -121,16 +127,19 @@ Il metadata dell'Identity Provider di test è generato automaticamente ed espost
 
 Gli utenti di test sono configurati nel file _users.json_ e possono essere aggiunti chiamando la pagina `/add-user`.
 
+In alternativa è possibile usare un database Postgres configurando l'opzione `users_db`.
+
 ## Logging
 
 Il log del flusso di login / logout viene registrato nel file idp.log (tramite configurazione pysaml2) e inviato in STDOUT insieme al log del web server.
 
-## Maintainer
+## Autori
 
-Questo repository è mantenuto da AgID - Agenzia per l'Italia Digitale con l'ausilio del Team per la Trasformazione Digitale.
+Questo software è stato sviluppato dal [Team per la Trasformazione Digitale](https://teamdigitale.governo.it/), ed è mantenuto con l'ausilio della community di [Developers Italia](https://developers.italia.it/).
 
 ## Link utili
 
+* [Regole tecniche consolidate](https://docs.italia.it/italia/spid/spid-regole-tecniche/)
 * [Sito ufficiale SPID](https://www.spid.gov.it/)
 * [Sezione SPID su Developers Italia](https://developers.italia.it/it/spid/)
 * [Sezione SPID su AgID](https://www.agid.gov.it/it/piattaforme/spid)
