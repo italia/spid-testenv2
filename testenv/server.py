@@ -10,6 +10,7 @@ from hashlib import sha1
 from logging.handlers import RotatingFileHandler
 
 from flask import Response, abort, escape, redirect, render_template, request, session, url_for
+from flask_admin import Admin
 
 from testenv import config, spmetadata
 from testenv.crypto import HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect
@@ -26,7 +27,7 @@ from testenv.settings import (
     AUTH_NO_CONSENT, BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, CHALLENGES_TIMEOUT, SPID_ATTRIBUTES, SPID_LEVELS,
     STATUS_AUTHN_FAILED, STATUS_SUCCESS,
 )
-from testenv.users import JsonUserManager
+from testenv.storages import DatabaseSPProvider, UserProvider
 from testenv.utils import Key, Slo, Sso, get_spid_error
 
 # FIXME: move to a the parser.py module after metadata refactoring
@@ -61,7 +62,6 @@ class IdpServer(object):
         """
         # bind Flask app
         self.app = app
-        self.user_manager = JsonUserManager()
         # setup
         self._config = conf or config.params
         self._registry = registry or spmetadata.registry
@@ -71,6 +71,24 @@ class IdpServer(object):
         )
         self.app.logger.addHandler(handler)
         self._prepare_server()
+        self.sp_metadata_manager = None
+        self.user_manager = UserProvider.factory(self._config)
+        self._setup_managers()
+
+    def _setup_managers(self):
+        if not self._config.database_admin_interface:
+            return
+
+        self.app.config['FLASK_ADMIN_SWATCH'] = 'cerulean'
+        self.admin = Admin(
+            self.app,
+            name='Ambiente di test SPID - Interfaccia di amministrazione',
+            template_mode='bootstrap3'
+        )
+        self.user_manager.register_admin(self.admin)
+        if 'db' in self._config.metadata:
+            self.sp_metadata_manager = DatabaseSPProvider(self._config.metadata['db'])
+            self.sp_metadata_manager.register_admin(self.admin)
 
     @property
     def _mode(self):
@@ -335,7 +353,7 @@ class IdpServer(object):
                 'primary_attributes': spid_main_fields,
                 'secondary_attributes': spid_secondary_fields,
                 'users': self.user_manager.all(),
-                'sp_list': self._registry.service_providers,
+                'sp_list': self._registry.all(),
                 'can_add_user': can_add_user
             }
         )
@@ -372,7 +390,7 @@ class IdpServer(object):
                 'sp_list': [
                     {
                         "entityID": sp
-                    } for sp in self._registry.service_providers
+                    } for sp in self._registry.all()
                 ],
             }
         )

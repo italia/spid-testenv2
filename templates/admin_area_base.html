@@ -1,58 +1,60 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-    <!-- CSS -->
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/spid-login.css')}}">
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap-italia.min.css')}}">
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/italia-icon-font.css')}}">
-  </head>
-  <body>
+<head>
+  <!-- Required meta tags -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <!-- CSS -->
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/spid-login.css')}}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/bootstrap-italia.min.css')}}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/italia-icon-font.css')}}">
+</head>
+
+<body>
   <div class="header">
-      <div class="container py-5">
-        <div class="row">
-          <div class="col-8 col-md-6">
+    <div class="container py-5">
+      <div class="row">
+        <div class="col-8 col-md-6">
           <div class="media header-title">
             <img class="spid-logo img-fluid mr-3" src="{{ url_for('static', filename='img/spid-logo.svg') }}" />
             <div class="media-body">
               <h1 class="display-3">Test Identity Provider</h1>
             </div>
           </div>
-          </div>
         </div>
       </div>
     </div>
-   <nav class="navbar navbar-expand-lg"><span></span>
-         <button class="custom-navbar-toggler" type="button" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation" data-target="#navbarNav"><span class="it-list"></span>
-      </button>
-      <div class="navbar-collapsable" id="navbarNav">
-        <div class="close-div">
-          <button class="btn close-menu" type="button"><span class="it-close"></span>close
-          </button>
-        </div>
-        <div class="menu-wrapper">
-          <ul class="navbar-nav">
-            <li class="nav-item active"><a class="nav-link active" href="/"><span>Home</span><span class="sr-only">current</span></a>
-            </li>
-            <li class="nav-item"><a class="nav-link disabled" href="#"><span>Configura un SP</span></a>
-            </li>
-            <li class="nav-item"><a class="nav-link" href="/users"><span>Utenti</span></a>
-            </li>
-            <li class="nav-item"><a class="nav-link" href="/metadata"><span>Metadata IdP</span></a></li>
-          </ul>
-        </div>
+  </div>
+  <nav class="navbar navbar-expand-lg"><span></span>
+    <button class="custom-navbar-toggler" type="button" aria-controls="navbarNav" aria-expanded="false"
+      aria-label="Toggle navigation" data-target="#navbarNav"><span class="it-list"></span>
+    </button>
+    <div class="navbar-collapsable" id="navbarNav">
+      <div class="close-div">
+        <button class="btn close-menu" type="button"><span class="it-close"></span>close
+        </button>
       </div>
-    </nav>
+      <div class="menu-wrapper">
+        <ul class="navbar-nav">
+          <li class="nav-item active"><a class="nav-link active" href="/"><span>Home</span><span
+                class="sr-only">current</span></a>
+          </li>
+          <li class="nav-item"><a class="nav-link" href="/users"><span>Utenti</span></a>
+          </li>
+          <li class="nav-item"><a class="nav-link" href="/metadata"><span>Metadata IdP</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
 
-     <div class="container mb-5">
-       {% block content %}
-    </div>
-       {% endblock %}
-    <!-- JS -->
-    <script src="{{ url_for('static', filename='js/bootstrap-italia.bundle.min.js') }}"></script>
-  </body>
+  <div class="container mb-5">
+    {% block content %}
+  </div>
+  {% endblock %}
+  <!-- JS -->
+  <script src="{{ url_for('static', filename='js/bootstrap-italia.bundle.min.js') }}"></script>
+</body>
 
 </html>

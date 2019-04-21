@@ -93,11 +93,21 @@ Creare e configurare il file config.yaml.
 cp conf/config.yaml.example conf/config.yaml
 ```
 
-L'unico valore che è necessario modificare rispetto ai default è `metadata`, che contiene i metadata dei Service Provider che si intendono collegare all'IdP di test. Per generare tali metadati vi sono tre possibilità:
+### Caricamento metadata Service Provider
+
+L'unico valore che è necessario modificare rispetto ai default è `metadata`, che indica i metadata dei Service Provider che si intendono collegare all'IdP di test. Per generare tali metadati vi sono tre possibilità:
 
 1. compilarli a mano a partire dal file [sp_metadata.xml.example](conf/sp_metadata.xml.example);
 2. compilarli usando l'interfaccia disponibile in https://idp.spid.gov.it:8080/
 3. generarli (ed esporli) automaticamente dalla propria implementazione Service Provider (ad esempio https://www.mioserviceprovider.it/spid/metadata).
+
+Il testenv2 supporta il caricamento in tre modalità, che possono essere combinate tra loro:
+
+* `local`: i metadati vengono letti da file locali (all'avviamento del testenv2);
+* `remote`: i metadati vengono letti da URL HTTP remote (all'avviamento del testenv2);
+* `db`: i metadati vengono letti da un database PostgreSQL (alla ricezione di ciascuna richiesta).
+
+Nel caso in cui si usi la modalità `db` è sufficiente creare il database e poi spid-testenv2 creerà automaticamente la tabella. Abilitando l'opzione `database_admin_interface` spid-testenv2 esporrà una semplice interfaccia di gestione all'indirizzo /admin; è possibile ovviamente usare un qualsiasi tool di gestione esterno.
 
 ## Avvio
 
@@ -116,6 +126,8 @@ Il metadata dell'Identity Provider di test è generato automaticamente ed espost
 ## Utenti
 
 Gli utenti di test sono configurati nel file _users.json_ e possono essere aggiunti chiamando la pagina `/add-user`.
+
+In alternativa è possibile usare un database Postgres configurando l'opzione `users_db`.
 
 ## Logging
 

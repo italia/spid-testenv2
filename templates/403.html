@@ -1,14 +1,15 @@
 {% extends 'main_page.html' %}
 {% block content %}
 <main class="main u-layout u-layout-extrasmall u-layoutCenter">
-<article class="main-bodytext u-padding-all-xl">
-    <div class="u-textCenter">
-    <img src="{{ url_for('static', filename='img/icons/error.png')}}" class="icon-error"
-        onerror="this.src='{{ url_for("static", filename="img/icons/error.png")}}'; this.onerror=null;" alt="SPID Logo" >
-    </div>
-    <h1 class="u-text-r-xl u-margin-top-l u-margin-bottom-l">Spid Login</h1>
+    <article class="main-bodytext u-padding-all-xl">
+        <div class="u-textCenter">
+            <img src="{{ url_for('static', filename='img/icons/error.png')}}" class="icon-error"
+                onerror="this.src='{{ url_for("static", filename="img/icons/error.png")}}'; this.onerror=null;"
+                alt="SPID Logo">
+        </div>
+        <h1 class="u-text-r-xl u-margin-top-l u-margin-bottom-l">SPID Login</h1>
 
-    <p class="u-text-r-xs u-color-grey-40 u-textWeight-400 u-lineHeight-l">Accesso non consentito</p>
-</article>
+        <p class="u-text-r-xs u-color-grey-40 u-textWeight-400 u-lineHeight-l">Accesso non consentito</p>
+    </article>
 </main>
 {% endblock %}
