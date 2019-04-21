@@ -50,11 +50,11 @@ class FakeConfig(object):
 
     @property
     def absolute_sso_url(self):
-        return self.entity_id + self.endpoints.get('single_sign_on_service')
+        return self._endpoint
 
     @property
     def absolute_slo_url(self):
-        return self.entity_id + self.endpoints.get('single_logout_service')
+        return self._endpoint
 
 
 class FakeMetadata(dict):
