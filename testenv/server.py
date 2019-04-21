@@ -2,7 +2,6 @@
 from __future__ import unicode_literals
 
 import base64
-import logging
 import random
 import string
 from collections import namedtuple
