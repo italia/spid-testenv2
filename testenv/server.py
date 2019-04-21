@@ -72,7 +72,7 @@ class IdpServer(object):
         self.app.logger.addHandler(handler)
         self._prepare_server()
         self.sp_metadata_manager = None
-        self.user_manager = UserProvider.factory()
+        self.user_manager = UserProvider.factory(self._config)
         self._setup_managers()
 
     def _setup_managers(self):

@@ -13,8 +13,6 @@ from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-from testenv import config, spmetadata
-
 Base = declarative_base()
 
 # Compatibility with legacy Python versions
@@ -42,8 +40,8 @@ class AbstractUserProvider(object):
     Abstract class representing storage of users
     """
 
-    def __init__(self, conf=None):
-        self._config = conf or config.params
+    def __init__(self, conf):
+        self._config = conf
 
     def get(self, uid, pwd, sp_id):
         raise NotImplementedError
@@ -205,12 +203,11 @@ class DatabaseUserProvider(AbstractUserProvider, AbstractDatabaseProvider):
 class UserProvider(object):
 
     @classmethod
-    def factory(cls, conf=None):
-        _config = conf or config.params
-        if _config.users_db is not None:
-            return DatabaseUserProvider(_config.users_db, conf=_config)
+    def factory(cls, conf):
+        if conf.users_db is not None:
+            return DatabaseUserProvider(conf.users_db, conf=conf)
         else:
-            return FileUserProvider(conf=_config)
+            return FileUserProvider(conf=conf)
 
 
 class SpMetadataModelView(ModelView):
@@ -224,12 +221,6 @@ class SpMetadataModelView(ModelView):
         super(SpMetadataModelView, self).__init__(model, session,
                                                   name=None, category=None, endpoint=None, url=None, static_folder=None,
                                                   menu_class_name=None, menu_icon_type=None, menu_icon_value=None)
-
-    def after_model_change(self, form, model, is_created):
-        loader = spmetadata.ServiceProviderMetadataDbLoader(
-            model.entity_id, spmetadata.VALIDATORS, **{'manager': self._manager})
-        metadata = spmetadata.ServiceProviderMetadata(loader)
-        spmetadata.registry.register(metadata)
 
 
 class DatabaseSPProvider(AbstractDatabaseProvider):
