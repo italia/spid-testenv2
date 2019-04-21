@@ -57,5 +57,10 @@ users_file: "conf/users.json"
 # Abilita (true) o disabilita (false) la possibilità di aggiungere nuovi utenti
 can_add_user: true
 
-# Abilita (true) o disbilita (false) l'interfaccia /admin che consente di gestire gli oggetti nel database
+# Abilita (true) o disbilita (false) l'interfaccia /admin che consente di gestire 
+# gli oggetti nel database
 database_admin_interface: false
+
+# Abilita (true) o disabilita (false) le opzioni avanzate per modificare le asserzioni
+# generate dal testenv
+show_response_options: true

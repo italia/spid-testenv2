@@ -178,6 +178,10 @@ class Config(object):
         return self._confdata.get('database_admin_interface', False)
 
     @property
+    def show_response_options(self):
+        return self._confdata.get('show_response_options', True)
+
+    @property
     def endpoints(self):
         return {
             ep: self._confdata.get('endpoints', {}).get(ep)
