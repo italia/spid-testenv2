@@ -15,6 +15,7 @@ from lxml.etree import fromstring, tostring
 from signxml import XMLSigner, XMLVerifier
 from signxml.exceptions import InvalidDigest, InvalidSignature as InvalidSignature_
 
+from testenv import log
 from testenv.exceptions import SignatureVerificationError
 from testenv.settings import (
     DEPRECATED_ALGORITHMS, KEY_INFO, SAML, SIG_RSA_SHA224, SIG_RSA_SHA256, SIG_RSA_SHA384, SIG_RSA_SHA512, SIGNATURE,
@@ -26,6 +27,9 @@ try:
     from urllib import urlencode
 except ImportError:
     from urllib.parse import urlencode
+
+
+logger = log.logger
 
 
 def deflate_and_base64_encode(msg):
@@ -132,13 +136,17 @@ RSA_SIGNERS = {
 
 
 def sign_http_post(xmlstr, key, cert, message=False, assertion=True):
+    logger.debug('http-post signing')
+
     signer = XMLSigner(
         signature_algorithm='rsa-sha256',
         digest_algorithm='sha256',
         c14n_algorithm='http://www.w3.org/2001/10/xml-exc-c14n#',
     )
     root = fromstring(xmlstr)
+
     if assertion:
+        logger.debug('signing assertion')
         assertions = root.findall('{%s}Assertion' % SAML)
         for assertion in assertions:
             issuer = assertion.find('{%s}Issuer' % SAML)
@@ -154,6 +162,8 @@ def sign_http_post(xmlstr, key, cert, message=False, assertion=True):
 
 
 def sign_http_redirect(xmlstr, key, relay_state=None, req_type='SAMLResponse'):
+    logger.debug('http-redirect signing')
+    logger.debug('request type {}'.format(req_type))
     encoded_message = deflate_and_base64_encode(xmlstr)
     args = {
         req_type: encoded_message,

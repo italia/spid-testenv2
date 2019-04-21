@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-import logging
-
 import requests
 
-from testenv import config
+from testenv import config, log
 from testenv.exceptions import DeserializationError, MetadataLoadError, MetadataNotFoundError, ValidationError
 from testenv.saml import (
     AssertionConsumerService, AttributeConsumingService, EntityDescriptor, KeyDescriptor, KeyInfo, RequestedAttribute,
@@ -17,8 +15,7 @@ from testenv.validators import (
     ServiceProviderMetadataXMLSchemaValidator, SpidMetadataValidator, ValidatorGroup, XMLMetadataFormatValidator,
 )
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = log.logger
 
 ENTITYDESCRIPTOR = EntityDescriptor.tag()
 SPSSODESCRIPTOR = SPSSODescriptor.tag()
