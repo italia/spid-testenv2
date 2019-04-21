@@ -48,6 +48,14 @@ class FakeConfig(object):
     def entity_id(self, *args, **kwargs):
         return self._entity_id
 
+    @property
+    def absolute_sso_url(self):
+        return self.entity_id + self.endpoints.get('single_sign_on_service')
+
+    @property
+    def absolute_slo_url(self):
+        return self.entity_id + self.endpoints.get('single_logout_service')
+
 
 class FakeMetadata(dict):
 
