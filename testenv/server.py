@@ -467,7 +467,8 @@ class IdpServer(object):
                         'action': url_for('login'),
                         'request_key': key,
                         'relay_state': relay_state,
-                        'extra_challenge': extra_challenge
+                        'extra_challenge': extra_challenge,
+                        'show_response_options': self._config.show_response_options,
                     }
                 )
                 return rendered_form, 200

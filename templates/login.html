@@ -7,15 +7,17 @@
             <input type="hidden" name="request_key" value="{{request_key}}" />
             <input type="hidden" name="relay_state" value="{{relay_state}}" />
             <div class="Form-field form-animate-fields">
-                <input class="Form-input u-border-top-none u-border-right-none u-border-left-none u-border-bottom-xxs u-color-80 u-text-r-xs u-textWeight-600"
-                       id="username" name="username" aria-required="true" minlength="4" type="text" required autofocus>
+                <input
+                    class="Form-input u-border-top-none u-border-right-none u-border-left-none u-border-bottom-xxs u-color-80 u-text-r-xs u-textWeight-600"
+                    id="username" name="username" aria-required="true" minlength="4" type="text" required autofocus>
                 <label class="Form-label is-required u-text-r-xs u-textWeight-400 u-color-grey-40 " for="username">
                     <span class="form-label-content">Username</span>
                 </label>
             </div>
             <div class="Form-field form-animate-fields">
-                <input class="Form-input u-border-top-none u-border-right-none u-border-left-none u-border-bottom-xxs u-color-80 u-text-r-xs u-textWeight-600"
-                       id="password" name="password" aria-required="true" minlength="4" type="password" required>
+                <input
+                    class="Form-input u-border-top-none u-border-right-none u-border-left-none u-border-bottom-xxs u-color-80 u-text-r-xs u-textWeight-600"
+                    id="password" name="password" aria-required="true" minlength="4" type="password" required>
                 <label class="Form-label is-required u-text-r-xs u-textWeight-400 u-color-grey-40 " for="password">
                     <span class="form-label-content">Password</span>
                 </label>
@@ -23,83 +25,82 @@
             {{extra_challenge|safe}}
 
             <div class="FixedSmall u-padding-top-m u-padding-bottom-m">
-                <button type="submit" name="confirm" class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-primary u-margin-bottom-xs js-cta" >Invia</button>
-                <button type="submit" name="delete" class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-quaternary">Annulla</button>
+                <button type="submit" name="confirm"
+                    class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-primary u-margin-bottom-xs js-cta">Invia</button>
+                <button type="submit" name="delete"
+                    class="u-padding-all-s u-text-xs u-textWeight-600 u-borderRadius-m u-sizeFull u-btn u-btn-quaternary">Annulla</button>
             </div>
-            
+
+            {% if show_response_options %}
             <h2>Opzioni avanzate</h2>
             <p>Le opzioni di seguito possono essere usate per alterare la Response fornita
                 introducendo errori.
-                Si raccomanda, per la massima sicurezza, di eseguire anche questi test 
+                Si raccomanda, per la massima sicurezza, di eseguire anche questi test
                 verificando che la propria implementazione rigetti la risposta.
             </p>
 
             <div class="Form-field form-animate-fields">
-                <input
-                       id="wrong_destination" name="wrong_destination" type="checkbox">
+                <input id="wrong_destination" name="wrong_destination" type="checkbox">
                 <label class="Form-label u-text-r-xs u-textWeight-400 u-color-grey-40 " for="wrong_destination">
                     <span class="form-label-content">Destination errata</span>
                 </label>
             </div>
             <div class="Form-field form-animate-fields">
-                <input
-                       id="wrong_audience" name="wrong_audience" type="checkbox">
+                <input id="wrong_audience" name="wrong_audience" type="checkbox">
                 <label class="Form-label u-text-r-xs u-textWeight-400 u-color-grey-40 " for="wrong_audience">
                     <span class="form-label-content">Audience errata</span>
                 </label>
             </div>
             <div class="Form-field form-animate-fields">
-                <input
-                       id="wrong_recipient_subj" name="wrong_recipient_subj" type="checkbox">
+                <input id="wrong_recipient_subj" name="wrong_recipient_subj" type="checkbox">
                 <label class="Form-label u-text-r-xs u-textWeight-400 u-color-grey-40 " for="wrong_recipient_subj">
                     <span class="form-label-content">Recipient (Subjectconfirmationdata) errato</span>
                 </label>
             </div>
             <div class="Form-field form-animate-fields">
-                <input
-                       id="wrong_issuer" name="wrong_issuer" type="checkbox">
+                <input id="wrong_issuer" name="wrong_issuer" type="checkbox">
                 <label class="Form-label u-text-r-xs u-textWeight-400 u-color-grey-40 " for="wrong_issuer">
                     <span class="form-label-content">Issuer errato</span>
                 </label>
             </div>
             <div class="Form-field form-animate-fields">
-                <input
-                       id="no_assertion" name="no_assertion" type="checkbox">
+                <input id="no_assertion" name="no_assertion" type="checkbox">
                 <label class="Form-label u-text-r-xs u-textWeight-400 u-color-grey-40 " for="no_assertion">
                     <span class="form-label-content">Assertion assente</span>
                 </label>
             </div>
             <div class="Form-field form-animate-fields">
-                <input
-                       id="bad_status_code" name="bad_status_code" type="checkbox">
+                <input id="bad_status_code" name="bad_status_code" type="checkbox">
                 <label class="Form-label u-text-r-xs u-textWeight-400 u-color-grey-40 " for="bad_status_code">
                     <span class="form-label-content">Status code failed</span>
                 </label>
             </div>
             <div class="Form-field form-animate-fields">
                 <label for="wrong_conditions_notbefore">
-                        <span class="form-label-content">NotBefore (Conditions) errato </span>
-                    </label>
-                <input class="Form-input u-border-top-none u-border-right-none u-border-left-none u-border-bottom-xxs u-color-80 u-text-r-xs u-textWeight-600"
-                       id="wrong_conditions_notbefore" name="wrong_conditions_notbefore" type="datetime-local">
+                    <span class="form-label-content">NotBefore (Conditions) errato </span>
+                </label>
+                <input
+                    class="Form-input u-border-top-none u-border-right-none u-border-left-none u-border-bottom-xxs u-color-80 u-text-r-xs u-textWeight-600"
+                    id="wrong_conditions_notbefore" name="wrong_conditions_notbefore" type="datetime-local">
             </div>
             <div class="Form-field form-animate-fields">
                 <label for="wrong_conditions_notonorafter">
-                        <span class="form-label-content">NotOnOrAfter (Conditions) errato </span>
-                    </label>
-                <input class="Form-input u-border-top-none u-border-right-none u-border-left-none u-border-bottom-xxs u-color-80 u-text-r-xs u-textWeight-600"
-                       id="wrong_conditions_notonorafter" name="wrong_conditions_notonorafter" type="datetime-local">
+                    <span class="form-label-content">NotOnOrAfter (Conditions) errato </span>
+                </label>
+                <input
+                    class="Form-input u-border-top-none u-border-right-none u-border-left-none u-border-bottom-xxs u-color-80 u-text-r-xs u-textWeight-600"
+                    id="wrong_conditions_notonorafter" name="wrong_conditions_notonorafter" type="datetime-local">
             </div>
             <div class="Form-field form-animate-fields">
                 <label for="wrong_subj_notonorafter">
-                        <span class="form-label-content">NotOnOrAfter (Subjectconfirmationdata) errato </span>
-                    </label>
-                <input class="Form-input u-border-top-none u-border-right-none u-border-left-none u-border-bottom-xxs u-color-80 u-text-r-xs u-textWeight-600"
-                       id="wrong_subj_notonorafter" name="wrong_subj_notonorafter" type="datetime-local">
+                    <span class="form-label-content">NotOnOrAfter (Subjectconfirmationdata) errato </span>
+                </label>
+                <input
+                    class="Form-input u-border-top-none u-border-right-none u-border-left-none u-border-bottom-xxs u-color-80 u-text-r-xs u-textWeight-600"
+                    id="wrong_subj_notonorafter" name="wrong_subj_notonorafter" type="datetime-local">
             </div>
             <div class="Form-field form-animate-fields">
-                <input
-                       id="wrong_subj_inresponseto" name="wrong_subj_inresponseto" type="checkbox">
+                <input id="wrong_subj_inresponseto" name="wrong_subj_inresponseto" type="checkbox">
                 <label class="Form-label u-text-r-xs u-textWeight-400 u-color-grey-40 " for="wrong_subj_inresponseto">
                     <span class="form-label-content">InResponseTo (Subjectconfirmationdata) errato </span>
                 </label>
@@ -116,33 +117,31 @@
                 </label>
             </div>
             <div class="Form-field form-animate-fields">
-                <input
-                       id="no_sign_assertion" name="no_sign_assertion" type="checkbox" checked>
-                <label class="Form-label is-required u-text-r-xs u-textWeight-400 u-color-grey-40 " for="no_sign_assertion">
+                <input id="no_sign_assertion" name="no_sign_assertion" type="checkbox" checked>
+                <label class="Form-label is-required u-text-r-xs u-textWeight-400 u-color-grey-40 "
+                    for="no_sign_assertion">
                     <span class="form-label-content">Firma Assertion (obbligatoria)</span>
                 </label>
             </div>
             <div class="Form-field form-animate-fields">
-                <input
-                       id="sign_message" name="sign_message" type="checkbox" checked>
+                <input id="sign_message" name="sign_message" type="checkbox" checked>
                 <label class="Form-label is-required u-text-r-xs u-textWeight-400 u-color-grey-40 " for="sign_message">
                     <span class="form-label-content">Firma Response (facoltativa)</span>
                 </label>
             </div>
             <div class="Form-field form-animate-fields">
-                <textarea rows="10" cols="30"
-                       id="private_key" name="private_key"></textarea>
+                <textarea rows="10" cols="30" id="private_key" name="private_key"></textarea>
                 <label class="Form-label is-required u-text-r-xs u-textWeight-400 u-color-grey-40 " for="private_key">
                     <span class="form-label-content">Chiave </span>
                 </label>
             </div>
             <div class="Form-field form-animate-fields">
-                <textarea rows="10" cols="30"
-                       id="public_key" name="public_key"></textarea>
+                <textarea rows="10" cols="30" id="public_key" name="public_key"></textarea>
                 <label class="Form-label is-required u-text-r-xs u-textWeight-400 u-color-grey-40 " for="public_key">
                     <span class="form-label-content">Certificato </span>
                 </label>
             </div>
+            {% endif %}
         </form>
     </article>
 </main>
