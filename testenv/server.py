@@ -873,33 +873,30 @@ class IdpServer(object):
         with open(cert_file, 'r') as fp:
             cert = fp.readlines()[1:-1]
             cert = ''.join(cert)
-        endpoints = self._config.endpoints
-        sso = self._config.entity_id + endpoints.get('single_sign_on_service')
-        slo = self._config.entity_id + endpoints.get('single_logout_service')
         sso_list = []
         slo_list = []
         sso_list.append(
             Sso(
                 binding=BINDING_HTTP_POST,
-                location=sso
+                location=self._config.absolute_sso_url
             )
         )
         sso_list.append(
             Sso(
                 binding=BINDING_HTTP_REDIRECT,
-                location=sso
+                location=self._config.absolute_sso_url
             )
         )
         slo_list.append(
             Slo(
                 binding=BINDING_HTTP_POST,
-                location=slo
+                location=self._config.absolute_slo_url
             )
         )
         slo_list.append(
             Slo(
                 binding=BINDING_HTTP_REDIRECT,
-                location=slo
+                location=self._config.absolute_slo_url
             )
         )
         metadata = create_idp_metadata(

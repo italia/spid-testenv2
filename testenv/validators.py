@@ -681,8 +681,9 @@ class SpidRequestValidator(object):
                     'ID': str,
                     'Version': Equal('2.0', msg=DEFAULT_VALUE_ERROR.format('2.0')),
                     'IssueInstant': All(str, _check_utc_date, self._check_date_in_range),
-                    'Destination': Equal(
-                        entity_id, msg=DEFAULT_VALUE_ERROR.format(entity_id)
+                    'Destination': In(
+                        [entity_id, self._config.absolute_sso_url],
+                        msg=DEFAULT_VALUE_ERROR.format(entity_id)
                     ),
                     Optional('ForceAuthn'): str,
                     Optional('AttributeConsumingServiceIndex'): In(
@@ -729,8 +730,9 @@ class SpidRequestValidator(object):
                     'ID': str,
                     'Version': Equal('2.0', msg=DEFAULT_VALUE_ERROR.format('2.0')),
                     'IssueInstant': All(str, _check_utc_date, self._check_date_in_range),
-                    'Destination': Equal(
-                        entity_id, msg=DEFAULT_VALUE_ERROR.format(entity_id)
+                    'Destination': In(
+                        [entity_id, self._config.absolute_sso_url],
+                        msg=DEFAULT_VALUE_ERROR.format(entity_id)
                     ),
                     Optional('NotOnOrAfter'): All(str, _check_utc_date, self._check_date_not_expired),
                     Optional('Reason'): str,
