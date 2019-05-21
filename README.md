@@ -79,8 +79,6 @@ docker logs -f spid-testenv2
 
 ## Configurazione
 
-(In caso di installazione via Docker, sostituire `conf/` nei seguenti comandi con il percorso alla directory di configurazione creata nell'host.)
-
 Generare una chiave privata ed un certificato.
 
 ```
