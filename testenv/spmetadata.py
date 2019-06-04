@@ -53,7 +53,7 @@ class ServiceProviderMetadataRegistry(object):
                     self._validators.validate(metadata.xml)
                     return metadata
                 except ValidationError as e:
-                    raise DeserializationError(metadata, e.details)
+                    raise DeserializationError(metadata.xml, e.details)
             except MetadataNotFoundError:
                 continue
 
