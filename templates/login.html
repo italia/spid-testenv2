@@ -117,9 +117,9 @@
                 </label>
             </div>
             <div class="Form-field form-animate-fields">
-                <input id="no_sign_assertion" name="no_sign_assertion" type="checkbox" checked>
+                <input id="sign_assertion" name="sign_assertion" type="checkbox" checked>
                 <label class="Form-label is-required u-text-r-xs u-textWeight-400 u-color-grey-40 "
-                    for="no_sign_assertion">
+                    for="sign_assertion">
                     <span class="form-label-content">Firma Assertion (obbligatoria)</span>
                 </label>
             </div>
@@ -141,6 +141,8 @@
                     <span class="form-label-content">Certificato </span>
                 </label>
             </div>
+            {% else %}
+            <input type="hidden" name="sign_assertion" value="1" />
             {% endif %}
         </form>
     </article>

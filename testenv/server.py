@@ -543,7 +543,7 @@ class IdpServer(object):
                         custom_spid_level = request.form.get('spid_level')
                         if custom_spid_level:
                             spid_level = self._spid_levels[int(custom_spid_level)]
-                        sign_assertion = request.form.get('no_sign_assertion', False)
+                        sign_assertion = request.form.get('sign_assertion', False)
                         sign_message = request.form.get('sign_message', False)
 
                         custom_private_key = request.form.get('private_key')
