@@ -21,13 +21,11 @@
             </div>
         </form>
 
-        {% if show_response_options %}
-        <div id="spid-message">
+        <div id="spid-message" style="{% if not show_response_options %}display: none{% endif %}">
             {% for line in lines %}
             <pre class="xml-line">{{line}}</pre>
             {% endfor %}
         </div>
-        {% endif %}
     </article>
 </main>
 {% endblock %}

@@ -13,3 +13,4 @@ metadata:
   local:
   - "testenv/tests/data/sp-metadata.xml"
 users_file: "testenv/tests/data/users.json"
+show_response_options: true

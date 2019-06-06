@@ -677,7 +677,8 @@ class IdpServer(object):
                                 'lines': escape(response.decode('utf-8')).splitlines(),
                                 'attrs': _identity.keys(),
                                 'action': '/continue-response',
-                                'request_key': key
+                                'request_key': key,
+                                'show_response_options': self._config.show_response_options,
                             }
                         )
                         return rendered_response, 200
