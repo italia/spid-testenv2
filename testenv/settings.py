@@ -22,7 +22,7 @@ SPID_ATTRIBUTES = {
         'name': 'string',
         'familyName': 'string',
         'placeOfBirth': 'string',
-        'countyOfBirth': 'string',
+        'countryOfBirth': 'string',
         'dateOfBirth': 'date',
         'gender': 'string',
         'companyName': 'string',
