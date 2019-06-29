@@ -184,7 +184,10 @@ class Config(object):
     @property
     def endpoints(self):
         return {
-            ep: self._confdata.get('endpoints', {}).get(ep)
+            ep: self._confdata.get('endpoints', {
+                "single_sign_on_service": "/sso",
+                "single_logout_service": "/slo",
+            }).get(ep)
             for ep in ('single_sign_on_service', 'single_logout_service')
         }
 

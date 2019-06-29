@@ -42,11 +42,6 @@ https: false
 #https_key_file: "path/to/key"
 #https_cert_file: "path/to/cert"
 
-# Endpoint del server IdP (path relativi)
-endpoints:
-  single_sign_on_service: "/sso"
-  single_logout_service: "/slo"
-
 # File contenente le identità degli utenti di test
 users_file: "conf/users.json"
 
