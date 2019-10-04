@@ -214,10 +214,11 @@ class IdpServer(object):
         return key
 
     def _handle_errors(self, xmlstr, errors=None):
+        xmlstr = xmlstr if isinstance(xmlstr, str) else xmlstr.decode()
         rendered_error_response = render_template(
             'spid_error.html',
             **{
-                'lines': xmlstr.decode("utf-8").splitlines(),
+                'lines': xmlstr.splitlines(),
                 'errors': errors
             }
         )
