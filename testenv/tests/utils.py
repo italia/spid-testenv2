@@ -1,18 +1,9 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import os
 import os.path
+from io import StringIO
 
 from lxml import etree
 from OpenSSL import crypto
-
-try:
-    # Replace this try-except with
-    # from six.moves import StringIO
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
 
 
 def validate_xml(xml_string, xsd_path):
@@ -25,7 +16,7 @@ def validate_xml(xml_string, xsd_path):
     return xmlschema.validate(etree.parse(StringIO(xml_string)))
 
 
-class FakeRequest(object):
+class FakeRequest:
 
     def __init__(self, data):
         self.saml_request = data

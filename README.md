@@ -16,6 +16,8 @@ Può essere facilmente eseguito in locale o su un proprio server seguendo le ist
 
 ## Requisiti
 
+* Python 3+
+
 Installare le seguenti librerie:
 
 * [xmlsec1](http://www.aleksey.com/xmlsec/)

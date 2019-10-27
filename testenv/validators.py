@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import re
 from collections import namedtuple
 from datetime import datetime, timedelta
@@ -81,7 +78,7 @@ def _strip_namespaces(string):
     return re.sub(r'\{(urn|http):.+?\}', '', string)
 
 
-class ValidatorGroup(object):
+class ValidatorGroup:
 
     def __init__(self, validators):
         self._validators = validators
@@ -118,7 +115,7 @@ class ValidatorGroup(object):
         self._validation_errors += error.details
 
 
-class XMLFormatValidator(object):
+class XMLFormatValidator:
     """
     Ensure XML is well formed.
     """
@@ -159,7 +156,7 @@ class XMLMetadataFormatValidator(XMLFormatValidator):
             self._handle_errors()
 
 
-class XMLSchemaFileLoader(object):
+class XMLSchemaFileLoader:
     """
     Load XML Schema instances from the filesystem.
     """
@@ -187,7 +184,7 @@ class XMLSchemaFileLoader(object):
         return etree.XMLSchema(xmlschema_doc)
 
 
-class BaseXMLSchemaValidator(object):
+class BaseXMLSchemaValidator:
     """
     Validate XML fragments against XML Schema (XSD).
     """
@@ -247,7 +244,7 @@ class ServiceProviderMetadataXMLSchemaValidator(BaseXMLSchemaValidator):
         return self._run(metadata, schema_type)
 
 
-class SpidMetadataValidator(object):
+class SpidMetadataValidator:
     def __init__(self, registry=None):
         if registry:  # FIXME fix circular import. this is ugly.
             self._registry = registry
@@ -451,7 +448,7 @@ class SpidMetadataValidator(object):
             raise SPIDValidationError(details=errors)
 
 
-class SpidRequestValidator(object):
+class SpidRequestValidator:
 
     def __init__(self, action, binding, registry=None, conf=None):
         self._action = action
@@ -641,7 +638,7 @@ class SpidRequestValidator(object):
         # LOGIN
 
         def check_assertion_consumer_service(attrs):
-            keys = attrs.keys()
+            keys = list(attrs.keys())
             if (
                 'AssertionConsumerServiceURL' in keys and 'ProtocolBinding' in keys and 'AssertionConsumerServiceIndex' not in keys
             ):

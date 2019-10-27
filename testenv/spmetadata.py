@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 from glob import glob
 from itertools import chain
 
@@ -32,10 +29,10 @@ REQUESTEDATTRIBUTE = RequestedAttribute.tag()
 SINGLE_LOGOUT_SERVICE = SingleLogoutService.tag()
 
 
-class ServiceProviderMetadataRegistry(object):
+class ServiceProviderMetadataRegistry:
     def __init__(self):
         self._loaders = []
-        for source_type, source_params in config.params.metadata.items():
+        for source_type, source_params in list(config.params.metadata.items()):
             self._loaders.append({
                 'local': ServiceProviderMetadataFileLoader,
                 'remote': ServiceProviderMetadataHTTPLoader,
@@ -75,7 +72,7 @@ def build_metadata_registry():
     registry = ServiceProviderMetadataRegistry()
 
 
-class ServiceProviderMetadataFileLoader(object):
+class ServiceProviderMetadataFileLoader:
     """Loads metadata from the configured files
 
     This could be improved automatically reloading the metadata when
@@ -104,10 +101,10 @@ class ServiceProviderMetadataFileLoader(object):
             raise MetadataNotFoundError(entity_id)
 
     def all(self):
-        return self._metadata.keys()
+        return list(self._metadata.keys())
 
 
-class ServiceProviderMetadataHTTPLoader(object):
+class ServiceProviderMetadataHTTPLoader:
     """Loads metadata from the configured URLs"""
 
     def __init__(self, conf):
@@ -130,10 +127,10 @@ class ServiceProviderMetadataHTTPLoader(object):
             raise MetadataNotFoundError(entity_id)
 
     def all(self):
-        return self._metadata.keys()
+        return list(self._metadata.keys())
 
 
-class ServiceProviderMetadataDbLoader(object):
+class ServiceProviderMetadataDbLoader:
     """Loads metadata from the configured database"""
 
     def __init__(self, conf):
@@ -146,10 +143,10 @@ class ServiceProviderMetadataDbLoader(object):
         return ServiceProviderMetadata(metadata)
 
     def all(self):
-        return self._provider.all().keys()
+        return list(self._provider.all().keys())
 
 
-class ServiceProviderMetadata(object):
+class ServiceProviderMetadata:
 
     def __init__(self, xml):
         self.xml = xml

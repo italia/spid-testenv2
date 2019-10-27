@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import unittest
 
 from testenv.saml import create_idp_metadata, create_response

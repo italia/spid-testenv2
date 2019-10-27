@@ -1,22 +1,14 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import re
 import zlib
 from base64 import b64decode
 from collections import namedtuple
+from urllib.parse import urlencode
 
 from lxml import etree, objectify
 
 from testenv.exceptions import DeserializationError, RequestParserError, ValidationError
 from testenv.settings import BINDING_HTTP_POST, BINDING_HTTP_REDIRECT, MULTIPLE_OCCURRENCES_TAGS
 from testenv.validators import AuthnRequestXMLSchemaValidator, SpidRequestValidator, ValidatorGroup, XMLFormatValidator
-
-try:
-    from urllib import urlencode
-except ImportError:
-    from urllib.parse import urlencode
-
 
 SIGNED_PARAMS = ['SAMLRequest', 'RelayState', 'SigAlg']
 
@@ -49,7 +41,7 @@ def get_http_post_request_deserializer(request, action):
     return _get_deserializer(request, action, BINDING_HTTP_POST)
 
 
-class HTTPRedirectRequestParser(object):
+class HTTPRedirectRequestParser:
 
     def __init__(self, querystring, request_class=None):
         self._querystring = querystring
@@ -131,7 +123,7 @@ class HTTPRedirectRequestParser(object):
         )
 
 
-class HTTPPostRequestParser(object):
+class HTTPPostRequestParser:
 
     def __init__(self, form, request_class=None):
         self._form = form
@@ -179,7 +171,7 @@ class HTTPPostRequestParser(object):
         return self._request_class(self._saml_request, self._relay_state)
 
 
-class HTTPRequestDeserializer(object):
+class HTTPRequestDeserializer:
 
     def __init__(self, request, validator, saml_class=None):
         self._request = request
@@ -204,7 +196,7 @@ class HTTPRequestDeserializer(object):
         return self._saml_class(xml_doc)
 
 
-class SAMLTree(object):
+class SAMLTree:
 
     def __init__(self, xml_doc, multi_occur_tags=None):
         self._xml_doc = xml_doc
@@ -224,7 +216,7 @@ class SAMLTree(object):
         return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
     def _bind_attributes(self):
-        for attr_name, attr_val in self._xml_doc.attrib.items():
+        for attr_name, attr_val in list(self._xml_doc.attrib.items()):
             attr_name = self._to_snake_case(attr_name)
             setattr(self, attr_name, attr_val)
 

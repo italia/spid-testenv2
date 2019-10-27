@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import json
 from copy import deepcopy
 
@@ -11,7 +8,7 @@ from testenv import settings
 from testenv.exceptions import BadConfiguration
 
 
-class ConfigValidator(object):
+class ConfigValidator:
 
     def __init__(self, confdata):
         self._confdata = confdata
@@ -55,7 +52,7 @@ class ConfigValidator(object):
             return data
 
         def check_endpoints(data):
-            for endpoint in data.get('endpoints', {}).values():
+            for endpoint in list(data.get('endpoints', {}).values()):
                 if not endpoint.startswith('/'):
                     raise Invalid(
                         'Errore nella configurazione delle URL: '
@@ -87,7 +84,7 @@ class ConfigValidator(object):
         schema(self._confdata)
 
 
-class Config(object):
+class Config:
 
     def __init__(self, confdata):
         self._confdata = confdata
@@ -260,7 +257,7 @@ class Config(object):
         return ['{}/{}'.format(entity_id, endpoint)]
 
 
-class BaseConfigParser(object):
+class BaseConfigParser:
 
     def __init__(self, path):
         self._path = path
