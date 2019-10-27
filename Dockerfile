@@ -1,4 +1,4 @@
-FROM python:3.5
+FROM python:3.5-slim
 
 # Install prerequisites
 RUN apt-get update -y && apt-get install -y ca-certificates xmlsec1 libffi6
