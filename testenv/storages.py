@@ -1,9 +1,11 @@
 """Classes abstracting the storage of Service Providers metadata and users"""
 
 import json
+import random
 import string
 
-import exrex
+from codicefiscale import codicefiscale as fiscalcode
+from codicefiscale.data import _MUNICIPALITIES as italian_municipalities
 from faker import Faker
 from flask_admin.contrib.sqla import ModelView
 from sqlalchemy import Column, Integer, String, create_engine
@@ -52,8 +54,14 @@ class AbstractUserProvider:
                 else FAKER.first_name_female()
             lastname = FAKER.last_name_male() if _is_even \
                 else FAKER.last_name_female()
-            fiscal_number = exrex.getone(
-                r'[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]'
+            gender = 'M' if _is_even else 'F'
+            birth_date = FAKER.date()
+            fiscal_number = fiscalcode.encode(
+                surname=lastname,
+                name=name,
+                sex=gender,
+                birthdate=birth_date,
+                birthplace=random.choice(italian_municipalities)['code']
             )
             spid_code = 'TENV{}'.format(
                 FAKER.lexify('??????????', string.ascii_letters + string.digits)
@@ -63,8 +71,8 @@ class AbstractUserProvider:
                     'spidCode': spid_code,
                     'name': name,
                     'familyName': lastname,
-                    'gender': 'M' if _is_even else 'F',
-                    'dateOfBirth': FAKER.date(),
+                    'gender': gender,
+                    'dateOfBirth': birth_date,
                     'companyName': FAKER.company(),
                     'registeredOffice': FAKER.address(),
                     'fiscalNumber': 'TINIT-{}'.format(fiscal_number),
