@@ -79,7 +79,8 @@ docker logs -f spid-testenv2
 
 ## Configurazione
 
-Generare una chiave privata ed un certificato.
+Generare una chiave privata ed un certificato (non necessario se si usa il container
+Docker).
 
 ```
 openssl req -x509 -nodes -sha256 -subj '/C=IT' -newkey rsa:2048 -keyout conf/idp.key -out conf/idp.crt
