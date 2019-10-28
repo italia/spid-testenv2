@@ -1,0 +1,11 @@
+version: '3'
+services:
+  app:
+    image: "italia/spid-testenv2:${TAG:-latest}"
+    build:
+      context: .
+    volumes:
+        - '/etc/spid-testenv2:/app/conf'
+    ports:
+        - '8088:8088'
+    restart: always

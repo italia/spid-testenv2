@@ -57,21 +57,27 @@ mkdir /etc/spid-testenv2
 
 Creare nella directory il file config.yaml e la coppia chiave/certificato per l'IdP, nonché eventuali metadata SP, come indicato nel paragrafo successivo.
 
-Creare il container con il seguente comando:
+Creare il container usando `docker-compose`, se è disponibile:
 
 ```
-docker create --name spid-testenv2 -p 8088:8088 --restart=always \
+docker-compose up -d
+```
+
+oppure
+
+```
+docker run --name spid-testenv2 -p 8088:8088 --restart=always \
    --mount src="/etc/spid-testenv2",target="/app/conf",type=bind \
    italia/spid-testenv2
 ```
 
-Avviare il container:
-
-```
-docker start spid-testenv2
-```
-
 Il log si può visualizzare con il comando:
+
+```
+docker-compose logs
+```
+
+oppure
 
 ```
 docker logs -f spid-testenv2
