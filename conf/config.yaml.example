@@ -16,6 +16,8 @@ cert_file: "./conf/idp.crt"
 # file .xml è sufficiente inserirne il path sotto "local"; per leggerli da 
 # un URL remoto bisogna invece inserirlo sotto "remote".
 metadata:
+   # Sono supportati anche metacaratteri,
+   # es: "*.xml", "sp_metadat?.xml" o "sp[-_]metadat[a-z].xml"
 #  local:
 #    - "./conf/sp_metadata.xml"
 #  remote:
