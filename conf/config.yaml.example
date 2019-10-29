@@ -12,8 +12,8 @@ cert_file: "./conf/idp.crt"
 
 # CONFIGURAZIONE SERVICE PROVIDER
 
-# Si possono configurare più Service Provider. Per leggere i metadati da un 
-# file .xml è sufficiente inserirne il path sotto "local"; per leggerli da 
+# Si possono configurare più Service Provider. Per leggere i metadati da un
+# file .xml è sufficiente inserirne il path sotto "local"; per leggerli da
 # un URL remoto bisogna invece inserirlo sotto "remote".
 metadata:
 #  local:
@@ -21,7 +21,7 @@ metadata:
 #  remote:
 #    - "http://spid-sp/metadata"
 #  db: 'postgresql+psycopg2://postgres:@localhost:5432/exampledb'
-     
+
 
 
 # CONFIGURAZIONE TESTENV WEB SERVER
@@ -52,7 +52,7 @@ users_file: "conf/users.json"
 # Abilita (true) o disabilita (false) la possibilità di aggiungere nuovi utenti
 can_add_user: true
 
-# Abilita (true) o disbilita (false) l'interfaccia /admin che consente di gestire 
+# Abilita (true) o disbilita (false) l'interfaccia /admin che consente di gestire
 # gli oggetti nel database
 database_admin_interface: false
 
