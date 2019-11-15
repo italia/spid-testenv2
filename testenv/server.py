@@ -113,10 +113,11 @@ class IdpServer(object):
         self.app.add_url_rule(
             '/login', 'login', self.login, methods=['POST', 'GET']
         )
-        # Endpoint for user add action
-        self.app.add_url_rule(
-            '/users', 'users', self.users, methods=['GET', 'POST']
-        )
+        if self._config.can_view_users:
+            # Endpoint for user add action
+            self.app.add_url_rule(
+                '/users', 'users', self.users, methods=['GET', 'POST']
+            )
         self.app.add_url_rule(
             '/continue-response', 'continue_response',
             self.continue_response, methods=['POST']
@@ -353,7 +354,8 @@ class IdpServer(object):
                 'secondary_attributes': spid_secondary_fields,
                 'users': self.user_manager.all(),
                 'sp_list': self._registry.all(),
-                'can_add_user': can_add_user
+                'can_add_user': can_add_user,
+                'can_view_users': self._config.can_view_users
             }
         )
         if request.method == 'GET':
@@ -391,6 +393,7 @@ class IdpServer(object):
                         "entityID": sp
                     } for sp in self._registry.all()
                 ],
+            'can_view_users': self._config.can_view_users
             }
         )
         return rendered_form, 200
