@@ -393,7 +393,7 @@ class IdpServer(object):
                         "entityID": sp
                     } for sp in self._registry.all()
                 ],
-            'can_view_users': self._config.can_view_users
+                'can_view_users': self._config.can_view_users
             }
         )
         return rendered_form, 200
