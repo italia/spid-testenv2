@@ -346,6 +346,7 @@ class IdpServer(object):
         spid_main_fields = self._spid_main_fields
         spid_secondary_fields = self._spid_secondary_fields
         can_add_user = self._config.can_add_user
+        can_view_users = self._config.can_view_users
         rendered_form = render_template(
             "users.html",
             **{
@@ -355,7 +356,7 @@ class IdpServer(object):
                 'users': self.user_manager.all(),
                 'sp_list': self._registry.all(),
                 'can_add_user': can_add_user,
-                'can_view_users': self._config.can_view_users
+                'can_view_users': can_view_users
             }
         )
         if request.method == 'GET':
