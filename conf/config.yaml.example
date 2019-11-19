@@ -52,6 +52,9 @@ users_file: "conf/users.json"
 # Abilita (true) o disabilita (false) la possibilità di aggiungere nuovi utenti
 can_add_user: true
 
+# Abilita (true) o disabilita (false) la possibilità di visualizzare la sezione utenti
+can_view_users: true
+
 # Abilita (true) o disbilita (false) l'interfaccia /admin che consente di gestire 
 # gli oggetti nel database
 database_admin_interface: false

@@ -41,8 +41,10 @@
           <li class="nav-item active"><a class="nav-link active" href="/"><span>Home</span><span
                 class="sr-only">current</span></a>
           </li>
+           {% if can_view_users %}
           <li class="nav-item"><a class="nav-link" href="/users"><span>Utenti</span></a>
           </li>
+           {% endif %}
           <li class="nav-item"><a class="nav-link" href="/metadata"><span>Metadata IdP</span></a></li>
         </ul>
       </div>

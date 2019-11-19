@@ -32,6 +32,7 @@ class ConfigValidator(object):
             'users_file': str,
             'behind_reverse_proxy': bool,
             'can_add_user': bool,
+            'can_view_users': bool,
             'storage': All(str, In(['file', 'postgres'])),
             'db_url': str,
             'endpoints': {
@@ -172,6 +173,10 @@ class Config(object):
     @property
     def can_add_user(self):
         return self._confdata.get('can_add_user', True)
+
+    @property
+    def can_view_users(self):
+        return self._confdata.get('can_view_users', True)
 
     @property
     def database_admin_interface(self):
