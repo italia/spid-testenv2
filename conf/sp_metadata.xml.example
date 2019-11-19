@@ -1,7 +1,6 @@
+<?xml version="1.0"?>
 <!-- Esempio di metadata Service Provider
      Per informazioni sulla compilazione fare riferimento alle Regole Tecniche SPID -->
-
-<?xml version="1.0"?> 
 
 <!-- entityID è una URI che individua univocamente il Service Provider -->
 <md:EntityDescriptor 
@@ -11,7 +10,7 @@
     ID="_681a637-6cd4-434f-92c3-4fed720b2ad8"> 
     
     <!-- Il certificato del Service Provider va riportato nei due tag KeyDescriptor
-         qui sotto, senza i delimitatori --- BEGIN CERTIFICATE --- e --- END CERTIFICATE -- !-->
+         qui sotto, senza i delimitatori ‐‐‐ BEGIN CERTIFICATE ‐‐‐ e ‐‐‐ END CERTIFICATE ‐‐‐ -->
     <md:SPSSODescriptor  
         protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol"  
         AuthnRequestsSigned="true"  
@@ -33,7 +32,7 @@
             </ds:KeyInfo> 
         </md:KeyDescriptor> 
         
-        <!-- Endpoint del Service Provider deputato a ricevere le LogoutRequest --!>
+        <!-- Endpoint del Service Provider deputato a ricevere le LogoutRequest -->
         <md:SingleLogoutService 
             Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
             Location="https://www.myserviceprovider.it/spid/logout" /> 
@@ -41,7 +40,7 @@
         <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:transient</md:NameIDFormat> 
 
         <!-- Endpoint del Service Provider deputato a ricevere le asserzioni di login.
-        	(può essere ripetuto più volte, incrementando l'attributo index) --!>
+        	(può essere ripetuto più volte, incrementando l'attributo index) -->
         <md:AssertionConsumerService  
             Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"  
             Location="https://www.myserviceprovider.it/spid/acs"  
