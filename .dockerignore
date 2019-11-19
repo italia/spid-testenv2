@@ -1,0 +1,49 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# dotenv
+.env
+
+# virtualenv
+.venv
+venv/
+ENV/
+
+ansible/site.retry
+
+/idp.crt
+/idp.key
+/metadata.xml
+/sp_metadata.xml
+/users.json
+/config.yaml
+
+/conf/*
+!/conf/*.example
+
+.git
+.gitignore
+README.md
+
+.dockerignore
+Dockerfile
+requirements.in
+
+.log
+*.log.*
