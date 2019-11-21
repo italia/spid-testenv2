@@ -1,7 +1,9 @@
-FROM python:3.5
+FROM python:3.5-slim
 
 # Install prerequisites
-RUN apt-get update -y && apt-get install -y ca-certificates xmlsec1 libffi6
+RUN apt-get update && apt-get install -y ca-certificates xmlsec1 libffi6 \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
 
 # We copy just the requirements.txt first to leverage Docker cache
 # (avoid rebuilding the requirements layer when application changes)
