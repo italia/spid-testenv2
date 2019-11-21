@@ -12,6 +12,8 @@ Questo Identity Provider consente agli sviluppatori di verificare le proprie int
 
 Può essere facilmente eseguito in locale o su un proprio server seguendo le istruzioni di seguito riportate.
 
+> ⚠️ **AVVISO DI SICUREZZA: spid-testenv2 non deve essere utilizzato in ambienti di produzione.** Nessun Service Provider deve accettare **in produzione** autenticazioni prodotte da spid-testenv2, che è solo uno strumento da utilizzarsi in fase di sviluppo e test.
+
 ## Requisiti
 
 Installare le seguenti librerie:
@@ -79,7 +81,8 @@ docker logs -f spid-testenv2
 
 ## Configurazione
 
-Generare una chiave privata ed un certificato.
+Generare una chiave privata ed un certificato (non necessario se si usa il container
+Docker).
 
 ```
 openssl req -x509 -nodes -sha256 -subj '/C=IT' -newkey rsa:2048 -keyout conf/idp.key -out conf/idp.crt

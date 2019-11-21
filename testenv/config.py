@@ -293,7 +293,7 @@ class BaseConfigParser(object):
 class YAMLConfigParser(BaseConfigParser):
 
     def _deserialize(self):
-        return yaml.load(self._fp)
+        return yaml.safe_load(self._fp)
 
 
 class JSONConfigParser(BaseConfigParser):
