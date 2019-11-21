@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+from glob import glob
+from itertools import chain
+
 import requests
 
 from testenv import config, log
@@ -75,13 +78,15 @@ def build_metadata_registry():
 class ServiceProviderMetadataFileLoader(object):
     """Loads metadata from the configured files
 
-    This could be improved in two ways:
-    1. support wildcards (e.g. conf/*.xml)
-    2. automatic reload of metadata when file timestamps change"""
+    This could be improved automatically reloading the metadata when
+    file timestamps change
+    """
 
     def __init__(self, conf):
         self._metadata = {}
-        for file in conf:
+
+        files = [glob(entry) for entry in conf]
+        for file in list(chain.from_iterable(files)):
             try:
                 with open(file, 'rb') as fp:
                     metadata = ServiceProviderMetadata(fp.read())
