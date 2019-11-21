@@ -17,5 +17,5 @@ COPY . /app
 EXPOSE 8088
 VOLUME /app/conf
 
-ENTRYPOINT ["python"]
-CMD ["spid-testenv.py"]
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["python", "spid-testenv.py"]
