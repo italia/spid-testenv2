@@ -40,15 +40,7 @@ class ConfigValidator(object):
             },
             'metadata': {
                 'local': All([str], Length(min=0)),
-                'remote': All(
-                    [
-                        {
-                            Required('url'): Url(),
-                            'cert': str,
-                        }
-                    ],
-                    Length(min=0),
-                )
+                'remote': All([str], Length(min=0)),
             }
         }
 
