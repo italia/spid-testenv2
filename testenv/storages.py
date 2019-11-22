@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 
 import json
+import string
 
 import exrex
 from faker import Faker
@@ -64,9 +65,12 @@ class AbstractUserProvider(object):
             fiscal_number = exrex.getone(
                 r'[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]'
             )
+            spid_code = 'TENV{}'.format(
+                FAKER.lexify('??????????', string.ascii_letters + string.digits)
+            )
             _users[FAKER.user_name() if idx > 0 else 'test'] = {
                 'attrs': {
-                    'spidCode': FAKER.uuid4(),
+                    'spidCode': spid_code,
                     'name': name,
                     'familyName': lastname,
                     'gender': 'M' if _is_even else 'F',
