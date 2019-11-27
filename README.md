@@ -98,11 +98,14 @@ cp conf/config.yaml.example conf/config.yaml
 
 ### Caricamento metadata Service Provider
 
-L'unico valore che è necessario modificare rispetto ai default è `metadata`, che indica i metadata dei Service Provider che si intendono collegare all'IdP di test. Per generare tali metadati vi sono tre possibilità:
+L'unico valore che è necessario modificare rispetto ai default è `metadata`, che indica i metadata dei Service Provider che si intendono collegare all'IdP di test.
 
-1. compilarli a mano a partire dal file [sp_metadata.xml.example](conf/sp_metadata.xml.example);
-2. compilarli usando l'interfaccia disponibile in https://idp.spid.gov.it:8080/
-3. generarli (ed esporli) automaticamente dalla propria implementazione Service Provider (ad esempio https://www.mioserviceprovider.it/spid/metadata).
+I metadati possono essere:
+
+1. Compilati manualmente a partire dal file [sp_metadata.xml.example](conf/sp_metadata.xml.example);
+2. Generati ed esposti automaticamente dalla propria implementazione
+   del Service Provider (ad esempio https://mioserviceprovider.example.com/metadata).
+3. Inseriti manualmente dall'interfaccia in `/admin/databasesprecord`.
 
 Il testenv2 supporta il caricamento in tre modalità, che possono essere combinate tra loro:
 
