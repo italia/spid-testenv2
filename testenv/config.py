@@ -5,7 +5,7 @@ import json
 from copy import deepcopy
 
 import yaml
-from voluptuous import ALLOW_EXTRA, All, Any, In, Invalid, Length, Required, Schema, Url
+from voluptuous import ALLOW_EXTRA, All, Any, In, Invalid, Length, Required, Schema
 
 from testenv import settings
 from testenv.exceptions import BadConfiguration
@@ -22,7 +22,11 @@ class ConfigValidator(object):
         self._schema = {
             Required('key_file'): str,
             Required('cert_file'): str,
-            Required('base_url'): Url(),
+
+            # XXX: Not used. Keeping it for retrocompatibility, but should be
+            # removed in the future.
+            'base_url': str,
+
             'host': str,
             'port': Any(int, str),
             'debug': bool,
