@@ -10,8 +10,11 @@
       <tbody>
         {% for item in sp_list %}
             <tr>
-                <td >
-                   {{ item['entityID'] }}
+                <td>
+                    {{ item['entityID'] }}
+                    <small class="float-right">
+                        <mark>loaded from {{ item['location'] }}</mark>
+                    </small>
                 </td>
            </tr>
         {% endfor %}
