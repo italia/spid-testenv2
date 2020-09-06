@@ -270,6 +270,11 @@ class SpidMetadataValidator:
                         ),
                     }, required=True),
                     'children': {
+                        Optional('{%s}KeyName' % (SIGNATURE)): {
+                            'attrs': {},
+                            'children': {},
+                            'text': str
+                        },
                         '{%s}KeyInfo' % (SIGNATURE): {
                             'attrs': {},
                             'children': {
