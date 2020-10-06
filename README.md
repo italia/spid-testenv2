@@ -16,7 +16,8 @@ Può essere facilmente eseguito in locale o su un proprio server seguendo le ist
 
 ## Requisiti
 
-Installare le seguenti librerie:
+Installare le seguenti librerie (non necessario se si usa il container
+Docker):
 
 * [xmlsec1](http://www.aleksey.com/xmlsec/)
 
@@ -57,6 +58,8 @@ Per ottenere la persistenza della configurazione è necessario creare nell'host 
 mkdir /etc/spid-testenv2
 ```
 
+### Manuale
+
 Creare nella directory il file config.yaml e la coppia chiave/certificato per l'IdP, nonché eventuali metadata SP, come indicato nel paragrafo successivo.
 
 Creare il container con il seguente comando:
@@ -79,10 +82,29 @@ Il log si può visualizzare con il comando:
 docker logs -f spid-testenv2
 ```
 
+### Docker Desktop
+
+Creare nella directory il file config.yaml e il file sp_metadata.xml (sono presenti due esempi nella cartella "conf" di questo repository).
+
+Abilitare i Linux Container
+
+Da Settings > General eliminare il check da "Use the WSL 2 based engine"
+
+In Resources > Disk Image Location aggiungere la cartella relativa alla persistenza della configurazione
+
+In Images verificare la presenza del container "italia/spid-testenv2"
+
+Creare il container con RUN. In "Optional Settings" impostare:
+
+- Container Name: spid-testenv2 (o un nome a piacere)
+- Ports: la porta utilizzata (in genere 8080)
+- Volumes: in Host Path indicare la cartella relativa alla persistenza della configurazione e in Container Path indicare /app/conf  
+
+Avviare il container che sarà raggiungibile all'url di configurazione di Docker (es. http://localhost:8080)
+
 ## Configurazione
 
-Generare una chiave privata ed un certificato (non necessario se si usa il container
-Docker).
+Generare una chiave privata ed un certificato (non necessario se si usa il container Docker).
 
 ```
 openssl req -x509 -nodes -sha256 -subj '/C=IT' -newkey rsa:2048 -keyout conf/idp.key -out conf/idp.crt
@@ -94,7 +116,9 @@ Creare e configurare il file config.yaml.
 cp conf/config.yaml.example conf/config.yaml
 ```
 
-### Caricamento metadata Service Provider
+E' possibile che sia necessario modificare il base_url (es. in Docker Desktop con http://localhost:8080)
+
+### Caricamento metadata Service Provider 
 
 L'unico valore che è necessario modificare rispetto ai default è `metadata`, che indica i metadata dei Service Provider che si intendono collegare all'IdP di test. Per generare tali metadati vi sono tre possibilità:
 
@@ -123,6 +147,16 @@ Nella home page è presente la lista dei Service Providers registrati sull'IdP d
 ## Metadata IdP
 
 Il metadata dell'Identity Provider di test è generato automaticamente ed esposto all'URL `/metadata`. Questo metadata deve essere inserito nella configurazione del proprio Service Provider.
+
+Il file sp_metadata.xml deve essere ripulito da tutti i commenti presenti per passare la validazione.
+
+Nel file va modificato:
+
+- entityID: è una URI che individua univocamente il Service Provider
+- X509Certificate: presente due volte, va inserito il contenuto del certificato senza i delimitatori ‐‐‐ BEGIN CERTIFICATE ‐‐‐ e ‐‐‐ END CERTIFICATE ‐‐‐ -->
+- SingleLogoutService e AssertionConsumerService: va modificato con gli url della propria applicazione e index="1"
+- AttributeConsumingService: va modificato con nome del servizio e descrizione del servizio e gli attributi richiesti
+- Organization: va modificato con l'anagrafica del Service Provider
 
 ## Utenti
 
