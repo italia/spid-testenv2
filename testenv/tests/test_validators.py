@@ -1,7 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import unittest
+from unittest.mock import patch
 
 import pytest
 from freezegun import freeze_time
@@ -19,23 +17,18 @@ from testenv.validators import (
     AuthnRequestXMLSchemaValidator, SpidMetadataValidator, SpidRequestValidator, XMLFormatValidator,
 )
 
-try:
-    from unittest.mock import patch
-except ImportError:
-    from mock import patch
-
 
 def fake_check_certificate(cert):
     return cert
 
 
-class FakeTranslator(object):
+class FakeTranslator:
 
     def translate_many(self, errors):
         return errors
 
 
-class FakeConfig(object):
+class FakeConfig:
 
     def __init__(self, endpoint, entity_id):
         self._endpoint = endpoint
@@ -70,7 +63,7 @@ class FakeMetadata(dict):
         return self._assertion_consumer_services
 
 
-class FakeRegistry(object):
+class FakeRegistry:
 
     def __init__(self, metadata):
         self._metadata = metadata.copy()
@@ -83,7 +76,7 @@ class FakeRegistry(object):
         return list(self._metadata.keys())
 
 
-class ServiceProviderMetadataFakeLoader(object):
+class ServiceProviderMetadataFakeLoader:
 
     def __init__(self, atcs_indexes, acs_indexes):
         self.atcs_indexes = atcs_indexes
@@ -250,7 +243,7 @@ class SpidRequestValidatorTestCase(unittest.TestCase):
         registry = FakeRegistry({
             'http://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        for binding, val in {settings.BINDING_HTTP_POST: sample_requests.fake_signature, settings.BINDING_HTTP_REDIRECT: ''}.items():
+        for binding, val in list({settings.BINDING_HTTP_POST: sample_requests.fake_signature, settings.BINDING_HTTP_REDIRECT: ''}.items()):
             request = FakeRequest(sample_requests.missing_issuer)
             validator = SpidRequestValidator('login', binding, registry, config)
             with pytest.raises(UnknownEntityIDError) as excinfo:
@@ -268,10 +261,10 @@ class SpidRequestValidatorTestCase(unittest.TestCase):
         registry = FakeRegistry({
             'https://localhost:8088/': ServiceProviderMetadataFakeLoader([], [(0, 'http://localhost:3000/spid-sso')])
         })
-        for binding, val in {
+        for binding, val in list({
             settings.BINDING_HTTP_POST: sample_requests.fake_signature,
             settings.BINDING_HTTP_REDIRECT: ''
-        }.items():
+        }.items()):
             validator = SpidRequestValidator('login', binding, registry, config)
             request = FakeRequest(sample_requests.wrong_destination)
             with pytest.raises(SPIDValidationError) as excinfo:

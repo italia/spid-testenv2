@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import base64
 import random
 import string
@@ -40,7 +37,7 @@ def from_session(key):
     return session[key] if key in session else None
 
 
-class IdpServer(object):
+class IdpServer:
 
     ticket = {}
     responses = {}
@@ -102,7 +99,7 @@ class IdpServer(object):
             for ep_type in self._endpoint_types:
                 _url = endpoints.get(ep_type)
                 if _url:
-                    for _binding in self._binding_mapping.keys():
+                    for _binding in list(self._binding_mapping.keys()):
                         self.app.add_url_rule(
                             _url,
                             ep_type,
@@ -180,7 +177,7 @@ class IdpServer(object):
         """
         Unpack arguments from request
         """
-        return dict([(k, v) for k, v in elems.items()])
+        return dict([(k, v) for k, v in list(elems.items())])
 
     def _raise_error(self, msg, extra=None):
         """
@@ -323,14 +320,14 @@ class IdpServer(object):
         """
         Returns a list of spid main attributes
         """
-        return self._spid_attributes['primary'].keys()
+        return list(self._spid_attributes['primary'].keys())
 
     @property
     def _spid_secondary_fields(self):
         """
         Returns a list of spid secondary attributes
         """
-        return self._spid_attributes['secondary'].keys()
+        return list(self._spid_attributes['secondary'].keys())
 
     @property
     def _all_attributes(self):
@@ -593,7 +590,7 @@ class IdpServer(object):
                             required = [el for el in attrs.get('required')]
                             optional = [el for el in attrs.get('optional')]
 
-                        for attr_name, val in identity.items():
+                        for attr_name, val in list(identity.items()):
                             _type = self._attribute_type(attr_name)
                             identity[attr_name] = (_type, val)
 
@@ -676,7 +673,7 @@ class IdpServer(object):
                             **{
                                 'destination_service': sp_id,
                                 'lines': escape(response.decode('utf-8')).splitlines(),
-                                'attrs': _identity.keys(),
+                                'attrs': list(_identity.keys()),
                                 'action': '/continue-response',
                                 'request_key': key,
                                 'show_response_options': self._config.show_response_options,

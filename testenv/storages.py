@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
 """Classes abstracting the storage of Service Providers metadata and users"""
-
-from __future__ import unicode_literals
 
 import json
 import string
@@ -16,15 +13,8 @@ from sqlalchemy.orm import sessionmaker
 
 Base = declarative_base()
 
-# Compatibility with legacy Python versions
-try:
-    FileNotFoundError
-except NameError:
-    # py2
-    FileNotFoundError = IOError
 
-
-class AbstractDatabaseProvider(object):
+class AbstractDatabaseProvider:
     """Abstract class representing a database table"""
     TABLE = None
 
@@ -36,7 +26,7 @@ class AbstractDatabaseProvider(object):
         Base.metadata.create_all(self.engine, tables=[self.TABLE.__table__])
 
 
-class AbstractUserProvider(object):
+class AbstractUserProvider:
     """
     Abstract class representing storage of users
     """
@@ -113,7 +103,7 @@ class FileUserProvider(AbstractUserProvider):
             json.dump(self.users, fp, indent=4)
 
     def get(self, uid, pwd, sp_id):
-        for user, _attrs in self.users.items():
+        for user, _attrs in list(self.users.items()):
             if pwd == _attrs['pwd'] and user == uid:
                 if _attrs['sp'] is not None and _attrs['sp'] != sp_id:
                     return None, None
@@ -155,7 +145,7 @@ class DatabaseUserProvider(AbstractUserProvider, AbstractDatabaseProvider):
     def _populate_if_empty(self):
         if self.session.query(self.DatabaseUserRecord).count() == 0:
             _users = self._generate_fake_users()
-            for username, info in _users.items():
+            for username, info in list(_users.items()):
                 self.add(username, info.get('pwd'), info.get('sp'), info.get('attrs'))
 
     def add(self, uid, pwd, sp_id=None, extra=None):
@@ -204,7 +194,7 @@ class DatabaseUserProvider(AbstractUserProvider, AbstractDatabaseProvider):
         admin.add_view(ModelView(self.DatabaseUserRecord, self.session))
 
 
-class UserProvider(object):
+class UserProvider:
 
     @classmethod
     def factory(cls, conf):

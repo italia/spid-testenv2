@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 from copy import deepcopy
 from datetime import datetime, timedelta
 from hashlib import sha1
@@ -42,7 +39,7 @@ MAKERS = {
 }
 
 
-class SamlMixin(object):
+class SamlMixin:
     saml_type = None
     defaults = {}
 
@@ -368,7 +365,7 @@ def create_response(data, response_status, attributes={}, has_assertion=True):
         # Setup attribute statement data (if attributes required)
         if attributes:
             attribute_statement = AttributeStatement()
-            for attr, info in attributes.items():
+            for attr, info in list(attributes.items()):
                 _attribute = Attribute(
                     attrib=dict(
                         Name=attr

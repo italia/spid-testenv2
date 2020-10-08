@@ -4,7 +4,7 @@ import re
 _c = re.compile
 
 
-class Libxml2Translator(object):
+class Libxml2Translator:
 
     _mapping = {
         'PARSER': {

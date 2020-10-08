@@ -1,10 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import os
 import os.path
 import unittest
 from base64 import b64decode
+from urllib.parse import parse_qs, urlencode
 
 import pytest
 from cryptography.hazmat.backends import default_backend
@@ -12,7 +10,6 @@ from cryptography.x509 import load_pem_x509_certificate
 from lxml import etree
 from signxml import XMLVerifier
 from signxml.exceptions import InvalidInput
-from six.moves.urllib.parse import parse_qs
 
 from testenv.crypto import (
     RSA_VERIFIERS, HTTPPostSignatureVerifier, HTTPRedirectSignatureVerifier, sign_http_post, sign_http_redirect,
@@ -23,12 +20,6 @@ from testenv.saml import create_response
 from testenv.settings import SIG_RSA_SHA256, SPID_LEVEL_1, STATUS_SUCCESS
 
 from .utils import generate_certificate
-
-try:
-    from urllib import urlencode
-except ImportError:
-    from urllib.parse import urlencode
-
 
 CERTIFICATE = """\
 MIICqDCCAhGgAwIBAgIBADANBgkqhkiG9w0BAQ0FADBxMQswCQYDVQQGEwJpdDEL

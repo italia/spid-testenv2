@@ -31,7 +31,7 @@ python-dateutil==2.7.5    # via faker
 pyyaml==5.1
 requests==2.20.0
 signxml==2.5.2
-six==1.11.0
+six==1.11.0               # via cryptography, faker, pyopenssl, python-dateutil
 sqlalchemy==1.2.12
 text-unidecode==1.2       # via faker
 urllib3==1.24.3           # via requests

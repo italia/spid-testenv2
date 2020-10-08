@@ -1,10 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import base64
 import unittest
 import zlib
 from copy import copy
+from urllib.parse import urlencode
 
 import pytest
 from lxml import objectify
@@ -16,26 +14,21 @@ from testenv.parser import HTTPPostRequestParser, HTTPRedirectRequestParser, HTT
 from testenv.tests.utils import FakeRequest
 from testenv.validators import ValidatorGroup
 
-try:
-    from urllib import urlencode
-except ImportError:
-    from urllib.parse import urlencode
 
-
-class FakeSAMLClass(object):
+class FakeSAMLClass:
 
     def __init__(self, data):
         self.data = data
 
 
-class SuccessValidator(object):
+class SuccessValidator:
 
     @staticmethod
     def validate(request):
         return None
 
 
-class FailValidator(object):
+class FailValidator:
 
     def __init__(self, exc):
         self._exc = exc

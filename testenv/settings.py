@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 # SPID
 
 SPID_LEVEL_1 = 'https://www.spid.gov.it/SpidL1'

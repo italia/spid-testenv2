@@ -1,19 +1,16 @@
-
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import base64
 import os
 import os.path
 import shutil
 import sys
 import unittest
+from unittest.mock import patch
+from urllib.parse import parse_qs, quote, urlparse
 
 import flask
 from bs4 import BeautifulSoup as BS
 from freezegun import freeze_time
 from lxml import etree as ET
-from six.moves.urllib.parse import parse_qs, quote, urlparse
 
 from testenv import config, spmetadata
 from testenv.crypto import decode_base64_and_inflate, deflate_and_base64_encode, sign_http_redirect
@@ -27,12 +24,6 @@ from .utils import generate_certificate
 
 sys.path.insert(0, '../')
 spid_testenv = __import__("spid-testenv")
-
-try:
-    from unittest.mock import patch
-except ImportError:
-    from mock import patch
-
 
 DATA_DIR = 'testenv/tests/data/'
 
