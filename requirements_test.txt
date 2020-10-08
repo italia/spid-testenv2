@@ -2,5 +2,4 @@
 BeautifulSoup4
 coverage
 freezegun
-mock
 pytest

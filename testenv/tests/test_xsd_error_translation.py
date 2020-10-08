@@ -39,7 +39,7 @@ class Libxml2ItalianTranslationTestCase(unittest.TestCase):
 
     def test_translations(self):
         translator = Libxml2Translator()
-        for input_data, it_message in self.samples.items():
+        for input_data, it_message in list(self.samples.items()):
             domain, type_, en_message = input_data
             en_error = ValidationDetail(
                 None, 1, 2, domain, type_, en_message, '')

@@ -1,10 +1,10 @@
 sudo: false
 language: python
 python:
-- "2.7"
 - "3.4"
 - "3.5"
 - "3.6"
+- "3.7"
 
 
 cache:
@@ -28,7 +28,7 @@ before_install:
 
 matrix:
   include:
-    - python: 3.6
+    - python: 3.7
       env: TOXENV=flake8
-    - python: 3.6
+    - python: 3.7
       env: TOXENV=isort

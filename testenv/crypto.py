@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import base64
 import zlib
+from urllib.parse import urlencode
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
@@ -22,12 +20,6 @@ from testenv.settings import (
     SIGNATURE_METHOD, SIGNED_INFO, SIGNED_PARAMS, SUPPORTED_ALGORITHMS, X509_CERTIFICATE, X509_DATA,
 )
 from testenv.utils import get_today_utc_date
-
-try:
-    from urllib import urlencode
-except ImportError:
-    from urllib.parse import urlencode
-
 
 logger = log.logger
 
@@ -91,7 +83,7 @@ def verify_bad_certificate_algorithm(cert):
     return not isinstance(cert.signature_hash_algorithm, SHA1)
 
 
-class RSASigner(object):
+class RSASigner:
 
     def __init__(self, digest, key=None, padding=None):
         self._key = key
@@ -104,7 +96,7 @@ class RSASigner(object):
         return key.sign(unsigned_data, self._padding, self._digest)
 
 
-class RSAVerifier(object):
+class RSAVerifier:
 
     def __init__(self, digest, padding=None):
         self._digest = digest
@@ -182,7 +174,7 @@ def sign_http_redirect(xmlstr, key, relay_state=None, req_type='SAMLResponse'):
     return urlencode(args)
 
 
-class HTTPRedirectSignatureVerifier(object):
+class HTTPRedirectSignatureVerifier:
 
     def __init__(self, certificate, request, verifiers=None):
         self._cert = certificate
@@ -234,7 +226,7 @@ class HTTPRedirectSignatureVerifier(object):
         return x509.public_key()
 
 
-class HTTPPostSignatureVerifier(object):
+class HTTPPostSignatureVerifier:
 
     def __init__(self, certificate, request, verifier=None):
         self._cert = certificate
