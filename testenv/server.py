@@ -284,7 +284,7 @@ class IdpServer:
             )
         except NoCertificateError:
             self._raise_error(
-                'Errore, il metadata associato al Service provider non'
+                'Errore, il metadata associato al Service provider "{}"'
                 ' non è provvisto di certificati validi'.format(issuer)
             )
 

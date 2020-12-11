@@ -702,8 +702,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(len(self.idp_server.ticket), 0)
         self.assertEqual(len(self.idp_server.responses), 0)
         response = self.test_client.get(
-            '/sso-test?SAMLRequest={}'.format(quote(encoded_message),
-                                              quote(SIG_RSA_SHA256)),
+            '/sso-test?SAMLRequest={}'.format(quote(encoded_message)),
             follow_redirects=True
         )
         self.assertEqual(response.status_code, 200)
