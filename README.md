@@ -21,12 +21,18 @@ Può essere facilmente eseguito in locale o su un proprio server seguendo le ist
 Installare le seguenti librerie:
 
 * [xmlsec1](http://www.aleksey.com/xmlsec/)
-
 * [libffi-dev](http://sourceware.org/libffi/)
+* libpq-dev
 
 Su MacOS X si può usare `brew install libxmlsec1 libffi`.
 
-Su Debian/Ubuntu si può usare `apt-get install libxmlsec1 libffi6`.
+Su Debian/Ubuntu si possono usare
+
+`apt-get install libxmlsec1 libffi6
+
+# oppure (ubuntu 20.04)
+apt install xmlsec1 libffi-dev libpq-dev
+`.
 
 ## Installazione
 
@@ -42,7 +48,8 @@ virtualenv -p `which python` env
 Installare i pacchetti necessari tramite pip
 
 ```
-pip install -r requirements.txt
+pip install setuptools>=45
+pip install -r requirements_test.txt
 ```
 
 ### Ansible
