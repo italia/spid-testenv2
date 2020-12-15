@@ -61,7 +61,7 @@ class ServiceProviderMetadataRegistry:
 
     def all(self):
         """Returns the list of entityIDs of all the known Service Providers"""
-        return [i for l in self._loaders for i in l.all()]
+        return [i for loader in self._loaders for i in loader.all()]
 
 
 registry = None
