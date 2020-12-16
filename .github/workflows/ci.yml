@@ -1,0 +1,52 @@
+on: [push, pull_request]
+
+jobs:
+  lint-flake8:
+    runs-on: ubuntu-latest
+    container: python:3.7-slim
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install tox
+
+      - name: lint with flake8
+        run: TOXENV=flake8 tox
+
+  lint-isort:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install tox
+
+      - name: Lint imports
+        run: TOXENV=isort tox
+
+  test:
+
+    runs-on: ubuntu-latest
+    container: python:3.7-slim
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: |
+          apt update && apt install -y build-essential zlib1g-dev libpq-dev libxml2-dev libxmlsec1-dev
+          python -m pip install --upgrade pip
+          pip install tox
+
+      - name: Run tests
+        run: TOXENV=py37 tox
