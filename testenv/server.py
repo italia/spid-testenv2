@@ -61,8 +61,16 @@ class IdpServer:
         """
         # bind Flask app
         self.app = app
+
         # setup
         self._config = conf or config.params
+
+        app.context_processor(
+            # Inject this dict in every template by default.
+            lambda: dict(database_ui_enabled=self._config.database_admin_interface)
+        )
+        app.jinja_env.add_extension('jinja2.ext.loopcontrols')
+
         self._registry = registry or spmetadata.registry
         self.app.secret_key = 'sosecret'
         self._prepare_server()
