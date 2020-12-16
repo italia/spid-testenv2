@@ -1,7 +1,13 @@
-FROM python:3.5-slim
+FROM python:3.7-slim
 
 # Install prerequisites
-RUN apt-get update && apt-get install -y ca-certificates xmlsec1 libffi6 \
+RUN apt-get update \
+    && apt-get install -y \
+        ca-certificates \
+        xmlsec1 \
+        libffi6 \
+        build-essential \
+        libpq-dev \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
