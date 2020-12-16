@@ -1,4 +1,7 @@
 {% extends 'admin_area_base.html' %}
+
+{% block title %}Utenti{% endblock %}
+
 {% block content %}
     <article class="main-bodytext u-padding-all-xl">
         <h1 class="mt-2 mb-5 text-center">Utenti SPID</h1>
@@ -17,7 +20,7 @@
                 <td>{{info.sp if info.sp != None else 'tutti'}}</td>
                 <td>
                         {% for attr, value in info.attrs.items() %}
-                            {{attr}}: <b>{{value}}</b></br>
+                            {{attr}}: <b>{{value}}</b><br>
                         {% endfor %}
                 </td>
             </tr>
@@ -70,7 +73,7 @@
                                     gender
                                 </label>
                                 <div class="dropdown bootstrap-select">
-                                    <select class="form-control" name="gender">
+                                    <select class="form-control" id="gender" name="gender">
                                         <option>M</option>
                                         <option>F</option>
                                     </select>
