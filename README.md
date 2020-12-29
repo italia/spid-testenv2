@@ -59,20 +59,12 @@ Per ottenere la persistenza della configurazione è necessario creare nell'host 
 mkdir /etc/spid-testenv2
 ```
 
-Creare nella directory il file config.yaml e la coppia chiave/certificato per l'IdP, nonché eventuali metadata SP, come indicato nel paragrafo successivo.
-
 Creare il container con il seguente comando:
 
 ```
-docker create --name spid-testenv2 -p 8088:8088 --restart=always \
+docker run --name spid-testenv2 -p 8088:8088 --restart=always \
    --mount src="/etc/spid-testenv2",target="/app/conf",type=bind \
    italia/spid-testenv2
-```
-
-Avviare il container:
-
-```
-docker start spid-testenv2
 ```
 
 Il log si può visualizzare con il comando:
@@ -80,6 +72,9 @@ Il log si può visualizzare con il comando:
 ```
 docker logs -f spid-testenv2
 ```
+
+I file `/etc/spid-testenv2/config.yaml` e `/etc/spid-testenv2/sp_metadata.xml` possono
+essere modificati a seconda delle esigenze.
 
 ## Configurazione
 
