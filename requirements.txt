@@ -21,22 +21,22 @@ idna==2.7                 # via cryptography, requests
 importlib-resources==1.0.1  # via -r requirements.in
 itsdangerous==1.1.0       # via flask
 jinja2==2.10.3            # via flask
-lxml==4.2.3               # via -r requirements.in, signxml
+lxml==4.6.2               # via -r requirements.in, signxml
 markupsafe==1.1.1         # via jinja2
 psycopg2==2.8.6           # via -r requirements.in
 pycparser==2.19           # via cffi
 pyopenssl==17.5.0         # via signxml
-python-codicefiscale==0.3.5
+python-codicefiscale==0.3.5  # via -r requirements.in
 python-dateutil==2.7.5    # via faker, python-codicefiscale
-python-slugify==3.0.6
-pyyaml==5.1
-requests==2.20.0
-signxml==2.5.2
+python-slugify==3.0.6     # via -r requirements.in, python-codicefiscale
+pyyaml==5.1               # via -r requirements.in
+requests==2.20.0          # via -r requirements.in
+signxml==2.5.2            # via -r requirements.in
 six==1.11.0               # via cryptography, faker, pyopenssl, python-dateutil
-sqlalchemy==1.2.12
+sqlalchemy==1.2.12        # via -r requirements.in, flask-sqlalchemy
 text-unidecode==1.3       # via faker, python-slugify
 urllib3==1.24.3           # via requests
-voluptuous==0.11.5
+voluptuous==0.11.5        # via -r requirements.in
 werkzeug==0.16.1          # via flask
 wheel==0.33.6             # via importlib-resources
 wtforms==2.2.1            # via flask-admin
