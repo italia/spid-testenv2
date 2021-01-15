@@ -68,7 +68,7 @@ class FakeRegistry:
     def __init__(self, metadata):
         self._metadata = metadata.copy()
 
-    def get(self, entity_id):
+    def load(self, entity_id):
         return self._metadata.get(entity_id)
 
     @property
