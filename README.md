@@ -69,7 +69,7 @@ L'immagine `italia/spid-testenv2` a anche disponibile su [Docker Hub](https://hu
 
 1. Installare le dipendenze.
 
-   Su MacOS X si può usare `brew install libxmlsec1 libffi`.
+   Su macOS si può usare `brew install libxmlsec1 libffi`.
 
    Su Debian/Ubuntu si può usare `apt-get install libxmlsec1 libffi6`.
 
