@@ -6,7 +6,7 @@
 <md:EntityDescriptor
     xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
     xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
-    entityID="https://www.myserviceprovider.it/"
+    entityID="https://myserviceprovider.example.com/"
     ID="_681a637-6cd4-434f-92c3-4fed720b2ad8">
 
     <!-- Il certificato del Service Provider va riportato nei due tag KeyDescriptor
@@ -35,7 +35,7 @@
         <!-- Endpoint del Service Provider deputato a ricevere le LogoutRequest -->
         <md:SingleLogoutService
             Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
-            Location="https://www.myserviceprovider.it/spid/logout" />
+            Location="https://myserviceprovider.example.com/spid/logout" />
 
         <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:transient</md:NameIDFormat>
 
@@ -43,7 +43,7 @@
              (può essere ripetuto più volte, incrementando l'attributo index) -->
         <md:AssertionConsumerService
             Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
-            Location="https://www.myserviceprovider.it/spid/acs"
+            Location="https://myserviceprovider.example.com/spid/acs"
             index="0"
             isDefault="true" />
 
@@ -78,7 +78,7 @@
     <md:Organization>
         <md:OrganizationName xml:lang="it">Nome del Service Provider</md:OrganizationName>
         <md:OrganizationDisplayName xml:lang="it">Nome completo del Service Provider</md:OrganizationDisplayName>
-        <md:OrganizationURL xml:lang="it">https://www.myserviceprovider.it/</md:OrganizationURL>
+        <md:OrganizationURL xml:lang="it">https://myserviceprovider.example.com/</md:OrganizationURL>
     </md:Organization>
 
 </md:EntityDescriptor>

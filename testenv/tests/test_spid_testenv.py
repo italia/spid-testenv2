@@ -29,7 +29,7 @@ DATA_DIR = 'testenv/tests/data/'
 
 
 def _sp_single_logout_service(server, issuer_name, binding):
-    _slo = server._registry.get(issuer_name).single_logout_service(
+    _slo = server._registry.load(issuer_name).single_logout_service(
         binding=binding
     )
     return _slo[0]
@@ -702,8 +702,7 @@ class SpidTestenvTest(unittest.TestCase):
         self.assertEqual(len(self.idp_server.ticket), 0)
         self.assertEqual(len(self.idp_server.responses), 0)
         response = self.test_client.get(
-            '/sso-test?SAMLRequest={}'.format(quote(encoded_message),
-                                              quote(SIG_RSA_SHA256)),
+            '/sso-test?SAMLRequest={}'.format(quote(encoded_message)),
             follow_redirects=True
         )
         self.assertEqual(response.status_code, 200)

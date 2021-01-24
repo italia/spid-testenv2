@@ -12,8 +12,7 @@ click==7.0                # via flask
 cryptography==2.3.1       # via pyopenssl, signxml
 defusedxml==0.5.0         # via signxml
 eight==0.4.2              # via signxml
-exrex==0.10.5             # via -r requirements.in
-faker==0.8.16             # via -r requirements.in
+faker==2.0.3              # via -r requirements.in
 flask-admin==1.5.1        # via -r requirements.in
 flask-sqlalchemy==2.3.2   # via -r requirements.in
 flask==1.0.2              # via -r requirements.in, flask-admin, flask-sqlalchemy
@@ -22,20 +21,25 @@ idna==2.7                 # via cryptography, requests
 importlib-resources==1.0.1  # via -r requirements.in
 itsdangerous==1.1.0       # via flask
 jinja2==2.10.3            # via flask
-lxml==4.6.2               # via -r requirements.in, signxml
-markupsafe==1.0           # via jinja2
+lxml==4.2.3               # via -r requirements.in, signxml
+markupsafe==1.1.1         # via jinja2
 psycopg2==2.8.6           # via -r requirements.in
 pycparser==2.19           # via cffi
 pyopenssl==17.5.0         # via signxml
-python-dateutil==2.7.5    # via faker
-pyyaml==5.1               # via -r requirements.in
-requests==2.20.0          # via -r requirements.in
-signxml==2.5.2            # via -r requirements.in
+python-codicefiscale==0.3.5
+python-dateutil==2.7.5    # via faker, python-codicefiscale
+python-slugify==3.0.6
+pyyaml==5.1
+requests==2.20.0
+signxml==2.5.2
 six==1.11.0               # via cryptography, faker, pyopenssl, python-dateutil
-sqlalchemy==1.2.12        # via -r requirements.in, flask-sqlalchemy
-text-unidecode==1.2       # via faker
+sqlalchemy==1.2.12
+text-unidecode==1.3       # via faker, python-slugify
 urllib3==1.24.3           # via requests
-voluptuous==0.11.5        # via -r requirements.in
-werkzeug==0.15.3          # via flask
-wheel==0.32.2             # via importlib-resources
+voluptuous==0.11.5
+werkzeug==0.16.1          # via flask
+wheel==0.33.6             # via importlib-resources
 wtforms==2.2.1            # via flask-admin
+
+# The following packages are considered to be unsafe in a requirements file:
+# setuptools

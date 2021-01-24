@@ -61,8 +61,16 @@ class IdpServer:
         """
         # bind Flask app
         self.app = app
+
         # setup
         self._config = conf or config.params
+
+        app.context_processor(
+            # Inject this dict in every template by default.
+            lambda: dict(database_ui_enabled=self._config.database_admin_interface)
+        )
+        app.jinja_env.add_extension('jinja2.ext.loopcontrols')
+
         self._registry = registry or spmetadata.registry
         self.app.secret_key = 'sosecret'
         self._prepare_server()
@@ -276,7 +284,7 @@ class IdpServer:
 
     def _get_certificates_by_issuer(self, issuer):
         try:
-            return self._registry.get(issuer).certs()
+            return self._registry.load(issuer).certs()
         except KeyError:
             self._raise_error(
                 'entity ID {} non registrato, impossibile ricavare'
@@ -284,7 +292,7 @@ class IdpServer:
             )
         except NoCertificateError:
             self._raise_error(
-                'Errore, il metadata associato al Service provider non'
+                'Errore, il metadata associato al Service provider "{}"'
                 ' non è provvisto di certificati validi'.format(issuer)
             )
 
@@ -349,7 +357,7 @@ class IdpServer:
                 'primary_attributes': spid_main_fields,
                 'secondary_attributes': spid_secondary_fields,
                 'users': self.user_manager.all(),
-                'sp_list': self._registry.all(),
+                'sp_list': self._registry.load_all().keys(),
                 'can_add_user': can_add_user
             }
         )
@@ -385,8 +393,9 @@ class IdpServer:
             **{
                 'sp_list': [
                     {
-                        "entityID": sp
-                    } for sp in self._registry.all()
+                        "entityID": entity_id,
+                        "location": sp_metadata.location,
+                    } for (entity_id, sp_metadata) in self._registry.load_all().items()
                 ],
             }
         )
@@ -397,7 +406,7 @@ class IdpServer:
         acs_index = getattr(req, 'assertion_consumer_service_index', None)
         protocol_binding = getattr(req, 'protocol_binding', None)
         if acs_index is not None:
-            acss = self._registry.get(
+            acss = self._registry.load(
                 sp_id).assertion_consumer_service(index=acs_index)
             if acss:
                 destination = acss[0].get('Location')
@@ -582,7 +591,7 @@ class IdpServer:
                                 atcs_idx
                             )
                         )
-                        sp_metadata = self._registry.get(sp_id)
+                        sp_metadata = self._registry.load(sp_id)
                         required = []
                         optional = []
                         if atcs_idx and sp_metadata:
@@ -783,7 +792,7 @@ class IdpServer:
     def _sp_single_logout_service(self, issuer_name):
         _slo = None
         try:
-            _slo = self._registry.get(issuer_name).single_logout_services[0]
+            _slo = self._registry.load(issuer_name).single_logout_services[0]
         except Exception:
             pass
         return _slo
