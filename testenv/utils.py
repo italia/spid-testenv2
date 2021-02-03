@@ -2,16 +2,14 @@ import calendar
 import io
 import re
 import time
-
-
 from collections import namedtuple
 from copy import copy
 from datetime import datetime
-from testenv import config, log
 
 import lxml.etree as etree
 from lxml import objectify
 
+from testenv import log
 from testenv.settings import MULTIPLE_OCCURRENCES_TAGS, SPID_ERRORS
 
 TIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
@@ -91,7 +89,7 @@ def prettify_xml(msg):
 def saml_to_dict(xmlstr):
     _err_msg = 'SP Metadata Parse Error'
     _xmlstr_preview_trunc = 254
-    
+
     # sometimes a bytes objects, sometimes a '_io.TextIOWrapper' object ...
     if isinstance(xmlstr, io.TextIOWrapper):
         xmlstr_copy = xmlstr.read()
