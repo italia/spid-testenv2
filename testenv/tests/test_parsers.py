@@ -13,6 +13,7 @@ from testenv.exceptions import (
 from testenv.parser import HTTPPostRequestParser, HTTPRedirectRequestParser, HTTPRequestDeserializer, SAMLTree
 from testenv.tests.utils import FakeRequest
 from testenv.validators import ValidatorGroup
+from testenv.utils import saml_to_dict
 
 
 class FakeSAMLClass:
@@ -214,3 +215,12 @@ class SAMLTreeTestCase(unittest.TestCase):
                          0].another_attribute, 'foo')
         self.assertEqual(saml_tree.special_child3.item[
                          1].even_another_attribute, 'bar')
+
+
+class SAMLStupidMetadataTestCase(unittest.TestCase):
+    def test_broken_metadata_xml_valuerror(self):
+        with open("testenv/tests/data/sp-invalid-xml-starttag.xml") as xmlstr:
+            self.assertEqual({}, saml_to_dict(xmlstr))
+    
+    def test_stupid_metadata_xml_valuerror(self):
+        saml_to_dict('test.stupido')
