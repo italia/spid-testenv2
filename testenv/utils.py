@@ -3,7 +3,6 @@ import io
 import re
 import time
 from collections import namedtuple
-from copy import copy
 from datetime import datetime
 
 import lxml.etree as etree
@@ -88,25 +87,22 @@ def prettify_xml(msg):
 
 def saml_to_dict(xmlstr):
     _err_msg = 'SP Metadata Parse Error'
-    _xmlstr_preview_trunc = 254
+    _trunc = 254
 
     # sometimes a bytes objects, sometimes a '_io.TextIOWrapper' object ...
     if isinstance(xmlstr, io.TextIOWrapper):
-        xmlstr_copy = xmlstr.read()
-        xmlstr.seek(0)
-    else:
-        xmlstr_copy = copy(xmlstr)
+        xmlstr = xmlstr.read()
 
     try:
         root = objectify.fromstring(xmlstr)
     except ValueError:
         logger.error(f'{_err_msg} [ValuerError] on: '
-                     f'{xmlstr_copy[0:_xmlstr_preview_trunc]}')
+                     f'{xmlstr[0:_trunc]}')
         return {}
     # that's for resiliency ...
     except Exception:
         logger.error(f'{_err_msg} [Unknown Error] on: '
-                     f'{xmlstr_copy[0:_xmlstr_preview_trunc]}')
+                     f'{xmlstr[0:_trunc]}')
         return {}
 
     def _obj(elem):
