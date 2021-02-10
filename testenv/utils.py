@@ -89,14 +89,17 @@ def saml_to_dict(xmlstr):
     _err_msg = 'SP Metadata Parse Error'
     _trunc = 254
 
+    if not xmlstr:
+        logger.error(f'{_err_msg} [Null Value Error] on xmlstr')
+        return {}
     # sometimes a bytes objects, sometimes a '_io.TextIOWrapper' object ...
-    if isinstance(xmlstr, io.TextIOWrapper):
+    elif isinstance(xmlstr, io.TextIOWrapper):
         xmlstr = xmlstr.read()
 
     try:
         root = objectify.fromstring(xmlstr)
     except ValueError:
-        logger.error(f'{_err_msg} [ValuerError] on: '
+        logger.error(f'{_err_msg} [ValueError] on: '
                      f'{xmlstr[0:_trunc]}')
         return {}
     # that's for resiliency ...
