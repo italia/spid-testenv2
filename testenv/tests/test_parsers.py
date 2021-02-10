@@ -224,3 +224,6 @@ class SAMLStupidMetadataTestCase(unittest.TestCase):
 
     def test_stupid_metadata_xml_valuerror(self):
         saml_to_dict('test.stupido')
+
+    def test_nullmetadata_xml_valuerror(self):
+        self.assertEqual({}, saml_to_dict(None))
