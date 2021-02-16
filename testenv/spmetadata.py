@@ -283,7 +283,7 @@ class ServiceProviderMetadataDbLoader:
 
     def load(self, entity_id):
         metadata = self._provider.get(entity_id)
-        if metadata is None:
+        if not metadata:
             raise MetadataNotFoundError(entity_id)
         return ServiceProviderMetadata(metadata, self, 'db')
 

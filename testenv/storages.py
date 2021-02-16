@@ -11,7 +11,9 @@ from flask_admin.contrib.sqla import ModelView
 from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, validates
+
+from .utils import saml_to_dict
 
 Base = declarative_base()
 
@@ -228,8 +230,16 @@ class SpMetadataModelView(ModelView):
 class DatabaseSPProvider(AbstractDatabaseProvider):
     class DatabaseSPRecord(Base):
         __tablename__ = 'spmetadata'
-        entity_id = Column(String, primary_key=True)
-        body = Column(String)
+        entity_id = Column(String, primary_key=True, nullable=False)
+        body = Column(String, nullable=False)
+
+        @validates('body')
+        def validate_body(self, key, body):
+            try:
+                saml_to_dict(body)
+            except Exception as e:
+                raise AssertionError(f'Metadata invalid: {e}')
+            return body
 
     TABLE = DatabaseSPRecord
 
