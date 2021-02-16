@@ -65,6 +65,20 @@ istruzioni di seguito riportate.
 
 L'immagine `italia/spid-testenv2` a anche disponibile su [Docker Hub](https://hub.docker.com/).
 
+Per testare spit-testenv2 con una Docker Image Postgres
+````
+docker image pull  postgres:13.2-alpine
+docker run --name some-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:13.2-alpine
+````
+
+Configurare poi in `conf/conf.yml` la connessione
+````
+  db: 'postgresql+psycopg2://postgres:postgres@localhost:5432/postgres'
+
+# ...
+database_admin_interface: true
+````
+
 ### Manuale
 
 1. Installare le dipendenze.
