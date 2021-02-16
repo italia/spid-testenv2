@@ -11,6 +11,8 @@ from lxml import objectify
 from testenv import log
 from testenv.settings import MULTIPLE_OCCURRENCES_TAGS, SPID_ERRORS
 
+from .exceptions import ValidationError
+
 TIME_FORMAT = '%Y-%m-%dT%H:%M:%SZ'
 TIME_FORMAT_WITH_FRAGMENT = re.compile(
     r'^(\d{4,4}-\d{2,2}-\d{2,2}T\d{2,2}:\d{2,2}:\d{2,2})(\.\d*)?Z?$')
@@ -91,22 +93,23 @@ def saml_to_dict(xmlstr):
 
     if not xmlstr:
         logger.error(f'{_err_msg} [Null Value Error] on xmlstr')
-        return {}
+        raise ValidationError(_err_msg)
     # sometimes a bytes objects, sometimes a '_io.TextIOWrapper' object ...
     elif isinstance(xmlstr, io.TextIOWrapper):
         xmlstr = xmlstr.read()
 
     try:
         root = objectify.fromstring(xmlstr)
-    except ValueError:
+    except ValueError as e:
         logger.error(f'{_err_msg} [ValueError] on: '
                      f'{xmlstr[0:_trunc]}')
-        return {}
+        raise ValidationError(e)
+
     # that's for resiliency ...
-    except Exception:
+    except Exception as e:
         logger.error(f'{_err_msg} [Unknown Error] on: '
                      f'{xmlstr[0:_trunc]}')
-        return {}
+        raise ValidationError(e)
 
     def _obj(elem):
         children = {}

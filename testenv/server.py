@@ -921,7 +921,7 @@ class IdpServer:
         _cnf = {
             'host': self._config.host,
             'port': self._config.port,
-            'debug': self._config.debug,
+            'debug': self._config.debug
         }
         if self._config.https:
             key = self._config.https_key_file_path

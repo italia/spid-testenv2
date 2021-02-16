@@ -8,7 +8,8 @@ import pytest
 from lxml import objectify
 
 from testenv.exceptions import (
-    DeserializationError, RequestParserError, SPIDValidationError, XMLFormatValidationError, XMLSchemaValidationError,
+    DeserializationError, RequestParserError, SPIDValidationError, ValidationError, XMLFormatValidationError,
+    XMLSchemaValidationError,
 )
 from testenv.parser import HTTPPostRequestParser, HTTPRedirectRequestParser, HTTPRequestDeserializer, SAMLTree
 from testenv.tests.utils import FakeRequest
@@ -220,10 +221,10 @@ class SAMLTreeTestCase(unittest.TestCase):
 class SAMLStupidMetadataTestCase(unittest.TestCase):
     def test_broken_metadata_xml_valuerror(self):
         with open("testenv/tests/data/sp-invalid-xml-starttag.xml") as xmlstr:
-            self.assertEqual({}, saml_to_dict(xmlstr))
+            self.assertRaises(ValidationError, saml_to_dict, xmlstr)
 
     def test_stupid_metadata_xml_valuerror(self):
-        saml_to_dict('test.stupido')
+        self.assertRaises(ValidationError, saml_to_dict, 'test.stupido')
 
     def test_nullmetadata_xml_valuerror(self):
-        self.assertEqual({}, saml_to_dict(None))
+        self.assertRaises(ValidationError, saml_to_dict, None)
