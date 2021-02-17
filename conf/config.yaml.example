@@ -1,63 +1,63 @@
 ---
-# CONFIGURAZIONE IDENTITY PROVIDER
+# Identity Provider (IdP)
+#########################
 
-# URL da usare per generare l'entityID dell'IdP e gli URL degli endpoint
-# SAML indicati nel metadata dell'IdP
+# The base URL where spid-testenv2 is reachable at.
 base_url: "http://localhost:8088"
 
-# Chiave e certificato necessari per la firma dei messaggi SAML
+# Key and certificate used to sign SAML messages.
 key_file: "./conf/idp.key"
 cert_file: "./conf/idp.crt"
 
+# Service Providers
+###################
 
-# CONFIGURAZIONE SERVICE PROVIDER
-
-# Si possono configurare più Service Provider. Per leggere i metadati da un
-# file .xml è sufficiente inserirne il path sotto "local"; per leggerli da
-# un URL remoto bisogna invece inserirlo sotto "remote".
+# You can configure multiple Service Provider by specifying their XML metadata,
+# using different sources.
 metadata:
-   # Sono supportati anche metacaratteri,
-   # es: "*.xml", "sp_metadat?.xml" o "sp[-_]metadat[a-z].xml"
-  local:
-    - "./conf/sp_metadata.xml"
-#  remote:
-#    - "http://spid-sp/metadata"
-#  db: 'postgresql+psycopg2://postgres:@localhost:5432/exampledb'
+  # From local files, globbing is supported
+  # eg: "*.xml", "sp_metadat?.xml" o "sp[-_]metadat[a-z].xml"
+  # local:
+  #   - "./conf/sp_metadata.xml"
+  # db: 'postgresql+psycopg2://postgres:@localhost:5432/exampledb'
+  # From a remote URL.
+  # remote:
+  #   - "http://spid-sp/metadata"
 
 
+# Application configuration
+###########################
 
-# CONFIGURAZIONE TESTENV WEB SERVER
-
-# Abilita (true) o disabilita (false) la modalità debug
+# Whether to enable debug mode. When enabled, the log will be more verbose.
 debug: true
 
-# Indirizzo IP dell'interfaccia su cui esporre il server e porta
-# (0.0.0.0 per ascoltare su tutte le interfacce)
-host: 0.0.0.0
+# Bind the webserver to the specified IP address (use 0.0.0.0 for all interfaces).
+host: "0.0.0.0"
+# Port the webserver listens on.
 port: 8088
 
-# Abilita (true) o disabilita (false) la modalità HTTPS per l'IdP
+# Whether to enable HTTPS.
 https: false
 
-# Se si abilita HTTPS è necessario specificare chiave e certificato
-# (indipendenti da chiave e certificato SAML)
-#https_key_file: "path/to/key"
-#https_cert_file: "path/to/cert"
+# The TLS key and certificate used for HTTPS, required if HTTPS is enabled.
+# https_key_file: "path/to/key"
+# https_cert_file: "path/to/cert"
 
-# File contenente le identità degli utenti di test
+# File holding the identities of test users.
+# It will be automatically created if it doesn't exist.
 users_file: "conf/users.json"
 
-# Eventuale database da usare per le identità degli utenti di test
-# (la tabella viene creata automaticamente al primo avvio)
-#users_db: 'postgresql+psycopg2://postgres:@localhost:5432/exampledb'
+# PostgreSQL database holding the identities of test users.
+# If specified, it will override the "user_file" parameter.
+# The required tables will be automatically created if they don't exist.
+# users_db: 'postgresql+psycopg2://postgres:@localhost:5432/exampledb'
 
-# Abilita (true) o disabilita (false) la possibilità di aggiungere nuovi utenti
+# If enabled, allows to add new users from the UI.
 can_add_user: true
 
-# Abilita (true) o disbilita (false) l'interfaccia /admin che consente di gestire
-# gli oggetti nel database
-database_admin_interface: false
+# Whether to enable the UI to handle the data in the database.
+database_admin_interface: true
 
-# Abilita (true) o disabilita (false) le opzioni avanzate per modificare le asserzioni
-# generate dal testenv
+# If enabled, allows the user to manipulate the response from the Identity Provider.
+# Useful to simulate errors in the response.
 show_response_options: true
