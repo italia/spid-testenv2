@@ -499,7 +499,7 @@ class SpidRequestValidator:
                 'Issuer non presente nella {}'.format(req_type)
             )
         try:
-            sp_metadata = self._registry.load(issuer_name)
+            sp_metadata = self._registry.get(issuer_name)
         except MetadataNotFoundError:
             raise UnknownEntityIDError(
                 'L\'entity ID "{}" indicato nell\'elemento <Issuer> non corrisponde a nessun Service Provider registrato in questo Identity Provider di test.'.format(issuer_name)

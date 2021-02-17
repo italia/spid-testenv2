@@ -29,7 +29,7 @@ DATA_DIR = 'testenv/tests/data/'
 
 
 def _sp_single_logout_service(server, issuer_name, binding):
-    _slo = server._registry.load(issuer_name).single_logout_service(
+    _slo = server._registry.get(issuer_name).single_logout_service(
         binding=binding
     )
     return _slo[0]
