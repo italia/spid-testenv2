@@ -1,7 +1,7 @@
 faker==2.0.3
 flask==1.0.2
 importlib-resources==1.0.1
-lxml==4.2.3
+lxml==4.6.2
 pyyaml==5.1
 python-codicefiscale==0.3.5
 
@@ -12,7 +12,7 @@ python-slugify<4.0.0
 signxml==2.5.2
 voluptuous==0.11.5
 requests==2.20.0
-SQLAlchemy==1.2.12
+SQLAlchemy==1.3.0
 Flask-SQLAlchemy==2.3.2
 Flask-Admin==1.5.1
 psycopg2==2.8.6

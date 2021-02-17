@@ -219,15 +219,11 @@ class AuthnRequestXMLSchemaValidatorTestCase(unittest.TestCase):
         with pytest.raises(XMLSchemaValidationError) as excinfo:
             validator.validate(request)
         exc = excinfo.value
-        self.assertEqual(len(exc.details), 2)
+        self.assertEqual(exc.details[0].type_name, 'SCHEMAV_CVC_ENUMERATION_VALID')
         self.assertIn(
             "The value 'invalid' is not an element of the set "
             "{'exact', 'minimum', 'maximum', 'better'}",
             exc.details[0].message
-        )
-        self.assertIn(
-            "'invalid' is not a valid value of the atomic type",
-            exc.details[1].message
         )
 
 
