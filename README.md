@@ -166,7 +166,7 @@ di gestione esterno.
     database_admin_interface: true
     ````
 
-spid-testenv2 utilizza sqlalchemy. Potete usare qualsivoglia DBMS engine disponibile per sqlalchemy
+spid-testenv2 utilizza SQLAlchemy. Si può usare qualsivoglia DBMS engine disponibile per SQLAlchemy
 e non per forza esclusivamente postgres.
 
 
