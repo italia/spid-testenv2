@@ -152,7 +152,7 @@ se l'utente configurato ha privilegi per farlo. Abilitando l'opzione
 gestione all'indirizzo /admin; è possibile ovviamente usare un qualsiasi tool
 di gestione esterno.
 
-1. Per testare spit-testenv2 con una Docker Image Postgres
+1. Per testare spid-testenv2 con un'immagine Docker di PostgreSQL
     ````
     docker image pull  postgres:13.2-alpine
     docker run --name some-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:13.2-alpine
