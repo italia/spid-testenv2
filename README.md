@@ -136,7 +136,7 @@ tra loro:
 
 * `local`: i metadati vengono letti da file locali (all'avvio di testenv2);
 * `remote`: i metadati vengono letti da URL HTTP remote (all'avvio di testenv2);
-* `db`: i metadati vengono letti da un database PostgreSQL (alla ricezione di
+* `db`: i metadati vengono letti da un database (alla ricezione di
   ciascuna richiesta).
 
 
