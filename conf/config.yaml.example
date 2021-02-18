@@ -17,8 +17,8 @@ cert_file: "./conf/idp.crt"
 metadata:
   # From local files, globbing is supported
   # eg: "*.xml", "sp_metadat?.xml" o "sp[-_]metadat[a-z].xml"
-  # local:
-  #   - "./conf/sp_metadata.xml"
+  local:
+    - "./conf/sp_metadata.xml"
   # db: 'postgresql+psycopg2://postgres:@localhost:5432/exampledb'
   # From a remote URL.
   # remote:

@@ -65,19 +65,6 @@ istruzioni di seguito riportate.
 
 L'immagine `italia/spid-testenv2` a anche disponibile su [Docker Hub](https://hub.docker.com/).
 
-Per testare spit-testenv2 con una Docker Image Postgres
-````
-docker image pull  postgres:13.2-alpine
-docker run --name some-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:13.2-alpine
-````
-
-Configurare poi in `conf/conf.yml` la connessione
-````
-  db: 'postgresql+psycopg2://postgres:postgres@localhost:5432/postgres'
-
-# ...
-database_admin_interface: true
-````
 
 ### Manuale
 
@@ -149,17 +136,39 @@ tra loro:
 
 * `local`: i metadati vengono letti da file locali (all'avvio di testenv2);
 * `remote`: i metadati vengono letti da URL HTTP remote (all'avvio di testenv2);
-* `db`: i metadati vengono letti da un database PostgreSQL (alla ricezione di
+* `db`: i metadati vengono letti da un database (alla ricezione di
   ciascuna richiesta).
 
-Nel caso in cui si usi la modalità `db` è sufficiente creare il database e poi
-spid-testenv2 creerà automaticamente la tabella. Abilitando l'opzione
+
+I Service Provider registrati correttamente saranno visualizzati
+nella pagina principale in <https://localhost:8088/>.
+
+
+#### Caricamento da database
+
+Nel caso in cui si usi la modalità `db` sia il database che la tabella verranno creati automaticamente al primo avvio
+se l'utente configurato ha privilegi per farlo. Abilitando l'opzione
 `database_admin_interface` spid-testenv2 esporrà una semplice interfaccia di
 gestione all'indirizzo /admin; è possibile ovviamente usare un qualsiasi tool
 di gestione esterno.
 
-I Service Provider registrati correttamente saranno visualizzati
-nella pagina principale in <https://localhost:8088/>.
+1. Per testare spid-testenv2 con un'immagine Docker di PostgreSQL
+    ````
+    docker image pull  postgres:13.2-alpine
+    docker run --name some-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres:13.2-alpine
+    ````
+
+1. Configurare poi in `conf/conf.yml` la connessione
+    ````
+      db: 'postgresql+psycopg2://postgres:postgres@localhost:5432/postgres'
+
+    # ...
+    database_admin_interface: true
+    ````
+
+spid-testenv2 utilizza SQLAlchemy. Si può usare qualsivoglia DBMS engine disponibile per SQLAlchemy
+e non per forza esclusivamente postgres.
+
 
 ## Metadata
 
