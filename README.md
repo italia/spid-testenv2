@@ -144,7 +144,7 @@ I Service Provider registrati correttamente saranno visualizzati
 nella pagina principale in <https://localhost:8088/>.
 
 
-#### RDBMS come MetadataStore
+#### Caricamento da database
 
 Nel caso in cui si usi la modalità `db` sia il database che la tabella verranno creati automaticamente al primo avvio
 se l'utente configurato ha privilegi per farlo. Abilitando l'opzione
