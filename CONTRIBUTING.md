@@ -39,7 +39,7 @@ If you're new to the project and want to help, a great first step would be:
 
 * Fixing an issue in the docs (outdated setup instructions, missing information,
   unclear feature, etc.);
-* Working on an existing issue (some should be marked ``BeginnerFriendly``);
+* Working on an existing issue (some should be marked ``good first issue``);
 * Reviewing an existing pull request;
 * Or any other way you'd like to help.
 
