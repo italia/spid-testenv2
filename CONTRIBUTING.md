@@ -12,10 +12,6 @@ report inappropriate behavior opening issues on the project web page.
 
 Code of Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
-*(If I'm the person with the inappropriate behavior, please accept my
-apologies. I know I can mess up. I can't expect you to tell me, but if you
-chose to do so, I'll do my best to handle criticism constructively.)*
-
 *(As the community around this project grows, we hope to have more core
 developers available to handle that kind of issues)*
 
@@ -63,7 +59,7 @@ Questions
 ---------
 
 GitHub issues aren't a good medium for handling questions. There are better
-places to ask questions, for example Stack Overflow; please use the
+places to ask questions, for example Stack Overflow or [Forum Italia](https://forum.italia.it/); please use the
 ``spid-testenv2`` tag to make those questions easy to find by the maintainers.
 
 If you want to ask a question anyway, please make sure that:
