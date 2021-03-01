@@ -68,7 +68,7 @@ places to ask questions, for example Stack Overflow; please use the
 
 If you want to ask a question anyway, please make sure that:
 
-- it's a question about ``this project`` and not about ``SPID`` or whatever;
+- it's a question about ``this project`` and not about ``SPID`` or other projects;
 - it isn't answered by the documentation;
 - it wasn't asked already.
 
