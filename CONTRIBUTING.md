@@ -10,7 +10,7 @@ This project and everyone participating in it is governed by the `Code of
 Conduct`. By participating, you are expected to uphold this code. Please
 report inappropriate behavior opening issues on the project web page.
 
-.. _Code of Conduct: CODE_OF_CONDUCT.md
+Code of Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
 *(If I'm the person with the inappropriate behavior, please accept my
 apologies. I know I can mess up. I can't expect you to tell me, but if you
@@ -31,9 +31,6 @@ Please don't send `pull request` to main/master branch.
 Feedback about the documentation is especially valuable — the authors of
 ``spid-testenv2`` feel more confident about writing code than writing docs :-)
 
-.. _issue: /issues/new
-.. _pull /compare/
-
 
 Where to start?
 ---------------
@@ -50,7 +47,7 @@ If you're new to the project and want to help, a great first step would be:
 Code contributions
 ------------------
 
-In order to merge some code, you'll need to open a `pull request`_.
+In order to merge some code, you'll need to open a `pull request`.
 
 There are a few rules to keep in mind regarding pull requests:
 
