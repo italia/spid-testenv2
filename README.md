@@ -189,6 +189,10 @@ Questo software è stato sviluppato dal [Team per la Trasformazione
 Digitale](https://teamdigitale.governo.it/), ed è mantenuto con l'ausilio
 della community di [Developers Italia](https://developers.italia.it/).
 
+## Contribuire
+
+[Linee Guida](CONTRIBUTING.md)
+
 ## Link utili
 
 * [Regole tecniche consolidate](https://docs.italia.it/italia/spid/spid-regole-tecniche/)
