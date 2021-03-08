@@ -11,7 +11,7 @@ from cryptography.x509 import load_pem_x509_certificate
 from lxml import objectify
 from lxml.etree import fromstring, tostring
 from signxml import XMLSigner, XMLVerifier
-from signxml.exceptions import InvalidDigest, InvalidSignature as InvalidSignature_
+from signxml.exceptions import InvalidDigest, InvalidInput, InvalidSignature as InvalidSignature_
 
 from testenv import log
 from testenv.exceptions import SignatureVerificationError
@@ -289,8 +289,19 @@ class HTTPPostSignatureVerifier:
 
     def _verify_signature(self):
         try:
-            self._verifier.verify(
-                self._request.saml_request, x509_cert=self._cert)
+            try:
+                self._verifier.verify(
+                    self._request.saml_request, x509_cert=self._cert)
+            except InvalidInput as e:
+                # Work around issue https://github.com/XML-Security/signxml/issues/143
+                if "Use verify(ignore_ambiguous_key_info=True)" in str(e):
+                    logger.info("Found both X509Data and KeyValue in XML signature, validating signature using X509Data only")
+                    self._verifier.verify(
+                        self._request.saml_request, x509_cert=self._cert,
+                        ignore_ambiguous_key_info=True
+                    )
+                else:
+                    raise e
         except InvalidDigest:
             self._fail('Il valore del digest non è valido.')
         except InvalidSignature_:
