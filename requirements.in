@@ -1,7 +1,7 @@
 faker==2.0.3
 flask==1.0.2
 importlib-resources==1.0.1
-lxml==4.6.2
+lxml==4.6.3
 pyyaml==5.1
 python-codicefiscale==0.3.5
 
