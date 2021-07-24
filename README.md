@@ -11,8 +11,8 @@
 [![SPID on forum.italia.it](https://img.shields.io/badge/Forum-SPID-blue.svg)](https://forum.italia.it/c/spid)
 ![.github/workflows/ci.yml](https://github.com/italia/spid-testenv2/workflows/.github/workflows/ci.yml/badge.svg)
 
-> ⚠️ **This software is in End of Life, please don't use spid-testenv2 anymore!
-> For testing a SPID SP consider to use [spid-saml-check](https://github.com/italia/spid-saml-check) for a user friendly IdP or [spid-sp-test](https://github.com/italia/spid-sp-test) for Continuous Integration tests.
+> ⚠️ **This software is in End of Life, please don't use spid-testenv2 anymore!**
+> **For testing a SPID SP consider to use [spid-saml-check](https://github.com/italia/spid-saml-check) for a user friendly IdP or [spid-sp-test](https://github.com/italia/spid-sp-test) for Continuous Integration tests.**
 
 # spid-testenv2
 
