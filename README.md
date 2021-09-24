@@ -40,7 +40,7 @@ istruzioni di seguito riportate.
 
 ## Installazione
 
-### Docker (consigliata)
+### Operazioni preliminari
 
 1. Clonare il repository in locale
 
@@ -54,6 +54,20 @@ istruzioni di seguito riportate.
    cd spid-testenv2
    ```
 
+1. Generare una chiave privata ed un certificato
+
+   ```shell
+   openssl req -x509 \
+               -nodes \
+               -sha256 \
+               -subj '/C=IT' \
+               -newkey rsa:2048 \
+               -keyout conf/idp.key \
+               -out conf/idp.crt
+   ```
+   
+### Docker (consigliata)
+
 1. Fare build dell'immagine
 
    ```shell
@@ -65,6 +79,8 @@ istruzioni di seguito riportate.
    ```shell
    docker run -p 8088:8088 -v $(pwd)/conf:/app/conf italia/spid-testenv2
    ```
+   
+1. Per lanciare il container è anche possibile utilizzare lo script [startContainer.sh](startContainer.sh)
 
 L'immagine `italia/spid-testenv2` a anche disponibile su [Docker Hub](https://hub.docker.com/).
 
@@ -88,18 +104,6 @@ L'immagine `italia/spid-testenv2` a anche disponibile su [Docker Hub](https://hu
 
    ```shell
    pip install -r requirements.txt
-   ```
-
-1. Generare una chiave privata ed un certificato
-
-   ```shell
-   openssl req -x509 \
-               -nodes \
-               -sha256 \
-               -subj '/C=IT' \
-               -newkey rsa:2048 \
-               -keyout conf/idp.key \
-               -out conf/idp.crt
    ```
 
 1. Creare e modificare il file config.yaml secondo le esigenze.
