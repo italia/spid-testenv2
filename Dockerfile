@@ -5,7 +5,7 @@ RUN apt-get update \
     && apt-get install -y \
         ca-certificates \
         xmlsec1 \
-        libffi \
+        libffi6 \
         build-essential \
         libpq-dev \
  && apt-get clean \
