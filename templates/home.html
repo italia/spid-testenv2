@@ -1,5 +1,12 @@
 {% extends 'admin_area_base.html' %}
 {% block content %}
+    <br>
+    <div class="alert alert-warning" role="alert">
+      This software is in End of Life, please don't use spid-testenv2 anymore! <br>
+      For testing a SPID SP consider to use <a href="https://github.com/italia/spid-saml-check">spid-saml-check</a>
+      for a user friendly IdP or <a href="https://github.com/italia/spid-sp-test">spid-sp-test</a> for Continuous Integration tests.
+    </div>
+
     <h3 class="border-bottom mt-2 mb-2 border-italia">Service Provider configurati</h3>
     <table class="table">
       <thead>
