@@ -290,7 +290,7 @@ class HTTPPostSignatureVerifier:
     def _verify_signature(self):
         try:
             self._verifier.verify(
-                self._request.saml_request, x509_cert=self._cert)
+                self._request.saml_request, x509_cert=self._cert, ignore_ambiguous_key_info=True)
         except InvalidDigest:
             self._fail('Il valore del digest non è valido.')
         except InvalidSignature_:

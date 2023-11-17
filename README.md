@@ -75,7 +75,7 @@ L'immagine `italia/spid-testenv2` a anche disponibile su [Docker Hub](https://hu
 
    Su macOS si può usare `brew install libxmlsec1 libffi`.
 
-   Su Debian/Ubuntu si può usare `apt-get install libxmlsec1 libffi6`.
+   Su Debian/Ubuntu si può usare `apt-get install libxmlsec1 libffi7`.
 
 1. Creare ed attivare un virtualenv
 
